@@ -13,7 +13,6 @@ import type {
   Resource,
   ResourceImage,
   AvailabilityProfile,
-  AvailabilityCalendar,
   CapacitySlot,
   AvailabilityDiagnostics,
   ResourceInventorySummary,
@@ -23,10 +22,15 @@ import type {
   PricingPolicy,
   PricingQuotePreview,
   PricingDiagnostics,
+  RentalTier,
   ProviderPolicy,
+  PayoutContract,
   PolicyDiagnostics,
   PolicyDeposit,
   Offer,
+  OfferAvailability,
+  OfferAvailabilityWindow,
+  OfferAvailabilityBlockedPeriod,
   OfferVariantExposure,
   OfferReadiness,
   OfferRoutability,
@@ -873,6 +877,10 @@ export const profileApi = {
     }),
 };
 
+export const payoutContractsApi = {
+  list: () => providerRequest<PayoutContract[]>('/payout-contracts'),
+};
+
 export const storefrontApi = {
   get: () => providerRequest<StorefrontSettings>('/storefront'),
 
@@ -1080,23 +1088,6 @@ export const availabilityApi = {
       body: JSON.stringify(data),
     }),
 
-  getCalendar: (resourceId: string) =>
-    providerRequest<AvailabilityCalendar>(`/resources/${resourceId}/availability-calendar`),
-
-  putCalendar: (
-    resourceId: string,
-    data: {
-      timezone: string;
-      recurringRules: AvailabilityCalendar['recurringRules'];
-      blockedPeriods: AvailabilityCalendar['blockedPeriods'];
-      exceptions: unknown[];
-    }
-  ) =>
-    providerRequest<AvailabilityCalendar>(`/resources/${resourceId}/availability-calendar`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
   listSlots: (
     resourceId: string,
     params: { dateFrom?: string; dateTo?: string; status?: string } = {}
@@ -1240,6 +1231,8 @@ export const pricingApi = {
       currency: string;
       baseAmount?: number | null;
       adjustmentRules: PricingPolicy['adjustmentRules'];
+      rentalTiers?: PricingPolicy['rentalTiers'];
+      multiDayRate?: number | null;
       status: string;
     }
   ) =>
@@ -1275,6 +1268,8 @@ export const pricingApi = {
       currency: string;
       baseAmount?: number | null;
       adjustmentRules: PricingPolicy['adjustmentRules'];
+      rentalTiers?: PricingPolicy['rentalTiers'];
+      multiDayRate?: number | null;
       status: string;
     }
   ) =>
@@ -1448,6 +1443,30 @@ export const offersApi = {
 
   putVisibility: (offerId: string, data: OfferVisibility) =>
     providerRequest<OfferVisibility>(`/offers/${offerId}/visibility`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ─── Offer Availability ───────────────────────────────────────────────────────
+
+export const offerAvailabilityApi = {
+  get: (offerId: string) =>
+    providerRequest<OfferAvailability>(`/offers/${offerId}/availability`),
+
+  put: (
+    offerId: string,
+    data: {
+      timezone: string;
+      availabilityWindows: OfferAvailabilityWindow[];
+      blockedPeriods: OfferAvailabilityBlockedPeriod[];
+      minRentHours: number;
+      maxRentHours: number;
+      advanceNoticeHours: number;
+      status: string;
+    }
+  ) =>
+    providerRequest<OfferAvailability>(`/offers/${offerId}/availability`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

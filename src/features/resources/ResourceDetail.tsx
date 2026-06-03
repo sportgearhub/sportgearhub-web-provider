@@ -9,6 +9,7 @@ import { ResourceActionsMenu } from './ResourceActionsMenu';
 import { ResourceOffersTab } from './ResourceOffersTab';
 import { ResourceAvailabilityTab } from './ResourceAvailabilityTab';
 import { ResourceModelsTab } from './ResourceModelsTab';
+import { ResourcePricingTab } from './ResourcePricingTab';
 import type { Booking, Offer, Resource, ResourceStatus, ResourceVariant } from '../../types';
 
 const statusBadge: Record<ResourceStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'blue' }> = {
@@ -28,7 +29,7 @@ interface ResourceDetailProps {
   onNavigate?: (path: string) => void;
 }
 
-type DetailTab = 'overview' | 'models' | 'park' | 'offers' | 'availability' | 'photos';
+type DetailTab = 'overview' | 'models' | 'park' | 'offers' | 'availability' | 'pricing' | 'photos';
 
 const detailTabs: Array<{ value: DetailTab; label: string }> = [
   { value: 'overview', label: 'Обзор' },
@@ -36,6 +37,7 @@ const detailTabs: Array<{ value: DetailTab; label: string }> = [
   { value: 'park', label: 'Инвентарь' },
   { value: 'offers', label: 'Предложения' },
   { value: 'availability', label: 'Доступность' },
+  { value: 'pricing', label: 'Цена' },
   { value: 'photos', label: 'Фото' },
 ];
 
@@ -203,6 +205,10 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
 
       {activeTab === 'availability' && (
         <ResourceAvailabilityTab key={`availability-${tabResetKey}`} resource={resource} />
+      )}
+
+      {activeTab === 'pricing' && (
+        <ResourcePricingTab key={`pricing-${tabResetKey}`} resource={resource} />
       )}
 
       {activeTab === 'photos' && <ResourceImagesSection key={`photos-${tabResetKey}`} resourceId={resource.resourceId} />}

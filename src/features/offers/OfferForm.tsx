@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, locationsApi, offersApi, pricingApi, variantsApi } from '../../lib/api-client';
-import type { AdjustmentRule, Offer, OfferAuthoringOption, OfferAuthoringOptions, ProviderLocation, Resource, ResourceVariant } from '../../types';
+import type { AdjustmentRule, Offer, OfferAuthoringOption, OfferAuthoringOptions, ProviderLocation, RentalTier, Resource, ResourceVariant } from '../../types';
 
 type SimpleOption = {
   value: string;
@@ -38,6 +38,8 @@ export type OfferFormData = Partial<Offer> & {
   pricingCurrency?: string;
   pricingStatus?: string;
   adjustmentRules?: AdjustmentRule[];
+  rentalTiers?: RentalTier[];
+  multiDayRate?: number | null;
   fulfillmentLocationId?: string | null;
 };
 
@@ -60,7 +62,8 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [pricingBaseAmount, setPricingBaseAmount] = useState(String(offer?.basePrice || offer?.price || ''));
   const [pricingCurrency, setPricingCurrency] = useState(offer?.currency || 'RUB');
   const [adjustmentRules, setAdjustmentRules] = useState<AdjustmentRule[]>([]);
-  const [advancedPricingOpen, setAdvancedPricingOpen] = useState(false);
+  const [rentalTiers, setRentalTiers] = useState<RentalTier[]>([]);
+  const [multiDayRate, setMultiDayRate] = useState('');
   const [description, setDescription] = useState(offer?.description || '');
   const [locations, setLocations] = useState<ProviderLocation[]>([]);
   const [locationId, setLocationId] = useState(readFulfillmentLocationId(offer));
@@ -190,9 +193,15 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       .then(policy => {
         if (cancelled) return;
         setPricingMode(policy.pricingMode || 'per_unit_time');
-        setPricingBaseAmount(String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''));
+        setPricingBaseAmount(
+          policy.pricingMode === 'rental_tiers'
+            ? ''
+            : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? '')
+        );
         setPricingCurrency(policy.currency || 'RUB');
         setAdjustmentRules(policy.adjustmentRules ?? []);
+        setRentalTiers(policy.rentalTiers ?? []);
+        setMultiDayRate(policy.multiDayRate != null ? String(policy.multiDayRate) : '');
       })
       .catch(err => {
         if (!cancelled && !(err instanceof ApiError && err.status === 404)) {
@@ -230,7 +239,18 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
     if (!locationId) e.locationId = 'Выберите пункт выдачи.';
     if (!pricingMode) e.pricingMode = 'Выберите способ расчета цены.';
     if (!pricingCurrency.trim()) e.pricingCurrency = 'Укажите валюту.';
-    if (!pricingBaseAmount || isNaN(Number(pricingBaseAmount)) || Number(pricingBaseAmount) < 0) {
+    if (pricingMode === 'rental_tiers') {
+      if (rentalTiers.length === 0) e.rentalTiers = 'Добавьте хотя бы одну ступень.';
+      else {
+        for (let i = 0; i < rentalTiers.length; i++) {
+          if (rentalTiers[i].upToHours <= 0) { e.rentalTiers = `Ступень ${i + 1}: upToHours должен быть больше нуля.`; break; }
+          if (rentalTiers[i].price < 0) { e.rentalTiers = `Ступень ${i + 1}: цена не может быть отрицательной.`; break; }
+          if (i > 0 && rentalTiers[i].upToHours <= rentalTiers[i - 1].upToHours) {
+            e.rentalTiers = 'Ступени должны идти в строго возрастающем порядке upToHours.'; break;
+          }
+        }
+      }
+    } else if (!pricingBaseAmount || isNaN(Number(pricingBaseAmount)) || Number(pricingBaseAmount) < 0) {
       e.pricingBaseAmount = 'Укажите корректную цену за час.';
     }
     adjustmentRules.forEach((rule, index) => {
@@ -258,10 +278,12 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       resourceId,
       resourceTitle: resource?.title || '',
       pricingMode,
-      pricingBaseAmount: Number(pricingBaseAmount),
+      pricingBaseAmount: pricingMode === 'rental_tiers' ? undefined : Number(pricingBaseAmount),
       pricingCurrency: pricingCurrency || 'RUB',
       pricingStatus: 'active',
       adjustmentRules,
+      rentalTiers: pricingMode === 'rental_tiers' ? rentalTiers : undefined,
+      multiDayRate: pricingMode === 'rental_tiers' && multiDayRate.trim() !== '' ? Number(multiDayRate) : null,
       description,
       fulfillmentLocationId: locationId || null,
       selectedVariantIds: variantExposureMode === 'selected_variants_only' ? selectedVariantIds : undefined,
@@ -356,56 +378,119 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-gray-900">Цена предложения</h3>
               <p className="mt-0.5 text-xs text-gray-500">
-                Сохранится вместе с предложением и будет использоваться при расчете бронирования.
+                Сохранится вместе с предложением и будет использоваться при расчёте бронирования.
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-[1fr_140px]">
-            <Input
-              label={pricingMode === 'per_unit_time' ? 'Цена за час' : 'Цена'}
-              type="number"
-              value={pricingBaseAmount}
-              onChange={e => setPricingBaseAmount(e.target.value)}
-              error={errors.pricingBaseAmount}
-              placeholder="Например: 500"
-            />
-            <Input
-              label="Валюта"
-              value={pricingCurrency}
-              onChange={e => setPricingCurrency(e.target.value.toUpperCase())}
-              placeholder="RUB"
-              disabled={pricingLoading}
-            />
+
+            <div className="mb-3">
+              <FancySelect
+                label="Как считать цену"
+                options={[
+                  { value: 'fixed', label: 'Фиксированная' },
+                  { value: 'per_unit_time', label: 'За время проката' },
+                  { value: 'rental_tiers', label: 'По тарифным ступеням' },
+                  { value: 'per_participant', label: 'За участника' },
+                  { value: 'tiered', label: 'По объёму' },
+                  { value: 'dynamic', label: 'Динамическая' },
+                ]}
+                value={pricingMode}
+                error={errors.pricingMode}
+                onChange={setPricingMode}
+              />
             </div>
 
-            <button
-              type="button"
-              onClick={() => setAdvancedPricingOpen(current => !current)}
-              className="mt-3 flex w-full items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              <span>Расширенные правила цены</span>
-              <ChevronDown size={14} className={`text-gray-400 transition ${advancedPricingOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {advancedPricingOpen && (
-              <div className="mt-3 space-y-3 rounded-md border border-gray-100 bg-gray-50 p-3">
-                <div className="grid gap-3 md:grid-cols-1">
-                  <FancySelect
-                    label="Как считать цену"
-                    options={[
-                      { value: 'fixed', label: 'Фиксированная' },
-                      { value: 'per_unit_time', label: 'За время проката' },
-                      { value: 'per_participant', label: 'За участника' },
-                      { value: 'tiered', label: 'По тарифам' },
-                      { value: 'dynamic', label: 'Динамическая' },
-                    ]}
-                    value={pricingMode}
-                    error={errors.pricingMode}
-                    onChange={setPricingMode}
-                  />
-                </div>
-
+            {pricingMode !== 'rental_tiers' && (
+              <div className="grid gap-3 md:grid-cols-[1fr_140px]">
+                <Input
+                  label={pricingMode === 'per_unit_time' ? 'Цена за час' : 'Цена'}
+                  type="number"
+                  value={pricingBaseAmount}
+                  onChange={e => setPricingBaseAmount(e.target.value)}
+                  error={errors.pricingBaseAmount}
+                  placeholder="Например: 500"
+                />
+                <Input
+                  label="Валюта"
+                  value={pricingCurrency}
+                  onChange={e => setPricingCurrency(e.target.value.toUpperCase())}
+                  placeholder="RUB"
+                  disabled={pricingLoading}
+                />
               </div>
             )}
+
+            {pricingMode === 'rental_tiers' && (
+              <div className="space-y-3">
+                <Input
+                  label="Валюта"
+                  value={pricingCurrency}
+                  onChange={e => setPricingCurrency(e.target.value.toUpperCase())}
+                  placeholder="RUB"
+                  disabled={pricingLoading}
+                />
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-medium text-gray-700">Тарифные ступени</p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setRentalTiers(t => [...t, { upToHours: 0, price: 0, label: '' }])}
+                    >
+                      <Plus size={12} /> Добавить
+                    </Button>
+                  </div>
+                  {errors.rentalTiers && <p className="mb-2 text-xs text-red-600">{errors.rentalTiers}</p>}
+                  {rentalTiers.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-500">
+                      Добавьте хотя бы одну ступень.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                        <span>До часов</span><span>Цена</span><span>Название</span><span />
+                      </div>
+                      {rentalTiers.map((tier, index) => (
+                        <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 rounded-md border border-gray-100 bg-gray-50 p-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={String(tier.upToHours)}
+                            onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, upToHours: Number(e.target.value) || 0 } : x))}
+                            placeholder="8"
+                          />
+                          <Input
+                            type="number"
+                            min="0"
+                            value={String(tier.price)}
+                            onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, price: Number(e.target.value) || 0 } : x))}
+                            placeholder="900"
+                          />
+                          <Input
+                            value={tier.label ?? ''}
+                            onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, label: e.target.value } : x))}
+                            placeholder="Полдня"
+                          />
+                          <div className="flex items-center">
+                            <Button size="sm" variant="ghost" onClick={() => setRentalTiers(t => t.filter((_, i) => i !== index))}>
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Input
+                  label="Цена за сутки сверх ступеней (необязательно)"
+                  type="number"
+                  min="0"
+                  value={multiDayRate}
+                  onChange={e => setMultiDayRate(e.target.value)}
+                  placeholder="1300"
+                />
+              </div>
+            )}
+
           </div>
           {pricingError && (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">

@@ -117,6 +117,90 @@ export interface Provider {
   updatedAt: string;
 }
 
+export type PayoutMode = 't_bank_bank_account' | 't_bank_sbp_individual' | string;
+export type PayoutContractStatus = 'review' | 'setting_up' | 'active' | 'rejected' | 'blocked' | string;
+
+export interface PayoutBankRequisites {
+  account?: string | null;
+  bankName?: string | null;
+  bik?: string | null;
+  correspondentAccount?: string | null;
+}
+
+export interface PayoutLegalAddress {
+  type?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  city?: string | null;
+  street?: string | null;
+}
+
+export interface PayoutPerson {
+  firstName?: string | null;
+  lastName?: string | null;
+  middleName?: string | null;
+  birthDate?: string | null;
+  birthPlace?: string | null;
+  citizenship?: string | null;
+  documentType?: string | null;
+  documentNumber?: string | null;
+  documentIssueDate?: string | null;
+  documentIssuedBy?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  country?: string | null;
+  position?: string | null;
+}
+
+export interface PayoutTBankShop {
+  shopId: string;
+  providerId: string;
+  status: string;
+  shopCode?: string | null;
+  terminalKey?: string | null;
+  billingDescriptor?: string | null;
+  fullName?: string | null;
+  shortName?: string | null;
+  inn?: string | null;
+  kpp?: string | null;
+  ogrn?: string | null;
+  okved?: string | null;
+  registrationDepartment?: string | null;
+  registrationDate?: string | null;
+  siteUrl?: string | null;
+  email?: string | null;
+  serviceProviderEmail?: string | null;
+  legalAddress?: PayoutLegalAddress | null;
+  chiefExecutive?: PayoutPerson | null;
+  settlementProfile?: {
+    bankName?: string | null;
+    bankAccount?: string | null;
+    correspondentAccount?: string | null;
+    bik?: string | null;
+    details?: string | null;
+  } | null;
+  comment?: string | null;
+  lastSentToBankAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PayoutContract {
+  contractId: string;
+  providerId: string;
+  payoutMode: PayoutMode;
+  contractNumber?: number | null;
+  currency: string;
+  startsOn?: string | null;
+  status: PayoutContractStatus;
+  bankRequisites?: PayoutBankRequisites | null;
+  sbpPayout?: Record<string, unknown> | null;
+  tBankSbpPayoutRecipient?: Record<string, unknown> | null;
+  tBankShop?: PayoutTBankShop | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StorefrontSettings {
   providerId: string;
   slug: string | null;
@@ -124,17 +208,28 @@ export interface StorefrontSettings {
   enabled: boolean;
   publicName: string | null;
   description: string | null;
-  logoImageId: string | null;
-  coverImageId: string | null;
+  provider?: {
+    providerId: string;
+    slug?: string | null;
+    displayName?: string | null;
+    description?: string | null;
+    legalName?: string | null;
+    legalCountryCode?: string | null;
+    legalForm?: string | null;
+    taxationSystem?: string | null;
+    inn?: string | null;
+    kpp?: string | null;
+    ogrn?: string | null;
+    registeredAddress?: string | null;
+    cityId?: string | null;
+    address?: string | null;
+    contacts?: StorefrontContact[];
+  } | null;
   theme: {
     primaryColor: string | null;
     accentColor: string | null;
   };
-  contacts: {
-    phone: string | null;
-    email: string | null;
-    telegram: string | null;
-  };
+  contacts: StorefrontContact[];
   seo: {
     title: string | null;
     description: string | null;
@@ -142,12 +237,15 @@ export interface StorefrontSettings {
   updatedAt: string | null;
 }
 
-export type StorefrontSettingsPatch = Partial<Pick<
-  StorefrontSettings,
-  'enabled' | 'publicName' | 'description' | 'logoImageId' | 'coverImageId'
->> & {
+export interface StorefrontContact {
+  type: string;
+  value: string;
+  isPrimary: boolean;
+}
+
+export type StorefrontSettingsPatch = Partial<Pick<StorefrontSettings, 'enabled' | 'publicName' | 'description'>> & {
   theme?: Partial<StorefrontSettings['theme']>;
-  contacts?: Partial<StorefrontSettings['contacts']>;
+  contacts?: StorefrontContact[];
   seo?: Partial<StorefrontSettings['seo']>;
 };
 
@@ -280,6 +378,32 @@ export interface ResourceImage {
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────
+
+export interface OfferAvailabilityWindow {
+  startsOn: string;
+  endsOn: string;
+  dailyOpensAt: string;
+  dailyClosesAt: string;
+}
+
+export interface OfferAvailabilityBlockedPeriod {
+  startsOn: string;
+  endsOn: string;
+  reasonCode: string;
+}
+
+export interface OfferAvailability {
+  settingsId: string;
+  offerId: string;
+  timezone: string;
+  availabilityWindows: OfferAvailabilityWindow[];
+  blockedPeriods: OfferAvailabilityBlockedPeriod[];
+  minRentHours: number;
+  maxRentHours: number;
+  advanceNoticeHours: number;
+  status: string;
+  updatedAt: string;
+}
 
 export interface AvailabilityProfile {
   profileId: string;
@@ -441,6 +565,12 @@ export interface VariantAllocation {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
+export interface RentalTier {
+  upToHours: number;
+  price: number;
+  label?: string | null;
+}
+
 export interface UnitRules {
   baseAmount: number;
   unit: string;
@@ -464,6 +594,8 @@ export interface PricingPolicy {
   baseAmount?: number | null;
   unitRules?: UnitRules;
   adjustmentRules?: AdjustmentRule[];
+  rentalTiers?: RentalTier[] | null;
+  multiDayRate?: number | null;
   status: string;
   readiness?: Record<string, unknown>;
   publishabilityImpact?: PublishabilityImpact | { status?: string; reason?: string };

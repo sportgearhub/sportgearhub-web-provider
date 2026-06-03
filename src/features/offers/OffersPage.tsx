@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { OfferDetail } from './OfferDetail';
+import { OfferAvailabilityTab } from './OfferAvailabilityTab';
+import { OfferPricingTab } from './OfferPricingTab';
 import { OfferForm, type OfferFormData } from './OfferForm';
 import { OfferListTable } from './OfferListTable';
 import { ApiError, offersApi, pricingApi, resourcesApi } from '../../lib/api-client';
@@ -9,6 +11,7 @@ import type { Offer, OfferStatus, Resource } from '../../types';
 import { attachOfferReadiness, attachOffersReadiness, offerCustomerVisible } from './offerReadiness';
 
 type View = 'list' | 'detail' | 'create' | 'edit';
+type DetailTab = 'overview' | 'pricing' | 'availability';
 
 function mergeOfferPricing(offer: Offer, data: OfferFormData): Offer {
   return {
@@ -43,6 +46,7 @@ export function OffersPage() {
   const [resourceFilter, setResourceFilter] = useState('');
   const [query, setQuery] = useState('');
   const [view, setView] = useState<View>('list');
+  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [selected, setSelected] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -136,8 +140,10 @@ export function OffersPage() {
       await pricingApi.putOfferPolicy(nextOffer.offerId, {
         pricingMode: data.pricingMode || 'per_unit_time',
         currency: data.pricingCurrency || 'RUB',
-        baseAmount: data.pricingBaseAmount ?? null,
+        baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
         adjustmentRules: data.adjustmentRules ?? [],
+        rentalTiers: data.rentalTiers ?? null,
+        multiDayRate: data.multiDayRate ?? null,
         status: data.pricingStatus || 'active',
       });
       const readyOffer = await attachOfferReadiness(nextOffer);
@@ -166,8 +172,10 @@ export function OffersPage() {
       await pricingApi.putOfferPolicy(selected.offerId, {
         pricingMode: data.pricingMode || 'per_unit_time',
         currency: data.pricingCurrency || 'RUB',
-        baseAmount: data.pricingBaseAmount ?? null,
+        baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
         adjustmentRules: data.adjustmentRules ?? [],
+        rentalTiers: data.rentalTiers ?? null,
+        multiDayRate: data.multiDayRate ?? null,
         status: data.pricingStatus || 'active',
       });
       updateOfferInState(mergeOfferPricing(await attachOfferReadiness(nextOffer), data));
@@ -207,13 +215,33 @@ export function OffersPage() {
           <button onClick={() => setView('list')} className="mb-4 flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800">
             <ChevronLeft size={14} /> Назад
           </button>
-          <OfferDetail
-            offer={selected}
-            onEdit={() => setView('edit')}
-            onStatusChange={status => {
-              void handleStatusChange(selected, status);
-            }}
-          />
+          <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-5">
+            {([['overview', 'Обзор'], ['pricing', 'Цена'], ['availability', 'Доступность']] as [DetailTab, string][]).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setDetailTab(tab)}
+                className={`border-b-2 px-3 py-2 text-sm font-medium transition ${
+                  detailTab === tab
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {detailTab === 'overview' && (
+            <OfferDetail
+              offer={selected}
+              onEdit={() => setView('edit')}
+              onStatusChange={status => {
+                void handleStatusChange(selected, status);
+              }}
+            />
+          )}
+          {detailTab === 'pricing' && <OfferPricingTab offer={selected} />}
+          {detailTab === 'availability' && <OfferAvailabilityTab offer={selected} />}
         </div>
       </div>
     );
@@ -291,6 +319,7 @@ export function OffersPage() {
           onStatusFilterChange={setStatusFilter}
           onOpenDetail={offer => {
             setSelected(offer);
+            setDetailTab('overview');
             setView('detail');
           }}
           onEdit={offer => {

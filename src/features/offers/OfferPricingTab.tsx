@@ -6,7 +6,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ApiError, pricingApi } from '../../lib/api-client';
-import type { PricingDiagnostics, PricingPolicy, RentalTier, Resource } from '../../types';
+import type { Offer, PricingDiagnostics, PricingPolicy, RentalTier } from '../../types';
 
 type PricingForm = {
   pricingMode: string;
@@ -35,14 +35,42 @@ function emptyTier(): RentalTier {
   return { upToHours: 0, price: 0, label: '' };
 }
 
-interface ResourcePricingTabProps {
-  resource: Resource;
+function emptyForm(): PricingForm {
+  return { pricingMode: 'per_unit_time', currency: 'RUB', baseAmount: '', multiDayRate: '', status: 'active' };
 }
 
-export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
+function policyToForm(policy: PricingPolicy): PricingForm {
+  return {
+    pricingMode: policy.pricingMode || 'per_unit_time',
+    currency: policy.currency || 'RUB',
+    baseAmount: policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''),
+    multiDayRate: policy.multiDayRate != null ? String(policy.multiDayRate) : '',
+    status: policy.status || 'active',
+  };
+}
+
+function validateTiers(tiers: RentalTier[]): string | null {
+  if (tiers.length === 0) return 'Режим rental_tiers требует хотя бы одной ступени.';
+  for (let i = 0; i < tiers.length; i++) {
+    if (tiers[i].upToHours <= 0) return `Ступень ${i + 1}: upToHours должен быть больше нуля.`;
+    if (tiers[i].price < 0) return `Ступень ${i + 1}: цена не может быть отрицательной.`;
+  }
+  for (let i = 1; i < tiers.length; i++) {
+    if (tiers[i].upToHours <= tiers[i - 1].upToHours) {
+      return 'Ступени должны идти в строго возрастающем порядке upToHours.';
+    }
+  }
+  return null;
+}
+
+interface OfferPricingTabProps {
+  offer: Offer;
+}
+
+export function OfferPricingTab({ offer }: OfferPricingTabProps) {
   const [policy, setPolicy] = useState<PricingPolicy | null>(null);
   const [diagnostics, setDiagnostics] = useState<PricingDiagnostics | null>(null);
-  const [form, setForm] = useState<PricingForm>(emptyPricingForm());
+  const [form, setForm] = useState<PricingForm>(emptyForm());
   const [tiers, setTiers] = useState<RentalTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,7 +85,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     setPolicyMissing(false);
 
     try {
-      const nextPolicy = await pricingApi.getResourcePolicy(resource.resourceId);
+      const nextPolicy = await pricingApi.getOfferPolicy(offer.offerId);
       setPolicy(nextPolicy);
       setForm(policyToForm(nextPolicy));
       setTiers(nextPolicy.rentalTiers ?? []);
@@ -65,7 +93,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
       if (err instanceof ApiError && err.status === 404) {
         setPolicy(null);
         setPolicyMissing(true);
-        setForm(emptyPricingForm());
+        setForm(emptyForm());
         setTiers([]);
       } else {
         setError(err instanceof ApiError ? `Не удалось загрузить цену: ${err.message}` : 'Не удалось загрузить цену.');
@@ -73,11 +101,10 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     }
 
     try {
-      setDiagnostics(await pricingApi.getResourceDiagnostics(resource.resourceId));
-    } catch (err) {
-      if (!(err instanceof ApiError && err.status === 404)) {
-        setError(err instanceof ApiError ? `Не удалось проверить цену: ${err.message}` : 'Не удалось проверить цену.');
-      }
+      const diag = await pricingApi.offerPricingSummaryPreview(offer.offerId).catch(() => null);
+      if (diag) setDiagnostics(diag as unknown as PricingDiagnostics);
+    } catch {
+      // diagnostics are best-effort
     } finally {
       setLoading(false);
     }
@@ -85,7 +112,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
 
   useEffect(() => {
     void loadPricing();
-  }, [resource.resourceId]);
+  }, [offer.offerId]);
 
   const savePricing = async () => {
     if (isRentalTiers) {
@@ -103,7 +130,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     setError('');
     try {
       const baseAmount = isRentalTiers ? null : (form.baseAmount.trim() === '' ? null : Number(form.baseAmount));
-      const nextPolicy = await pricingApi.putResourcePolicy(resource.resourceId, {
+      const nextPolicy = await pricingApi.putOfferPolicy(offer.offerId, {
         pricingMode: form.pricingMode || 'per_unit_time',
         currency: form.currency || 'RUB',
         baseAmount,
@@ -116,7 +143,6 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
       setForm(policyToForm(nextPolicy));
       setTiers(nextPolicy.rentalTiers ?? []);
       setPolicyMissing(false);
-      setDiagnostics(await pricingApi.getResourceDiagnostics(resource.resourceId).catch(() => null));
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось сохранить цену: ${err.message}` : 'Не удалось сохранить цену.');
     } finally {
@@ -132,15 +158,12 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     return <div className="py-12 text-center text-sm text-gray-500">Загружаем цену...</div>;
   }
 
-  const ready = diagnostics?.pricingReady;
-  const issues = [...(diagnostics?.errors ?? []), ...(diagnostics?.warnings ?? [])];
-
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
+    <div className="max-w-3xl space-y-4">
       <Card>
         <CardHeader
-          title="Цена"
-          subtitle={policyMissing ? 'Цена ещё не настроена. Без неё предложение нельзя опубликовать.' : 'Базовая цена для предложений этой позиции.'}
+          title="Цена предложения"
+          subtitle={policyMissing ? 'Цена ещё не настроена. Без неё предложение нельзя опубликовать.' : 'Тарифный план, который применяется при расчёте бронирования.'}
           action={<Badge variant={policy?.status === 'active' ? 'green' : 'yellow'}>{policy?.status === 'active' ? 'Цена включена' : 'Нужно настроить'}</Badge>}
         />
 
@@ -155,8 +178,8 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
             <CreditCard size={14} />
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-900">Расчёт стоимости проката</p>
-            <p className="mt-0.5 text-xs text-gray-500">Базовый тариф применяется ко всем предложениям позиции, если не задан свой.</p>
+            <p className="text-xs font-medium text-gray-900">Цена предложения переопределяет ресурсный тариф</p>
+            <p className="mt-0.5 text-xs text-gray-500">Если задана, используется вместо базовой цены позиции инвентаря.</p>
           </div>
         </div>
 
@@ -190,7 +213,6 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
               value={form.baseAmount}
               onChange={e => setForm(f => ({ ...f, baseAmount: e.target.value }))}
               placeholder="500"
-              hint="Предложения используют эту цену, если у них нет своей."
             />
           </div>
         )}
@@ -273,93 +295,33 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
         </div>
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Проверка цены"
-          subtitle="Что мешает использовать цену в предложениях."
-          action={<Badge variant={ready ? 'green' : 'yellow'}>{ready ? 'Готово' : 'Нужно исправить'}</Badge>}
-        />
-        {issues.length > 0 ? (
-          <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3">
-            {issues.map(issue => (
-              <p key={issue} className="text-xs text-amber-800">{pricingIssueLabel(issue)}</p>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-            Цена настроена достаточно для публикации.
-          </p>
-        )}
-        {diagnostics?.checkedAt && (
-          <p className="mt-3 text-xs text-gray-500">Проверено: {new Date(diagnostics.checkedAt).toLocaleString('ru-RU')}</p>
-        )}
-        <PublishabilityImpact impact={diagnostics?.publishabilityImpact} />
-      </Card>
+      {diagnostics && <PricingDiagnosticsCard diagnostics={diagnostics} />}
     </div>
   );
 }
 
-function emptyPricingForm(): PricingForm {
-  return {
-    pricingMode: 'per_unit_time',
-    currency: 'RUB',
-    baseAmount: '',
-    multiDayRate: '',
-    status: 'active',
-  };
-}
+function PricingDiagnosticsCard({ diagnostics }: { diagnostics: PricingDiagnostics }) {
+  const ready = diagnostics.pricingReady;
+  const issues = [...(diagnostics.errors ?? []), ...(diagnostics.warnings ?? [])];
 
-function policyToForm(policy: PricingPolicy): PricingForm {
-  return {
-    pricingMode: policy.pricingMode || 'per_unit_time',
-    currency: policy.currency || 'RUB',
-    baseAmount: policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''),
-    multiDayRate: policy.multiDayRate != null ? String(policy.multiDayRate) : '',
-    status: policy.status || 'active',
-  };
-}
-
-function validateTiers(tiers: RentalTier[]): string | null {
-  if (tiers.length === 0) return 'Режим rental_tiers требует хотя бы одной ступени.';
-  for (let i = 0; i < tiers.length; i++) {
-    if (tiers[i].upToHours <= 0) return `Ступень ${i + 1}: upToHours должен быть больше нуля.`;
-    if (tiers[i].price < 0) return `Ступень ${i + 1}: цена не может быть отрицательной.`;
-  }
-  for (let i = 1; i < tiers.length; i++) {
-    if (tiers[i].upToHours <= tiers[i - 1].upToHours) {
-      return 'Ступени должны идти в строго возрастающем порядке upToHours.';
-    }
-  }
-  return null;
-}
-
-function pricingIssueLabel(issue: string) {
-  if (issue === 'pricing_policy_missing') return 'Настройте цену для этой позиции.';
-  if (issue === 'pricing_policy_inactive') return 'Включите цену, чтобы предложения можно было публиковать.';
-  if (issue === 'pricing_currency_missing') return 'Укажите валюту.';
-  if (issue === 'pricing_base_amount_missing') return 'Укажите базовую цену.';
-  if (issue === 'pricing_adjustments_not_configured') return 'Дополнительные правила цены не настроены.';
-  return issue;
-}
-
-function PublishabilityImpact({ impact }: { impact: PricingDiagnostics['publishabilityImpact'] }) {
-  if (!impact) return null;
-
-  if (Array.isArray(impact)) {
-    const visibleItems = impact.filter(item => item.value);
-    if (visibleItems.length === 0) return null;
-    return (
-      <div className="mt-3 space-y-1 border-t border-gray-100 pt-3">
-        {visibleItems.map(item => (
-          <p key={item.key} className="text-xs text-gray-500">{item.value}</p>
-        ))}
-      </div>
-    );
-  }
-
-  if ('reason' in impact && typeof impact.reason === 'string' && impact.reason) {
-    return <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">{impact.reason}</p>;
-  }
-
-  return null;
+  return (
+    <Card>
+      <CardHeader
+        title="Проверка цены"
+        subtitle="Что мешает использовать цену в этом предложении."
+        action={<Badge variant={ready ? 'green' : 'yellow'}>{ready ? 'Готово' : 'Нужно исправить'}</Badge>}
+      />
+      {issues.length > 0 ? (
+        <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3">
+          {issues.map(issue => (
+            <p key={issue} className="text-xs text-amber-800">{issue}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          Цена настроена достаточно для публикации.
+        </p>
+      )}
+    </Card>
+  );
 }

@@ -4,7 +4,6 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ApiError, availabilityApi } from '../../lib/api-client';
 import type {
-  AvailabilityCalendar,
   AvailabilityDiagnostics,
   AvailabilityProfile,
   CapacitySlot,
@@ -12,11 +11,10 @@ import type {
 } from '../../types';
 import { AvailabilityDiagnosticsCard } from '../availability/AvailabilityDiagnosticsCard';
 import { AvailabilityProfileCard } from '../availability/AvailabilityProfileCard';
-import { AvailabilityCalendarCard, AvailabilitySlotsCard } from '../availability/AvailabilityScheduleCards';
+import { AvailabilitySlotsCard } from '../availability/AvailabilityScheduleCards';
 import {
   DEFAULT_TIMEZONE,
   availabilityModeFor,
-  emptyCalendar,
   emptyProfileForm,
   emptySlotForm,
   modeLabel,
@@ -32,13 +30,11 @@ interface ResourceAvailabilityTabProps {
 export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabProps) {
   const [profile, setProfile] = useState<AvailabilityProfile | null>(null);
   const [diagnostics, setDiagnostics] = useState<AvailabilityDiagnostics | null>(null);
-  const [calendar, setCalendar] = useState<AvailabilityCalendar | null>(null);
   const [slots, setSlots] = useState<CapacitySlot[]>([]);
   const [profileForm, setProfileForm] = useState<ProfileForm>(emptyProfileForm(availabilityModeFor(resource)));
   const [slotForm, setSlotForm] = useState<SlotForm>(emptySlotForm());
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [savingCalendar, setSavingCalendar] = useState(false);
   const [savingSlot, setSavingSlot] = useState(false);
   const [error, setError] = useState('');
   const [profileMissing, setProfileMissing] = useState(false);
@@ -58,19 +54,10 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     }
   };
 
-  const loadSchedule = async (cancelled = false) => {
+  const loadSlots = async (cancelled = false) => {
     try {
-      const [nextCalendar, nextSlots] = await Promise.all([
-        availabilityApi.getCalendar(resource.resourceId).catch(err => {
-          if (err instanceof ApiError && err.status === 404) return emptyCalendar();
-          throw err;
-        }),
-        availabilityApi.listSlots(resource.resourceId),
-      ]);
-      if (!cancelled) {
-        setCalendar(nextCalendar);
-        setSlots(nextSlots);
-      }
+      const nextSlots = await availabilityApi.listSlots(resource.resourceId);
+      if (!cancelled) setSlots(nextSlots);
     } catch (err) {
       if (!cancelled) {
         setError(err instanceof ApiError ? `Не удалось загрузить расписание: ${err.message}` : 'Не удалось загрузить расписание.');
@@ -85,7 +72,6 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     setError('');
     setProfileMissing(false);
     setDiagnostics(null);
-    setCalendar(null);
     setSlots([]);
 
     try {
@@ -105,7 +91,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     }
 
     await loadDiagnostics(cancelled);
-    if (expectedMode === 'scheduled_slot') await loadSchedule(cancelled);
+    if (expectedMode === 'scheduled_slot') await loadSlots(cancelled);
     if (!cancelled) setLoading(false);
 
     return () => {
@@ -121,7 +107,6 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
       setError('');
       setProfileMissing(false);
       setDiagnostics(null);
-      setCalendar(null);
       setSlots([]);
 
       try {
@@ -141,7 +126,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
       }
 
       await loadDiagnostics(cancelled);
-      if (expectedMode === 'scheduled_slot') await loadSchedule(cancelled);
+      if (expectedMode === 'scheduled_slot') await loadSlots(cancelled);
       if (!cancelled) setLoading(false);
     };
 
@@ -165,32 +150,12 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
       setProfile(nextProfile);
       setProfileForm(profileToForm(nextProfile, expectedMode));
       setProfileMissing(false);
-      if (expectedMode === 'scheduled_slot' && nextProfile.status === 'active') await loadSchedule();
+      if (expectedMode === 'scheduled_slot' && nextProfile.status === 'active') await loadSlots();
       await loadDiagnostics();
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось сохранить правила: ${err.message}` : 'Не удалось сохранить правила.');
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const saveCalendar = async () => {
-    if (!calendar) return;
-    setSavingCalendar(true);
-    setError('');
-    try {
-      const nextCalendar = await availabilityApi.putCalendar(resource.resourceId, {
-        timezone: calendar.timezone || profileForm.timezone || DEFAULT_TIMEZONE,
-        recurringRules: calendar.recurringRules,
-        blockedPeriods: calendar.blockedPeriods,
-        exceptions: calendar.exceptions,
-      });
-      setCalendar(nextCalendar);
-      await loadDiagnostics();
-    } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось сохранить расписание: ${err.message}` : 'Не удалось сохранить расписание.');
-    } finally {
-      setSavingCalendar(false);
     }
   };
 
@@ -268,22 +233,14 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
       </div>
 
       {scheduledProfileReady ? (
-        <>
-          <AvailabilityCalendarCard
-            calendar={calendar ?? emptyCalendar()}
-            saving={savingCalendar}
-            onChange={setCalendar}
-            onSave={() => void saveCalendar()}
-          />
-          <AvailabilitySlotsCard
-            slots={slots}
-            form={slotForm}
-            saving={savingSlot}
-            onFormChange={setSlotForm}
-            onCreate={() => void createSlot()}
-            onClose={slot => void closeSlot(slot)}
-          />
-        </>
+        <AvailabilitySlotsCard
+          slots={slots}
+          form={slotForm}
+          saving={savingSlot}
+          onFormChange={setSlotForm}
+          onCreate={() => void createSlot()}
+          onClose={slot => void closeSlot(slot)}
+        />
       ) : scheduledMode ? (
         <Card>
           <div className="flex items-start gap-3">
@@ -291,7 +248,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Сначала включите правила бронирования</h3>
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                Расписание и окна записи появятся после сохранения включенных правил бронирования.
+                Окна записи появятся после сохранения включенных правил бронирования.
               </p>
             </div>
           </div>
@@ -300,7 +257,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
         <Card>
           <p className="text-sm font-semibold text-gray-900">Инвентарь управляет фактической доступностью</p>
           <p className="mt-1 text-xs leading-5 text-gray-500">
-            Для прокатных велосипедов здесь задается горизонт бронирования. Конкретные велосипеды и готовность к прокату находятся во вкладке “Инвентарь”.
+            Для прокатных велосипедов здесь задается горизонт бронирования. Конкретные велосипеды и готовность к прокату находятся во вкладке "Инвентарь".
           </p>
         </Card>
       )}
