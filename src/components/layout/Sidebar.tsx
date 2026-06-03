@@ -1,11 +1,11 @@
 import {
   Mountain,
   Building2,
-  Globe2,
   LayoutDashboard,
   Package,
   ClipboardList,
   CheckSquare,
+  CreditCard,
   Settings,
   ChevronDown,
   LogOut,
@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
   { label: 'Выдача', icon: CheckSquare, path: '/fulfillment', badge: '8' },
   { label: 'Каталог', icon: Package, path: '/resources' },
   { label: 'Магазин', icon: Building2, path: '/settings/shop' },
-  { label: 'Онлайн магазин', icon: Globe2, path: '/settings/storefront' },
+  { label: 'Выплаты', icon: CreditCard, path: '/payouts' },
   {
     label: 'Настройки',
     icon: Settings,
@@ -89,7 +89,20 @@ export function Sidebar({ currentPath, onNavigate, collapsed, onToggleCollapse }
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-sidebar-foreground">{providerName}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Sportgearhub</p>
+              <div className="mt-0.5 flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="shrink-0 -skew-x-12">
+                  <span>Sportgear</span>
+                  <span>HUB</span>
+                </p>
+                <span className="-skew-x-12 text-sidebar-primary" aria-hidden="true">/</span>
+                <button
+                  type="button"
+                  className="shrink-0 border-b border-sidebar-primary pb-px text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-primary"
+                  aria-pressed="true"
+                >
+                  rental Прокат
+                </button>
+              </div>
             </div>
           )}
         </div>

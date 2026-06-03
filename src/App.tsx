@@ -25,6 +25,7 @@ import { VariantsPage } from './features/variants/VariantsPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { AvailabilityPage } from './features/availability/AvailabilityPage';
 import { PricingPage } from './features/pricing/PricingPage';
+import { PayoutsPage } from './features/payouts/PayoutsPage';
 import { ReportsPage } from './features/reports/ReportsPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
@@ -39,10 +40,10 @@ const pageConfig: Record<string, PageConfig> = {
   '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
   '/availability': { title: 'Доступность', subtitle: 'Горизонты бронирования и вместимость' },
   '/pricing': { title: 'Цены', subtitle: 'Правила ценообразования и корректировки' },
+  '/payouts': { title: 'Выплаты', subtitle: 'Договоры и статус настройки выплат' },
   '/settings': { title: '' },
   '/settings/profile': { title: '' },
   '/settings/shop': { title: '' },
-  '/settings/storefront': { title: '' },
   '/settings/policy': { title: '' },
   '/settings/locations': { title: '' },
   '/settings/employees': { title: '' },
@@ -162,9 +163,9 @@ function AppShell() {
     if (appPath === '/offers') return <OffersPage />;
     if (appPath === '/availability') return <AvailabilityPage onNavigate={navigateTo} />;
     if (appPath === '/pricing') return <PricingPage onNavigate={navigateTo} />;
+    if (appPath === '/payouts') return <PayoutsPage />;
     if (appPath === '/settings' || appPath === '/settings/account') return <SettingsPage tab="account" onNavigate={navigateTo} />;
     if (appPath === '/settings/profile' || appPath === '/settings/shop') return <SettingsPage tab="shop" onNavigate={navigateTo} />;
-    if (appPath === '/settings/storefront') return <SettingsPage tab="storefront" onNavigate={navigateTo} />;
     if (appPath === '/settings/policy' || appPath === '/policy') return <SettingsPage tab="policy" onNavigate={navigateTo} />;
     if (appPath === '/settings/locations' || appPath === '/locations') return <SettingsPage tab="locations" onNavigate={navigateTo} />;
     if (appPath === '/settings/employees') return <SettingsPage tab="employees" onNavigate={navigateTo} />;

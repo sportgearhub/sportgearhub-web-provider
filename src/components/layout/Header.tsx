@@ -1,4 +1,4 @@
-import { Bell, HelpCircle, ChevronRight } from 'lucide-react';
+import { HelpCircle, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export type HeaderBreadcrumb = {
@@ -54,9 +54,6 @@ export function Header({ title, subtitle, breadcrumbs, onNavigate, actions }: He
 
         <div className="flex items-center gap-2">
           {actions && <div className="mr-2 flex items-center gap-2">{actions}</div>}
-          <Button type="button" variant="secondary" size="icon" title="Уведомления">
-            <Bell size={15} />
-          </Button>
           <Button type="button" variant="secondary" size="icon" title="Помощь">
             <HelpCircle size={15} />
           </Button>

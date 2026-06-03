@@ -8,7 +8,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../context/useAuth';
-import { ApiError, profileApi, providerMembersApi, storefrontApi } from '../../lib/api-client';
+import { addressesApi, ApiError, profileApi, providerMembersApi, storefrontApi } from '../../lib/api-client';
+import type { RuAddressSuggestion } from '../../lib/api-client';
 import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOption, StorefrontEditSession, StorefrontSettings } from '../../types';
 import { LocationsPage } from '../locations/LocationsPage';
 import { PolicyPage } from '../policy/PolicyPage';
@@ -97,6 +98,11 @@ function ShopProfileSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<RuAddressSuggestion[]>([]);
+  const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
+  const [addressSuggestionsLoading, setAddressSuggestionsLoading] = useState(false);
+  const [addressSuggestError, setAddressSuggestError] = useState('');
+  const [addressFocused, setAddressFocused] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +135,43 @@ function ShopProfileSettings() {
       cancelled = true;
     };
   }, [activeMembership?.displayName]);
+
+  useEffect(() => {
+    const query = form.addressLine.trim();
+
+    if (!addressFocused || query.length < 3) {
+      setAddressSuggestions([]);
+      setAddressSuggestionsOpen(false);
+      setAddressSuggestError('');
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAddressSuggestionsLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await addressesApi.ruSuggestions(query, 7);
+        if (cancelled) return;
+        setAddressSuggestions(response.suggestions);
+        setAddressSuggestError('');
+        setAddressSuggestionsOpen(true);
+      } catch (err) {
+        if (cancelled) return;
+        setAddressSuggestions([]);
+        setAddressSuggestError(err instanceof ApiError ? err.message : 'Не удалось загрузить адреса.');
+        setAddressSuggestionsOpen(true);
+      } finally {
+        if (!cancelled) setAddressSuggestionsLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [addressFocused, form.addressLine]);
 
   const save = async () => {
     setSaving(true);
@@ -199,11 +242,54 @@ function ShopProfileSettings() {
               value={form.city}
               onChange={event => setForm(current => ({ ...current, city: event.target.value }))}
             />
-            <Input
-              label="Адрес"
-              value={form.addressLine}
-              onChange={event => setForm(current => ({ ...current, addressLine: event.target.value }))}
-            />
+            <div className="relative">
+              <Input
+                label="Адрес"
+                value={form.addressLine}
+                onChange={event => {
+                  setForm(current => ({ ...current, addressLine: event.target.value }));
+                  setAddressFocused(true);
+                  setAddressSuggestionsOpen(true);
+                }}
+                onFocus={() => {
+                  setAddressFocused(true);
+                  if (addressSuggestions.length > 0 || addressSuggestError) setAddressSuggestionsOpen(true);
+                }}
+                onBlur={() => {
+                  setAddressFocused(false);
+                  setAddressSuggestionsOpen(false);
+                }}
+              />
+              {addressSuggestionsOpen && (addressSuggestionsLoading || addressSuggestions.length > 0 || addressSuggestError) && (
+                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                  {addressSuggestionsLoading && <div className="px-3 py-2 text-xs text-gray-500">Ищем адрес...</div>}
+                  {!addressSuggestionsLoading && addressSuggestError && <div className="px-3 py-2 text-xs text-red-600">{addressSuggestError}</div>}
+                  {!addressSuggestionsLoading && !addressSuggestError && addressSuggestions.map(suggestion => (
+                    <button
+                      key={`${suggestion.fiasId ?? suggestion.value}-${suggestion.unrestrictedValue}`}
+                      type="button"
+                      onMouseDown={event => event.preventDefault()}
+                      onClick={() => {
+                        setForm(current => ({
+                          ...current,
+                          addressLine: suggestion.value,
+                          city: current.city || suggestion.city || suggestion.settlement || '',
+                        }));
+                        setAddressSuggestions([]);
+                        setAddressSuggestionsOpen(false);
+                        setAddressSuggestError('');
+                      }}
+                      className="w-full px-3 py-2 text-left transition hover:bg-blue-50"
+                    >
+                      <span className="block truncate text-sm font-medium text-gray-900">{suggestion.value}</span>
+                      {suggestion.unrestrictedValue && suggestion.unrestrictedValue !== suggestion.value && (
+                        <span className="mt-0.5 block truncate text-[11px] text-gray-500">{suggestion.unrestrictedValue}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <Textarea
             label="Описание"
@@ -231,13 +317,12 @@ function StorefrontSettingsPage() {
     enabled: false,
     publicName: '',
     description: '',
-    logoImageId: '',
-    coverImageId: '',
     primaryColor: '',
     accentColor: '',
     phone: '',
     email: '',
     telegram: '',
+    whatsapp: '',
     seoTitle: '',
     seoDescription: '',
   });
@@ -250,7 +335,7 @@ function StorefrontSettingsPage() {
   const [colorError, setColorError] = useState('');
 
   const normalizedSlug = form.slug.trim().toLowerCase();
-  const publicUrl = normalizedSlug ? `https://${normalizedSlug}.sportgearhub.ru` : '';
+  const publicUrl = storefront?.host ? `https://${storefront.host}` : normalizedSlug ? `https://${normalizedSlug}.sportgearhub.ru` : '';
 
   const load = async () => {
     setLoading(true);
@@ -262,18 +347,19 @@ function StorefrontSettingsPage() {
       ]);
       setProfile(nextProfile);
       setStorefront(nextStorefront);
+      const storefrontPhone = readStorefrontContact(nextStorefront, 'phone');
+      const storefrontEmail = readStorefrontContact(nextStorefront, 'email');
       setForm({
-        slug: nextProfile.slug ?? nextStorefront.slug ?? '',
+        slug: nextStorefront.provider?.slug ?? nextProfile.slug ?? nextStorefront.slug ?? '',
         enabled: nextStorefront.enabled === true,
         publicName: nextStorefront.publicName ?? nextProfile.displayName ?? '',
         description: nextStorefront.description ?? '',
-        logoImageId: nextStorefront.logoImageId ?? '',
-        coverImageId: nextStorefront.coverImageId ?? '',
         primaryColor: nextStorefront.theme?.primaryColor ?? '',
         accentColor: nextStorefront.theme?.accentColor ?? '',
-        phone: nextStorefront.contacts?.phone ?? nextProfile.contactPhone ?? '',
-        email: nextStorefront.contacts?.email ?? nextProfile.contactEmail ?? '',
-        telegram: nextStorefront.contacts?.telegram ?? '',
+        phone: storefrontPhone || nextProfile.contactPhone || '',
+        email: storefrontEmail || nextProfile.contactEmail || '',
+        telegram: readStorefrontContact(nextStorefront, 'telegram'),
+        whatsapp: readStorefrontContact(nextStorefront, 'whatsapp'),
         seoTitle: nextStorefront.seo?.title ?? nextStorefront.publicName ?? nextProfile.displayName ?? '',
         seoDescription: nextStorefront.seo?.description ?? '',
       });
@@ -329,17 +415,11 @@ function StorefrontSettingsPage() {
         enabled: form.enabled,
         publicName: form.publicName.trim() || null,
         description: form.description.trim() || null,
-        logoImageId: form.logoImageId.trim() || null,
-        coverImageId: form.coverImageId.trim() || null,
         theme: {
           primaryColor: form.primaryColor.trim() || null,
           accentColor: form.accentColor.trim() || null,
         },
-        contacts: {
-          phone: form.phone.trim() || null,
-          email: form.email.trim() || null,
-          telegram: form.telegram.trim() || null,
-        },
+        contacts: buildStorefrontContacts(form),
         seo: {
           title: form.seoTitle.trim() || null,
           description: form.seoDescription.trim() || null,
@@ -487,13 +567,12 @@ function StorefrontSettingsPage() {
             <Input label="Телефон" value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} />
             <Input label="Email" type="email" value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} />
             <Input label="Telegram" value={form.telegram} onChange={event => setForm(current => ({ ...current, telegram: event.target.value }))} placeholder="megaprokat_ufa" />
+            <Input label="WhatsApp" value={form.whatsapp} onChange={event => setForm(current => ({ ...current, whatsapp: event.target.value }))} placeholder="+79990000000" />
           </div>
 
           <Textarea label="Описание сайта" rows={3} value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} />
 
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Logo image ID" value={form.logoImageId} onChange={event => setForm(current => ({ ...current, logoImageId: event.target.value }))} />
-            <Input label="Cover image ID" value={form.coverImageId} onChange={event => setForm(current => ({ ...current, coverImageId: event.target.value }))} />
             <Input label="Основной цвет" value={form.primaryColor} onChange={event => {
               setColorError('');
               setForm(current => ({ ...current, primaryColor: event.target.value }));
@@ -529,6 +608,24 @@ function StorefrontSettingsPage() {
       )}
     </Card>
   );
+}
+
+function readStorefrontContact(storefront: StorefrontSettings, type: string) {
+  return storefront.contacts?.find(contact => contact.type === type)?.value ?? '';
+}
+
+function buildStorefrontContacts(form: {
+  phone: string;
+  email: string;
+  telegram: string;
+  whatsapp: string;
+}) {
+  return [
+    { type: 'phone', value: form.phone.trim(), isPrimary: true },
+    { type: 'email', value: form.email.trim(), isPrimary: true },
+    { type: 'telegram', value: form.telegram.trim(), isPrimary: true },
+    { type: 'whatsapp', value: form.whatsapp.trim(), isPrimary: false },
+  ].filter(contact => contact.value);
 }
 
 function EmployeesSettings() {
