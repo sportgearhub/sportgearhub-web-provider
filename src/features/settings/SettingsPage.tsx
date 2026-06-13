@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Globe2, MapPin, Plus, Save, Shield, Trash2, UserRound, UsersRound } from 'lucide-react';
+import { Building2, Globe2, MapPin, Plus, Save, Trash2, UserRound, UsersRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -12,9 +12,8 @@ import { addressesApi, ApiError, profileApi, providerMembersApi, storefrontApi }
 import type { RuAddressSuggestion } from '../../lib/api-client';
 import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOption, StorefrontEditSession, StorefrontSettings } from '../../types';
 import { LocationsPage } from '../locations/LocationsPage';
-import { PolicyPage } from '../policy/PolicyPage';
 
-type SettingsTab = 'shop' | 'storefront' | 'policy' | 'locations' | 'account' | 'employees';
+type SettingsTab = 'shop' | 'storefront' | 'locations' | 'account' | 'employees';
 type StorefrontTab = 'settings' | 'live';
 
 interface SettingsPageProps {
@@ -26,7 +25,6 @@ const tabs: { id: SettingsTab; label: string; path: string; icon: typeof Buildin
   { id: 'account', label: 'Аккаунт', path: '/settings/account', icon: UserRound },
   { id: 'employees', label: 'Сотрудники', path: '/settings/employees', icon: UsersRound },
   { id: 'locations', label: 'Локации', path: '/settings/locations', icon: MapPin },
-  { id: 'policy', label: 'Правила', path: '/settings/policy', icon: Shield },
 ];
 
 const reservedProviderSlugs = new Set([
@@ -74,7 +72,6 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
       <div className="min-h-0 flex-1 bg-white">
         {tab === 'shop' && <ShopProfileSettings />}
         {tab === 'storefront' && <StorefrontSettingsPage />}
-        {tab === 'policy' && <PolicyPage embedded />}
         {tab === 'locations' && <LocationsPage embedded />}
         {tab === 'employees' && <EmployeesSettings />}
         {tab === 'account' && <AccountSettings />}

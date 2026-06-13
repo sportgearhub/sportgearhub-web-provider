@@ -9,33 +9,30 @@ import type {
   CatalogCity,
   ProviderLocation,
   DashboardResponse,
-  OnboardingResponse,
   Resource,
   ResourceImage,
-  AvailabilityProfile,
   CapacitySlot,
   AvailabilityDiagnostics,
   ResourceInventorySummary,
   ResourceUnit,
+  ResourceUnitInput,
   ResourceVariant,
   VariantAllocation,
   PricingPolicy,
   PricingQuotePreview,
   PricingDiagnostics,
-  RentalTier,
-  ProviderPolicy,
   PayoutContract,
-  PolicyDiagnostics,
-  PolicyDeposit,
+  OfferPolicy,
+  OfferPolicyInput,
   Offer,
   OfferAvailability,
   OfferAvailabilityWindow,
   OfferAvailabilityBlockedPeriod,
-  OfferVariantExposure,
   OfferReadiness,
   OfferRoutability,
   OfferPublishability,
   OfferVisibility,
+  OfferInclusions,
   OfferAuthoringOptions,
   BookingListItem,
   BookingDetail,
@@ -51,6 +48,8 @@ import type {
   StorefrontSettingsPatch,
   ResourceStatus,
   OfferStatus,
+  StockBalancePreview,
+  StockBalanceApplyResult,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -101,6 +100,7 @@ type ApiResource = {
     title?: string | null;
   } | null;
   title?: string | null;
+  mediaPreviewUrl?: string | null;
   readiness?: unknown;
   publishabilityImpact?: unknown;
   createdAt?: string;
@@ -113,7 +113,6 @@ type ApiOffer = {
   status?: string;
   primaryResourceId?: string;
   bookingFlowType?: string;
-  variantExposureMode?: string;
   title?: string | null;
   description?: string | null;
   price?: number | null;
@@ -175,7 +174,10 @@ export type EquipmentAttribute = {
   unitLabel?: string | null;
   referenceType?: string | null;
   requiredOn: string[];
-  appliesTo: string[];
+  /** @deprecated removed from the API — kept optional for back-compat. */
+  appliesTo?: string[];
+  helpText?: string | null;
+  helpTexts?: Record<string, string>;
   visibleWhen: EquipmentAttributeVisibilityCondition[];
   filterable: boolean;
   comparable: boolean;
@@ -187,6 +189,20 @@ export type EquipmentAttribute = {
 export type EquipmentAttributeSchema = {
   category: EquipmentCategory | ResourceCategory;
   attributes: EquipmentAttribute[];
+};
+
+export type ResourceAttributeValue = {
+  key: string;
+  valueType: string;
+  /** Canonical value — what to send back on edit (brand id, "18", "mountain"). */
+  value: string;
+  /** Human-readable label to show; fall back to `value` when null. */
+  displayValue?: string | null;
+};
+
+export type ResourceAttributes = {
+  resourceId: string;
+  attributes: ResourceAttributeValue[];
 };
 
 export type EquipmentBrandSuggestion = {
@@ -219,6 +235,11 @@ type OidcTokenResponse = {
   id_token?: string;
 };
 
+type SimpleTokenResponse = {
+  accessToken: string;
+  refreshToken: string;
+};
+
 type StoredOidcToken = OidcTokenResponse & {
   obtained_at: number;
   expires_at: number;
@@ -246,11 +267,8 @@ export type ProviderOnboardingDraft = {
   taxNumber: string | null;
   registrationNumber: string | null;
   branchNumber: string | null;
-  registeredAddress: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
-  cityId: string | null;
-  city: string | null;
   address: string | null;
   description: string | null;
   acquiringProvider: string | null;
@@ -474,6 +492,7 @@ function normalizeResource(resource: ApiResource): Resource {
     slug: resourceId,
     categoryId: category?.slug ?? resourceType,
     categoryName: category?.title ?? (resourceType === 'equipment' ? 'Equipment' : resourceType),
+    mediaPreviewUrl: resource.mediaPreviewUrl ?? null,
     variantCount: 0,
   };
 }
@@ -496,7 +515,6 @@ function normalizeOffer(offer: ApiOffer): Offer {
     status,
     primaryResourceId: offer.primaryResourceId ?? '',
     bookingFlowType: offer.bookingFlowType ?? 'standard_rental',
-    variantExposureMode: offer.variantExposureMode,
     title,
     description: offer.description ?? undefined,
     location: offer.location ?? null,
@@ -566,6 +584,25 @@ function storeToken(token: OidcTokenResponse, scope: string) {
   } catch {
     // In private or restricted storage contexts, keep the token for this tab only.
   }
+}
+
+function jwtExpiresIn(jwt: string): number {
+  try {
+    const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof payload.exp === 'number') return Math.max(0, payload.exp - Math.floor(Date.now() / 1000));
+  } catch {
+    // ignore malformed JWT
+  }
+  return 3600;
+}
+
+function storeSimpleToken({ accessToken, refreshToken }: SimpleTokenResponse) {
+  storeToken({
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: jwtExpiresIn(accessToken),
+    refresh_token: refreshToken,
+  }, PROVIDER_AUTH_SCOPE);
 }
 
 function clearStoredToken() {
@@ -727,29 +764,32 @@ export const authApi = {
     request<RegistrationInvitationContext>(`/api/v1/auth/registration-invitations/${encodeURIComponent(token)}`, {
       auth: false,
     }),
-  magicSignIn: async (token: string) =>
-    normalizeUser(await request<ApiUser>('/api/v1/auth/magic-sign-in', {
+  magicSignIn: async (token: string) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/magic-sign-in', {
       method: 'POST',
       auth: false,
       body: JSON.stringify({ token }),
-    })),
+    }));
+  },
   login: async (email: string, password: string) => {
     await passwordGrant(email, password);
     return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
   },
   me: async () => normalizeUser(await request<ApiUser>('/api/v1/auth/me')),
-  register: async (data: { token?: string; name: string; surname: string; email?: string; password?: string }) =>
-    normalizeUser(await request<ApiUser>('/api/v1/auth/register', {
+  register: async (data: { token?: string; name: string; surname: string; email?: string; password?: string }) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/register', {
       method: 'POST',
       auth: false,
       body: JSON.stringify({ ...data, app: AUTH_APP }),
-    })),
-  verifyEmail: (token: string) =>
-    request<void>('/api/v1/auth/email/verify', {
+    }));
+  },
+  verifyEmail: async (token: string) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/verify', {
       method: 'POST',
       auth: false,
       body: JSON.stringify({ token }),
-    }),
+    }));
+  },
   resendVerification: (email: string) =>
     request<void>('/api/v1/auth/email/verification', {
       method: 'POST',
@@ -768,12 +808,13 @@ export const authApi = {
       auth: false,
       body: JSON.stringify({ token, newPassword }),
     }),
-  acceptProviderInvitation: async (data: { token: string; name: string; surname: string; password: string }) =>
-    normalizeUser(await request<ApiUser>('/api/v1/provider-invitations/accept', {
+  acceptProviderInvitation: async (data: { token: string; name: string; surname: string; password: string }) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/provider-invitations/accept', {
       method: 'POST',
       auth: false,
       body: JSON.stringify(data),
-    })),
+    }));
+  },
   signout: async () => {
     try {
       await request<void>('/api/v1/auth/signout', { method: 'POST' });
@@ -868,13 +909,6 @@ export const profileApi = {
 
   getOperatingState: () => providerRequest<Provider['operatingState']>('/operating-state'),
 
-  getOnboarding: () => providerRequest<OnboardingResponse>('/onboarding'),
-
-  submitOnboarding: (note: string) =>
-    providerRequest<OnboardingResponse>('/onboarding/submit', {
-      method: 'POST',
-      body: JSON.stringify({ note }),
-    }),
 };
 
 export const payoutContractsApi = {
@@ -985,6 +1019,7 @@ export const resourcesApi = {
     capacityMode: string;
     category?: string;
     title: string;
+    attributes?: Record<string, string>;
   }) => providerRequest<ApiResource>('/resources', { method: 'POST', body: JSON.stringify(data) }).then(normalizeResource),
 
   get: (resourceId: string) => providerRequest<ApiResource>(`/resources/${resourceId}`).then(normalizeResource),
@@ -1009,6 +1044,15 @@ export const resourcesApi = {
       method: 'DELETE',
     }),
 
+  getAttributes: (resourceId: string) =>
+    providerRequest<ResourceAttributes>(`/resources/${resourceId}/attributes`),
+
+  putAttributes: (resourceId: string, attributes: Record<string, string>) =>
+    providerRequest<ResourceAttributes>(`/resources/${resourceId}/attributes`, {
+      method: 'PUT',
+      body: JSON.stringify({ attributes }),
+    }),
+
   images: {
     list: (resourceId: string) =>
       providerRequest<ResourceImage[]>(`/resources/${resourceId}/images`),
@@ -1022,6 +1066,15 @@ export const resourcesApi = {
         body: formData,
       });
     },
+
+    delete: (resourceId: string, imageId: string) =>
+      providerRequest<void>(`/resources/${resourceId}/images/${imageId}`, { method: 'DELETE' }),
+
+    reorder: (resourceId: string, imageIds: string[]) =>
+      providerRequest<ResourceImage[]>(`/resources/${resourceId}/images/order`, {
+        method: 'PUT',
+        body: JSON.stringify({ imageIds }),
+      }),
   },
 
   getRoutabilityImpact: (resourceId: string) =>
@@ -1071,23 +1124,6 @@ export const equipmentApi = {
 // ─── Availability ─────────────────────────────────────────────────────────────
 
 export const availabilityApi = {
-  getProfile: (resourceId: string) =>
-    providerRequest<AvailabilityProfile>(`/resources/${resourceId}/availability-profile`),
-
-  putProfile: (
-    resourceId: string,
-    data: {
-      availabilityMode: string;
-      timezone: string;
-      bookingHorizonDays: number;
-      status: string;
-    }
-  ) =>
-    providerRequest<AvailabilityProfile>(`/resources/${resourceId}/availability-profile`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
   listSlots: (
     resourceId: string,
     params: { dateFrom?: string; dateTo?: string; status?: string } = {}
@@ -1136,22 +1172,13 @@ export const availabilityApi = {
   listUnits: (resourceId: string) =>
     providerRequest<ResourceUnit[]>(`/resources/${resourceId}/units`),
 
-  createUnit: (
-    resourceId: string,
-    data: {
-      resourceVariantId?: string | null;
-      inventoryCode?: string | null;
-      displayName?: string | null;
-      status?: string | null;
-      conditionStatus?: string | null;
-      externalReferenceCode?: string | null;
-    }
-  ) => providerRequest<ResourceUnit>(`/resources/${resourceId}/units`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
+  createUnit: (resourceId: string, data: ResourceUnitInput) =>
+    providerRequest<ResourceUnit>(`/resources/${resourceId}/units`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
-  patchUnit: (resourceId: string, unitId: string, data: Partial<ResourceUnit>) =>
+  patchUnit: (resourceId: string, unitId: string, data: ResourceUnitInput) =>
     providerRequest<ResourceUnit>(`/resources/${resourceId}/units/${unitId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -1161,6 +1188,11 @@ export const availabilityApi = {
     providerRequest<ResourceUnit>(`/resources/${resourceId}/units/${unitId}/archive`, {
       method: 'POST',
       body: JSON.stringify({ reasonCode }),
+    }),
+
+  deleteUnit: (resourceId: string, unitId: string) =>
+    providerRequest<void>(`/resources/${resourceId}/units/${unitId}`, {
+      method: 'DELETE',
     }),
 };
 
@@ -1173,7 +1205,7 @@ export const variantsApi = {
   create: (
     resourceId: string,
     data: {
-      variantKey: string;
+      sku: string;
       label: string;
       attributes: ResourceVariant['attributes'];
       sortOrder: number;
@@ -1191,7 +1223,7 @@ export const variantsApi = {
   patch: (
     resourceId: string,
     variantId: string,
-    data: Partial<Pick<ResourceVariant, 'label' | 'variantKey' | 'attributes' | 'sortOrder' | 'status'>>
+    data: Partial<Pick<ResourceVariant, 'label' | 'sku' | 'attributes' | 'sortOrder' | 'status'>>
   ) =>
     providerRequest<ResourceVariant>(`/resources/${resourceId}/variants/${variantId}`, {
       method: 'PATCH',
@@ -1212,38 +1244,23 @@ export const variantsApi = {
       body: JSON.stringify(data),
     }),
 
-  getDiagnostics: (resourceId: string, variantId: string) =>
-    providerRequest<Record<string, unknown>>(
-      `/resources/${resourceId}/variants/${variantId}/diagnostics`
-    ),
+  getResourceDiagnostics: (resourceId: string) =>
+    providerRequest<{
+      resourceId?: string;
+      variantReady: boolean;
+      availabilityCompatible: boolean;
+      pricingCompatible: boolean;
+      bookingRoutable: boolean;
+      errors: string[];
+      warnings: string[];
+      publishabilityImpact?: Array<{ key: string; value: string | null }>;
+      checkedAt?: string;
+    }>(`/resources/${resourceId}/variant-diagnostics`),
 };
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
 export const pricingApi = {
-  getResourcePolicy: (resourceId: string) =>
-    providerRequest<PricingPolicy>(`/resources/${resourceId}/pricing-policy`),
-
-  putResourcePolicy: (
-    resourceId: string,
-    data: {
-      pricingMode: string;
-      currency: string;
-      baseAmount?: number | null;
-      adjustmentRules: PricingPolicy['adjustmentRules'];
-      rentalTiers?: PricingPolicy['rentalTiers'];
-      multiDayRate?: number | null;
-      status: string;
-    }
-  ) =>
-    providerRequest<PricingPolicy>(`/resources/${resourceId}/pricing-policy`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  getResourceDiagnostics: (resourceId: string) =>
-    providerRequest<PricingDiagnostics>(`/resources/${resourceId}/pricing-diagnostics`),
-
   quotePreview: (data: {
     offerId?: string;
     resourceId?: string | null;
@@ -1267,9 +1284,12 @@ export const pricingApi = {
       pricingMode: string;
       currency: string;
       baseAmount?: number | null;
-      adjustmentRules: PricingPolicy['adjustmentRules'];
       rentalTiers?: PricingPolicy['rentalTiers'];
       multiDayRate?: number | null;
+      minParticipants?: number | null;
+      maxParticipants?: number | null;
+      groupDiscountPercent?: number | null;
+      groupDiscountMinParticipants?: number | null;
       status: string;
     }
   ) =>
@@ -1282,67 +1302,19 @@ export const pricingApi = {
     providerRequest<Record<string, unknown>>(`/offers/${offerId}/pricing-summary-preview`, {
       method: 'POST',
     }),
+
+  getResourceDiagnostics: (resourceId: string) =>
+    providerRequest<PricingDiagnostics>(`/resources/${resourceId}/pricing-diagnostics`),
 };
 
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
 export const policyApi = {
-  getProfile: () => providerRequest<ProviderPolicy>('/policy-profile'),
-
-  putProfile: (data: {
-    policyScope: string;
-    status: string;
-    leadTimeHours?: number;
-    cancellationWindowHours?: number;
-    isCancellationAllowed?: boolean;
-    noShowChargePercent?: number;
-    deposit?: PolicyDeposit;
-    checkInGraceMinutes?: number;
-    assuranceMode?: string;
-    weatherException?: boolean;
-    minimumAge?: number;
-  }) =>
-    providerRequest<ProviderPolicy>('/policy-profile', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  getResourcePolicy: (resourceId: string) =>
-    providerRequest<ProviderPolicy>(`/resources/${resourceId}/policy`),
-
-  putResourcePolicy: (
-    resourceId: string,
-    data: {
-      overrideScope: string;
-      overrideRules: ProviderPolicy['ruleset'];
-      status: string;
-    }
-  ) =>
-    providerRequest<ProviderPolicy>(`/resources/${resourceId}/policy`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  offerPolicySummaryPreview: (offerId: string) =>
-    providerRequest<Record<string, unknown>>(`/offers/${offerId}/policy-summary-preview`, {
-      method: 'POST',
-    }),
-
-  getResourceDiagnostics: (resourceId: string) =>
-    providerRequest<PolicyDiagnostics>(`/resources/${resourceId}/policy-diagnostics`),
-
   getOfferPolicy: (offerId: string) =>
-    providerRequest<ProviderPolicy>(`/offers/${offerId}/policy`),
+    providerRequest<OfferPolicy>(`/offers/${offerId}/policy`),
 
-  putOfferPolicy: (
-    offerId: string,
-    data: {
-      overrideScope: string;
-      overrideRules: ProviderPolicy['ruleset'];
-      status: string;
-    }
-  ) =>
-    providerRequest<ProviderPolicy>(`/offers/${offerId}/policy`, {
+  putOfferPolicy: (offerId: string, data: OfferPolicyInput) =>
+    providerRequest<OfferPolicy>(`/offers/${offerId}/policy`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -1370,7 +1342,6 @@ export const offersApi = {
     fulfillmentLocationId?: string | null;
     meetupLocation?: Record<string, unknown> | null;
     locationRef?: Offer['locationRef'];
-    variantExposureMode?: string | null;
   }) => providerRequest<ApiOffer>('/offers', { method: 'POST', body: JSON.stringify(data) }).then(normalizeOffer),
 
   get: (offerId: string) => providerRequest<ApiOffer>(`/offers/${offerId}`).then(normalizeOffer),
@@ -1385,11 +1356,6 @@ export const offersApi = {
       locationRef?: Offer['locationRef'];
     }
   ) => providerRequest<ApiOffer>(`/offers/${offerId}`, { method: 'PATCH', body: JSON.stringify(data) }).then(normalizeOffer),
-
-  checkPublishability: (offerId: string) =>
-    providerRequest<OfferPublishability>(`/offers/${offerId}/check-publishability`, {
-      method: 'POST',
-    }),
 
   activate: (offerId: string) =>
     providerRequest<ApiOffer>(`/offers/${offerId}/activate`, {
@@ -1409,25 +1375,6 @@ export const offersApi = {
       body: JSON.stringify({ reasonCode }),
     }).then(normalizeOffer),
 
-  getVariantExposure: (offerId: string) =>
-    providerRequest<OfferVariantExposure[]>(`/offers/${offerId}/variant-exposure`),
-
-  putVariantExposureMode: (offerId: string, variantExposureMode: string) =>
-    providerRequest<Offer>(`/offers/${offerId}/variant-exposure-mode`, {
-      method: 'PUT',
-      body: JSON.stringify({ variantExposureMode }),
-    }),
-
-  putVariantExposure: (
-    offerId: string,
-    variantId: string,
-    data: Pick<OfferVariantExposure, 'isRequiredForBooking' | 'displayLabelOverride' | 'visibilityStatus' | 'sortOrder'>
-  ) =>
-    providerRequest<OfferVariantExposure>(`/offers/${offerId}/variants/${variantId}/exposure`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
   getRoutability: (offerId: string) =>
     providerRequest<OfferRoutability>(`/offers/${offerId}/routability`),
 
@@ -1443,6 +1390,15 @@ export const offersApi = {
 
   putVisibility: (offerId: string, data: OfferVisibility) =>
     providerRequest<OfferVisibility>(`/offers/${offerId}/visibility`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  getInclusions: (offerId: string) =>
+    providerRequest<OfferInclusions>(`/offers/${offerId}/inclusions`),
+
+  putInclusions: (offerId: string, data: OfferInclusions) =>
+    providerRequest<OfferInclusions>(`/offers/${offerId}/inclusions`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -1462,7 +1418,6 @@ export const offerAvailabilityApi = {
       blockedPeriods: OfferAvailabilityBlockedPeriod[];
       minRentHours: number;
       maxRentHours: number;
-      advanceNoticeHours: number;
       status: string;
     }
   ) =>
@@ -1582,6 +1537,48 @@ export const acquiringApi = {
       `/acquiring-connections/${connectionId}/submit-onboarding`,
       { method: 'POST', body: JSON.stringify(data) }
     ),
+};
+
+// ─── Activity Options ─────────────────────────────────────────────────────────
+
+export const activityOptionsApi = {
+  list: () =>
+    providerRequest<Array<{
+      activityId: string;
+      slug: string;
+      title: string;
+      titles: Record<string, string>;
+      status: string;
+      sortOrder: number;
+    }>>('/activity-options'),
+};
+
+// ─── Stock Balance ────────────────────────────────────────────────────────────
+
+export const stockBalanceApi = {
+  downloadTemplate: async (): Promise<Blob> => {
+    const accessToken = await getAccessToken();
+    const headers = new Headers();
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+    const res = await fetch(
+      `${API_BASE_URL}${PROVIDER_BASE_URL}/stock-balance`,
+      { credentials: accessToken ? 'omit' : 'include', headers }
+    );
+    if (!res.ok) throw new ApiError(res.status, `Не удалось скачать шаблон`, undefined);
+    return res.blob();
+  },
+
+  preview: (file: File): Promise<StockBalancePreview> => {
+    const form = new FormData();
+    form.append('file', file);
+    return providerRequest<StockBalancePreview>('/stock-balance/preview', { method: 'POST', body: form });
+  },
+
+  apply: (file: File): Promise<StockBalanceApplyResult> => {
+    const form = new FormData();
+    form.append('file', file);
+    return providerRequest<StockBalanceApplyResult>('/stock-balance', { method: 'POST', body: form });
+  },
 };
 
 export type {

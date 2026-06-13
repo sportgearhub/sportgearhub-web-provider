@@ -131,10 +131,9 @@ export function OfferPricingTab({ offer }: OfferPricingTabProps) {
     try {
       const baseAmount = isRentalTiers ? null : (form.baseAmount.trim() === '' ? null : Number(form.baseAmount));
       const nextPolicy = await pricingApi.putOfferPolicy(offer.offerId, {
-        pricingMode: form.pricingMode || 'per_unit_time',
+        pricingMode: form.pricingMode || 'rental_tiers',
         currency: form.currency || 'RUB',
         baseAmount,
-        adjustmentRules: policy?.adjustmentRules ?? [],
         rentalTiers: isRentalTiers ? tiers : null,
         multiDayRate: isRentalTiers && form.multiDayRate.trim() !== '' ? Number(form.multiDayRate) : null,
         status: form.status || 'active',

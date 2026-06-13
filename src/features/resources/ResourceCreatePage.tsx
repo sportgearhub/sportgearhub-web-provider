@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { ResourceForm, type ResourceFormData } from './ResourceForm';
-import { ApiError, equipmentApi, resourcesApi, variantsApi, type ResourceCategory } from '../../lib/api-client';
+import { ApiError, equipmentApi, resourcesApi, type ResourceCategory } from '../../lib/api-client';
 
 interface ResourceCreatePageProps {
   onNavigate: (path: string) => void;
@@ -74,16 +74,8 @@ export function ResourceCreatePage({ onNavigate, onHeaderContentChange }: Resour
         capacityMode: data.capacityMode,
         category: data.categorySlug,
         title: data.title,
+        attributes: data.attributes,
       });
-
-      const variants = data.variants ?? (data.variant ? [data.variant] : []);
-      await Promise.all(variants.map((variant, index) =>
-        variantsApi.create(newResource.resourceId, {
-          ...variant,
-          attributes: variant.attributes,
-          sortOrder: index + 1,
-        })
-      ));
 
       if (data.imageFiles?.length) {
         await resourcesApi.images.upload(newResource.resourceId, data.imageFiles);

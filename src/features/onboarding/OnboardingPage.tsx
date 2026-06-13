@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Clock, LogOut } from 'lucide-react';
+import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { FancySelect } from '../../components/ui/FancySelect';
@@ -8,7 +9,6 @@ import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { Textarea } from '../../components/ui/Textarea';
 import {
   ApiError,
-  catalogApi,
   paymentReferenceApi,
   providerOnboardingApi,
   type SbpMemberReference,
@@ -18,7 +18,6 @@ import {
 } from '../../lib/api-client';
 import { useAuth } from '../../context/useAuth';
 import { isValidRuInn, normalizeInn } from '../../lib/utils';
-import type { CatalogCity } from '../../types';
 import { DecisionState, LoadingState, OnboardingFrame } from './components/OnboardingFrame';
 import { ChecklistLine, SectionHeader, StepChoice } from './components/OnboardingPrimitives';
 import type {
@@ -59,7 +58,7 @@ const steps = [
   { key: 'legal', title: 'Статус' },
   { key: 'taxation', title: 'Налоги' },
   { key: 'profile', title: 'Профиль' },
-  { key: 'city', title: 'Город' },
+  { key: 'address', title: 'Адрес' },
 ] as const;
 
 const fullSectionKeys: Array<{ key: FullSectionKey; label: string }> = [
@@ -71,7 +70,6 @@ const fullSectionKeys: Array<{ key: FullSectionKey; label: string }> = [
 
 let onboardingLoadPromise: Promise<ProviderOnboarding> | null = null;
 let onboardingOptionsPromise: Promise<ProviderOnboardingOptions> | null = null;
-let citiesLoadPromise: Promise<CatalogCity[]> | null = null;
 let sbpMembersLoadPromise: Promise<SbpMemberReference[]> | null = null;
 
 async function loadCurrentOnboarding() {
@@ -96,17 +94,6 @@ async function loadOnboardingOptions() {
   return onboardingOptionsPromise;
 }
 
-async function loadCities() {
-  if (!citiesLoadPromise) {
-    citiesLoadPromise = catalogApi.cities()
-      .finally(() => {
-        citiesLoadPromise = null;
-      });
-  }
-
-  return citiesLoadPromise;
-}
-
 async function loadSbpMembers() {
   if (!sbpMembersLoadPromise) {
     sbpMembersLoadPromise = paymentReferenceApi.sbpMembers()
@@ -123,7 +110,6 @@ export function OnboardingPage() {
   const { reloadUser, signOut } = useAuth();
   const [onboarding, setOnboarding] = useState<ProviderOnboarding | null>(null);
   const [options, setOptions] = useState<ProviderOnboardingOptions | null>(null);
-  const [cities, setCities] = useState<CatalogCity[]>([]);
   const [sbpMembers, setSbpMembers] = useState<SbpMemberReference[]>([]);
   const [form, setForm] = useState<FormState>({ ...emptyForm });
   const [bankForm, setBankForm] = useState<BankRequisitesForm>({ ...emptyBankForm });
@@ -158,13 +144,6 @@ export function OnboardingPage() {
     if (!form.legalForm) return all;
     return all.filter(option => !option.supportedLegalForms?.length || option.supportedLegalForms.includes(form.legalForm));
   }, [form.legalForm, options?.taxationSystems]);
-  const cityOptions = useMemo(
-    () => [
-      { value: '', label: 'Выберите город' },
-      ...cities.map(city => ({ value: city.cityId, label: city.name })),
-    ],
-    [cities]
-  );
   const isSelfEmployed = isSelfEmployedLegalForm(form.legalForm, form.taxationSystem);
   const legalSectionTitle = isSelfEmployed
     ? 'Данные самозанятого'
@@ -199,16 +178,16 @@ export function OnboardingPage() {
     setError('');
     setLoading(true);
     try {
-      const [next, nextOptions, nextCities, nextSbpMembers] = await Promise.all([
+      const [next, nextOptions, nextSbpMembers] = await Promise.all([
         loadCurrentOnboarding(),
         loadOnboardingOptions(),
-        loadCities(),
         loadSbpMembers().catch(() => []),
       ]);
-      const nextForm = formFromDraft(next.draft);
+      // Some responses carry the profile fields flat (no `draft` wrapper); fall back to that.
+      const draftSource = next.draft ?? (next as unknown as ProviderOnboardingDraft | null);
+      const nextForm = formFromDraft(draftSource);
       setOnboarding(next);
       setOptions(nextOptions);
-      setCities(nextCities);
       setSbpMembers(nextSbpMembers);
       setForm(nextForm);
       setBankForm(bankFormFromDraft(next.draft));
@@ -319,7 +298,6 @@ export function OnboardingPage() {
       legalName: current.legalForm && current.legalForm !== legalForm ? '' : current.legalName,
       registrationNumber: current.legalForm && current.legalForm !== legalForm ? '' : current.registrationNumber,
       branchNumber: current.legalForm && current.legalForm !== legalForm ? '' : current.branchNumber,
-      registeredAddress: current.legalForm && current.legalForm !== legalForm ? '' : current.registeredAddress,
       taxationSystem: supportedTaxationSystems.some(option => option.value === current.taxationSystem) ? current.taxationSystem : '',
     }));
     setChiefExecutive(current => form.legalForm && form.legalForm !== legalForm ? { ...emptyChiefExecutiveForm } : current);
@@ -335,7 +313,6 @@ export function OnboardingPage() {
       delete next.legalName;
       delete next.registrationNumber;
       delete next.branchNumber;
-      delete next.registeredAddress;
       delete next.settlementAccount;
       delete next.bik;
       delete next.correspondentAccount;
@@ -356,7 +333,7 @@ export function OnboardingPage() {
       taxNumber: suggestion.taxNumber ?? current.taxNumber,
       registrationNumber: suggestion.registrationNumber ?? current.registrationNumber,
       branchNumber: suggestion.branchNumber ?? current.branchNumber,
-      registeredAddress: suggestion.registeredAddress ?? current.registeredAddress,
+      address: suggestion.registeredAddress ?? current.address,
     }));
     setChiefExecutive(chiefExecutiveFormFromPrefill(suggestion.chiefExecutivePrefill));
 
@@ -418,7 +395,7 @@ export function OnboardingPage() {
       if (!form.displayName.trim()) nextErrors.displayName = 'Укажите публичное название.';
     }
     if (step === 4) {
-      if (!form.cityId) nextErrors.cityId = 'Выберите город.';
+      if (!form.address.trim()) nextErrors.address = 'Укажите адрес.';
     }
 
     setFieldErrors(nextErrors);
@@ -473,9 +450,6 @@ export function OnboardingPage() {
     if (!isSelfEmployed && shouldShowLegalIdentityField('branchNumber') && !form.branchNumber.trim()) {
       nextErrors.branchNumber = 'Заполните КПП из данных по ИНН.';
     }
-    if (!isSelfEmployed && shouldShowLegalIdentityField('registeredAddress') && !form.registeredAddress.trim()) {
-      nextErrors.registeredAddress = 'Заполните юридический адрес из данных по ИНН.';
-    }
     if (!form.contactEmail.trim()) nextErrors.contactEmail = 'Укажите почту для связи.';
     if (form.contactEmail.trim() && !/^\S+@\S+\.\S+$/.test(form.contactEmail.trim())) {
       nextErrors.contactEmail = 'Укажите корректную почту.';
@@ -484,7 +458,6 @@ export function OnboardingPage() {
       nextErrors.contactPhone = 'Укажите 10 цифр номера телефона.';
     }
     if (!form.displayName.trim()) nextErrors.displayName = 'Укажите публичное название.';
-    if (!form.cityId.trim()) nextErrors.cityId = 'Выберите город работы.';
     if (!form.address.trim()) nextErrors.address = 'Укажите адрес.';
     if (!form.payoutSchedule.trim()) nextErrors.payoutSchedule = 'Выберите график выплат.';
     if (isSelfEmployed) {
@@ -714,15 +687,6 @@ export function OnboardingPage() {
                           readOnly
                         />
                       )}
-                      {shouldShowLegalIdentityField('registeredAddress') && (
-                        <Input
-                          label="Юр. адрес"
-                          value={form.registeredAddress}
-                          error={fieldErrors.registeredAddress}
-                          disabled
-                          readOnly
-                        />
-                      )}
                       <FancySelect
                         label="Налоговый режим"
                         value={form.taxationSystem}
@@ -873,20 +837,13 @@ export function OnboardingPage() {
                         error={fieldErrors.displayName}
                         disabled={isReviewing}
                       />
-                      <FancySelect
-                        label="Город работы"
-                        value={form.cityId}
-                        onChange={value => updateField('cityId', value)}
-                        options={cityOptions}
-                        error={fieldErrors.cityId}
-                        disabled={isReviewing}
-                      />
-                      <Input
+                      <AddressAutocomplete
                         label="Адрес или район работы"
                         value={form.address}
-                        onChange={event => updateField('address', event.target.value)}
+                        onChange={value => updateField('address', value)}
                         error={fieldErrors.address}
                         disabled={isReviewing}
+                        placeholder="Город, улица, дом"
                       />
                       <Textarea
                         label="Описание"
@@ -1132,14 +1089,14 @@ export function OnboardingPage() {
           {currentStep === 4 && (
             <section className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold text-gray-950">Выберите город</h2>
+                <h2 className="text-base font-semibold text-gray-950">Укажите адрес</h2>
               </div>
-              <FancySelect
-                label="Город"
-                value={form.cityId}
-                onChange={value => updateField('cityId', value)}
-                options={cityOptions}
-                error={fieldErrors.cityId}
+              <AddressAutocomplete
+                label="Адрес или район работы"
+                value={form.address}
+                onChange={value => updateField('address', value)}
+                error={fieldErrors.address}
+                placeholder="Город, улица, дом"
               />
             </section>
           )}

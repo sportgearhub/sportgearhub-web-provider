@@ -101,27 +101,25 @@ export function ResourceDetailPage({ resourceId, onNavigate, onHeaderContentChan
 
   return (
     <>
-      <div className="flex h-screen flex-col bg-gray-50">
+      <div className="flex h-screen flex-col bg-white">
         <div className="flex-1 overflow-auto">
-          <div className="p-6">
-            {error && <ResourceError message={error} />}
-            {loading ? (
-              <div className="py-12 text-center text-sm text-gray-500">Загружаем позицию...</div>
-            ) : resource ? (
-              <ResourceDetail
-                resource={resource}
-                onNavigate={onNavigate}
-                onEdit={() => onNavigate(`/resources/${resource.resourceId}/edit`)}
-                onArchive={() => void handleArchive(resource)}
-                onRemove={() => {
-                  setRemoveError('');
-                  setRemoveTarget(resource);
-                }}
-                removing={removing}
-                removeError={removeError}
-              />
-            ) : null}
-          </div>
+          {error && <ResourceError message={error} />}
+          {loading ? (
+            <div className="py-12 text-center text-sm text-gray-500">Загружаем позицию...</div>
+          ) : resource ? (
+            <ResourceDetail
+              resource={resource}
+              onNavigate={onNavigate}
+              onEdit={() => onNavigate(`/resources/${resource.resourceId}/edit`)}
+              onArchive={() => void handleArchive(resource)}
+              onRemove={() => {
+                setRemoveError('');
+                setRemoveTarget(resource);
+              }}
+              removing={removing}
+              removeError={removeError}
+            />
+          ) : null}
         </div>
       </div>
 

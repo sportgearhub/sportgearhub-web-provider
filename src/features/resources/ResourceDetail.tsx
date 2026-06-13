@@ -7,10 +7,10 @@ import { ResourceImagesSection } from './ResourceImagesSection';
 import { ResourceParkTab } from './ResourceParkTab';
 import { ResourceActionsMenu } from './ResourceActionsMenu';
 import { ResourceOffersTab } from './ResourceOffersTab';
-import { ResourceAvailabilityTab } from './ResourceAvailabilityTab';
-import { ResourceModelsTab } from './ResourceModelsTab';
-import { ResourcePricingTab } from './ResourcePricingTab';
-import type { Booking, Offer, Resource, ResourceStatus, ResourceVariant } from '../../types';
+import { equipmentApi, resourcesApi, type EquipmentAttribute, type ResourceAttributeValue } from '../../lib/api-client';
+
+
+import type { Offer, Resource, ResourceStatus } from '../../types';
 
 const statusBadge: Record<ResourceStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'blue' }> = {
   active: { label: 'Активен', variant: 'green' },
@@ -29,15 +29,12 @@ interface ResourceDetailProps {
   onNavigate?: (path: string) => void;
 }
 
-type DetailTab = 'overview' | 'models' | 'park' | 'offers' | 'availability' | 'pricing' | 'photos';
+type DetailTab = 'overview' | 'park' | 'offers' | 'photos';
 
 const detailTabs: Array<{ value: DetailTab; label: string }> = [
   { value: 'overview', label: 'Обзор' },
-  { value: 'models', label: 'Модели' },
   { value: 'park', label: 'Инвентарь' },
   { value: 'offers', label: 'Предложения' },
-  { value: 'availability', label: 'Доступность' },
-  { value: 'pricing', label: 'Цена' },
   { value: 'photos', label: 'Фото' },
 ];
 
@@ -66,16 +63,7 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
   const [activeTab, setActiveTab] = useState<DetailTab>(() => readTabFromUrl());
   const [tabResetKey, setTabResetKey] = useState(0);
   const status = statusBadge[resource.status];
-  const variants: ResourceVariant[] = [];
   const offers: Offer[] = [];
-  const bookings: Booking[] = [];
-
-  const totalStock = variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
-  const offerPrices = offers
-    .map(offer => offer.basePrice)
-    .filter((price): price is number => typeof price === 'number');
-  const basePrice = offerPrices.length > 0 ? Math.min(...offerPrices) : null;
-  const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
 
   useEffect(() => {
     const syncFromHistory = () => {
@@ -87,8 +75,9 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
   }, []);
 
   return (
-    <div className="w-full space-y-5">
-      <div className="flex items-start justify-end gap-4">
+    <div className="flex w-full flex-col">
+      {/* Header bar */}
+      <div className="flex items-center justify-end border-b border-gray-200 bg-white px-6 py-3">
         <div className="flex items-center gap-2">
           <Badge variant={status.variant} size="md">{status.label}</Badge>
           <Button size="sm" variant="secondary" onClick={onEdit}>
@@ -106,7 +95,7 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
       </div>
 
       {removeError && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="border-b border-red-200 bg-red-50 px-6 py-2 text-xs text-red-700">
           {removeError}
           {resource.status !== 'archived' && (
             <button type="button" className="ml-2 font-semibold underline underline-offset-2" onClick={onArchive}>
@@ -116,14 +105,8 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <DetailMetric label="Модели" value={String(variants.length)} />
-        <DetailMetric label="Базовая цена" value={basePrice ? `${basePrice.toLocaleString()} RUB` : 'Не задана'} />
-        <DetailMetric label="Доступный остаток" value={String(totalStock)} />
-        <DetailMetric label="Брони / выручка" value={`${bookings.length} / ${totalRevenue.toLocaleString()} RUB`} />
-      </div>
-
-      <div className="flex flex-wrap gap-1 border-b border-gray-200">
+      {/* Tab bar */}
+      <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-white px-6">
         {detailTabs.map(tab => (
           <button
             key={tab.value}
@@ -148,8 +131,9 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
         ))}
       </div>
 
+      {/* Tab content — full width, no extra padding */}
       {activeTab === 'overview' && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+        <div className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
           <Card>
             <div className="mb-4 flex items-center gap-2">
               <Package size={15} className="text-gray-400" />
@@ -164,6 +148,7 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
             {resource.description && (
               <p className="mt-4 text-sm text-gray-700">{resource.description}</p>
             )}
+            <ResourceAttributesPanel resource={resource} />
           </Card>
 
           <Card className="min-w-0 overflow-hidden">
@@ -193,35 +178,14 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
         </div>
       )}
 
-      {activeTab === 'models' && (
-        <ResourceModelsTab key={`models-${tabResetKey}`} resource={resource} onNavigate={onNavigate} />
-      )}
-
       {activeTab === 'park' && <ResourceParkTab key={`park-${tabResetKey}`} resource={resource} onNavigate={onNavigate} />}
 
       {activeTab === 'offers' && (
         <ResourceOffersTab key={`offers-${tabResetKey}`} resource={resource} onNavigate={onNavigate} />
       )}
 
-      {activeTab === 'availability' && (
-        <ResourceAvailabilityTab key={`availability-${tabResetKey}`} resource={resource} />
-      )}
-
-      {activeTab === 'pricing' && (
-        <ResourcePricingTab key={`pricing-${tabResetKey}`} resource={resource} />
-      )}
-
-      {activeTab === 'photos' && <ResourceImagesSection key={`photos-${tabResetKey}`} resourceId={resource.resourceId} />}
+      {activeTab === 'photos' &&<ResourceImagesSection key={`photos-${tabResetKey}`} resourceId={resource.resourceId} />}
     </div>
-  );
-}
-
-function DetailMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{label}</p>
-      <p className="mt-2 text-base font-semibold text-gray-900">{value}</p>
-    </Card>
   );
 }
 
@@ -230,6 +194,59 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-4">
       <span className="text-xs text-gray-500">{label}</span>
       <span className="text-xs font-medium text-gray-900 text-right">{value}</span>
+    </div>
+  );
+}
+
+/** Human-readable display for one stored attribute value: prefer displayValue, fall back to value. */
+function attributeDisplayValue(attribute: EquipmentAttribute | undefined, value: ResourceAttributeValue): string {
+  if (value.displayValue) return value.displayValue;
+  // No server-provided label — resolve enums via the schema and append units.
+  if (attribute?.allowedValues?.length) {
+    const match = attribute.allowedValues.find(option => option.valueKey === value.value);
+    if (match) return match.label;
+  }
+  if (value.valueType === 'boolean') return value.value === 'true' ? 'Да' : value.value === 'false' ? 'Нет' : value.value;
+  if (!value.value) return '—';
+  return attribute?.unitLabel ? `${value.value} ${attribute.unitLabel}` : value.value;
+}
+
+function ResourceAttributesPanel({ resource }: { resource: Resource }) {
+  const [schemaAttributes, setSchemaAttributes] = useState<EquipmentAttribute[]>([]);
+  const [values, setValues] = useState<ResourceAttributeValue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      resource.category?.slug
+        ? equipmentApi.resourceCategoryAttributes(resource.resourceType, resource.category.slug).then(s => s.attributes).catch(() => [])
+        : Promise.resolve([] as EquipmentAttribute[]),
+      resourcesApi.getAttributes(resource.resourceId).then(r => r.attributes).catch(() => [] as ResourceAttributeValue[]),
+    ])
+      .then(([attrs, vals]) => {
+        if (cancelled) return;
+        setSchemaAttributes(attrs);
+        setValues(vals.filter(v => attributeDisplayValue(attrs.find(a => a.key === v.key), v) !== '—' && attributeDisplayValue(attrs.find(a => a.key === v.key), v) !== ''));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [resource.resourceId, resource.resourceType, resource.category?.slug]);
+
+  if (loading || values.length === 0) return null;
+
+  const byKey = new Map(schemaAttributes.map(a => [a.key, a]));
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-4">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Характеристики</h4>
+      <div className="grid gap-2 md:grid-cols-2">
+        {values.map(value => {
+          const attribute = byKey.get(value.key);
+          return <Row key={value.key} label={attribute?.label ?? value.key} value={attributeDisplayValue(attribute, value)} />;
+        })}
+      </div>
     </div>
   );
 }

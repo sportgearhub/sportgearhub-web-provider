@@ -15,12 +15,6 @@ export function bookingFlowLabel(value: string | undefined) {
   return value || 'Бронирование';
 }
 
-export function variantExposureLabel(value: string | undefined) {
-  if (value === 'all_active_variants') return 'Все модели';
-  if (value === 'selected_variants_only') return 'Выбранные модели';
-  return value || 'Модели не указаны';
-}
-
 export function publishabilityLabel(offer: Offer) {
   const status = offer.publishability?.status;
   if (status === 'publishable') return 'Можно публиковать';

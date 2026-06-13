@@ -1,5 +1,6 @@
-import { HelpCircle, ChevronRight } from 'lucide-react';
+import { HelpCircle, ChevronRight, Mountain } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useAuth } from '../../context/useAuth';
 
 export type HeaderBreadcrumb = {
   label: string;
@@ -15,12 +16,27 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, breadcrumbs, onNavigate, actions }: HeaderProps) {
+  const { activeMembership } = useAuth();
+  const providerName = activeMembership?.displayName ?? 'Кабинет партнёра';
   const hasBreadcrumbs = Boolean(breadcrumbs?.length);
   const hasTitle = Boolean(title);
 
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:px-6">
       <div className="flex min-h-12 items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onNavigate?.('/')}
+          className="flex shrink-0 items-center gap-2.5 rounded-md pr-1 text-left transition hover:opacity-80"
+          title="На главную"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            <Mountain size={18} />
+          </span>
+          <span className="hidden max-w-[180px] truncate text-sm font-semibold text-foreground sm:block">{providerName}</span>
+        </button>
+        <span className="h-6 w-px shrink-0 bg-border" />
+
         <div className="min-w-0 flex-1">
           {hasBreadcrumbs ? (
             <nav className="flex min-w-0 items-center gap-1.5 text-base font-semibold" aria-label="Навигация">

@@ -9,32 +9,12 @@ import {
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ResourceError } from './ResourcePageChrome';
-import { mockBookings, mockOffers, mockVariants } from '../../lib/mock-data';
 import { ApiError, equipmentApi, resourcesApi, type ResourceCategory } from '../../lib/api-client';
 import type { Resource, ResourceStatus } from '../../types';
 
 
-type QuickTab = 'all' | 'active' | 'draft' | 'needs_attention' | 'out_of_stock';
-type AvailabilityState = 'available' | 'partially_booked' | 'fully_booked' | 'no_stock';
-type HealthState = 'ready' | 'needs_attention';
-type SortColumn = 'title' | 'price' | 'stock' | 'bookings' | 'revenue' | 'updated' | null;
+type SortColumn = 'title' | 'updated' | null;
 type SortOrder = 'asc' | 'desc';
-
-interface ResourceTableRow {
-  resource: Resource;
-  basePrice: number | null;
-  totalStock: number;
-  availableStock: number;
-  variantCount: number;
-  activeVariants: number;
-  bookingCount: number;
-  revenue: number;
-  availabilityState: AvailabilityState;
-  completenessScore: number;
-  healthState: HealthState;
-  healthLabel: string;
-  healthIssues: string[];
-}
 
 interface ColumnFlyoutState {
   column: string | null;
@@ -53,19 +33,6 @@ const statusBadge: Record<ResourceStatus, { label: string; variant: 'green' | 'y
   archived: { label: 'В архиве', variant: 'gray' },
 };
 
-const healthIssueLabel: Record<string, string> = {
-  'Missing pricing': 'Нет цены',
-  'Missing variants': 'Нет моделей',
-  Draft: 'Черновик',
-};
-
-const availabilityLabel: Record<AvailabilityState, string> = {
-  available: 'Доступно',
-  partially_booked: 'Частично занято',
-  fully_booked: 'Занято',
-  no_stock: 'Нет остатков',
-};
-
 export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPageProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [categories, setCategories] = useState<ResourceCategory[]>([]);
@@ -76,9 +43,6 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [availabilityFilter, setAvailabilityFilter] = useState('');
-  const [healthFilter, setHealthFilter] = useState('');
-  const [quickTab] = useState<QuickTab>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -131,79 +95,12 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
     return () => onHeaderContentChange(null);
   }, [onHeaderContentChange]);
 
-  const rows = useMemo<ResourceTableRow[]>(() => {
-    return resources.map(resource => {
-      const variants = mockVariants.filter(variant => variant.resourceId === resource.id);
-      const offers = mockOffers.filter(offer => offer.resourceId === resource.id);
-      const bookings = mockBookings.filter(booking => booking.selection.resourceId === resource.id);
-      const variantStock = variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
-      const totalStock = variantStock;
-      const activeBookings = bookings.filter(
-        booking => booking.status === 'confirmed' || booking.status === 'pending'
-      ).length;
-      const availableStock = Math.max(totalStock - activeBookings, 0);
-      const bookingCount = bookings.length;
-      const revenue = bookings
-        .filter(booking => booking.status === 'confirmed' || booking.status === 'completed')
-        .reduce((sum, booking) => sum + booking.totalAmount, 0);
-      const offerPrices = offers
-        .map(offer => offer.basePrice)
-        .filter((price): price is number => typeof price === 'number');
-      const basePrice = offerPrices.length > 0 ? Math.min(...offerPrices) : null;
-      const healthIssues: string[] = [];
-
-      if (!basePrice) healthIssues.push('Missing pricing');
-      if (variants.length === 0) healthIssues.push('Missing variants');
-      if (resource.status === 'draft') healthIssues.push('Draft');
-
-      const completenessScore = Math.max(0, 100 - healthIssues.length * 20);
-
-      let availabilityState: AvailabilityState = 'available';
-      if (variants.length === 0 || totalStock === 0) {
-        availabilityState = 'no_stock';
-      } else if (availableStock === 0) {
-        availabilityState = 'fully_booked';
-      } else if (availableStock < totalStock) {
-        availabilityState = 'partially_booked';
-      }
-
-      return {
-        resource,
-        basePrice,
-        totalStock,
-        availableStock,
-        variantCount: variants.length,
-        activeVariants: variants.filter(variant => variant.status === 'active').length,
-        bookingCount,
-        revenue,
-        availabilityState,
-        completenessScore,
-        healthState: healthIssues.length === 0 ? 'ready' : 'needs_attention',
-        healthLabel:
-          healthIssues.length === 0
-            ? 'Готово'
-            : healthIssues.length === 1
-              ? healthIssueLabel[healthIssues[0]] ?? healthIssues[0]
-              : `${healthIssueLabel[healthIssues[0]] ?? healthIssues[0]} +${healthIssues.length - 1}`,
-        healthIssues,
-      };
-    });
-  }, [resources]);
-
-  const stats = useMemo(() => {
-    const activeCount = rows.filter(r => r.resource.status === 'active').length;
-    const needsAttention = rows.filter(r => r.healthState === 'needs_attention').length;
-    const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
-    return { activeCount, needsAttention, totalRevenue };
-  }, [rows]);
-
   const categoryFilterOptions = useMemo(
     () => categories.map(category => ({ value: category.title, label: category.title })),
     [categories]
   );
 
-  const filtered = rows.filter(row => {
-    const { resource } = row;
+  const filtered = resources.filter(resource => {
     const categoryName = resource.categoryName ?? resource.resourceType;
     const matchesSearch =
       !search ||
@@ -211,65 +108,19 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
       categoryName.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || resource.status === statusFilter;
     const matchesCategory = !categoryFilter || categoryName === categoryFilter;
-    const matchesAvailability = !availabilityFilter || row.availabilityState === availabilityFilter;
-    const matchesHealth = !healthFilter || row.healthState === healthFilter;
-
-    const matchesQuickTab =
-      quickTab === 'all' ||
-      (quickTab === 'active' && resource.status === 'active') ||
-      (quickTab === 'draft' && resource.status === 'draft') ||
-      (quickTab === 'needs_attention' && row.healthState === 'needs_attention') ||
-      (quickTab === 'out_of_stock' &&
-        (row.availabilityState === 'fully_booked' || row.availabilityState === 'no_stock'));
-
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesCategory &&
-      matchesAvailability &&
-      matchesHealth &&
-      matchesQuickTab
-    );
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const sorted = useMemo(() => {
     const result = [...filtered];
     if (sortColumn) {
       result.sort((a, b) => {
-        let aVal: number | string = 0;
-        let bVal: number | string = 0;
-
-        switch (sortColumn) {
-          case 'title':
-            aVal = a.resource.title;
-            bVal = b.resource.title;
-            break;
-          case 'price':
-            aVal = a.basePrice ?? 0;
-            bVal = b.basePrice ?? 0;
-            break;
-          case 'stock':
-            aVal = a.totalStock;
-            bVal = b.totalStock;
-            break;
-          case 'bookings':
-            aVal = a.bookingCount;
-            bVal = b.bookingCount;
-            break;
-          case 'revenue':
-            aVal = a.revenue;
-            bVal = b.revenue;
-            break;
-          case 'updated':
-            aVal = new Date(a.resource.updatedAt).getTime();
-            bVal = new Date(b.resource.updatedAt).getTime();
-            break;
+        if (sortColumn === 'title') {
+          return sortOrder === 'asc' ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title);
         }
-
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-          return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-        }
-        return sortOrder === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+        const aVal = new Date(a.updatedAt).getTime();
+        const bVal = new Date(b.updatedAt).getTime();
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
       });
     }
     return result;
@@ -281,7 +132,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
 
   useEffect(() => {
     setPage(1);
-  }, [availabilityFilter, categoryFilter, healthFilter, pageSize, quickTab, search, sortColumn, sortOrder, statusFilter]);
+  }, [categoryFilter, pageSize, search, sortColumn, sortOrder, statusFilter]);
 
   const handleBulkStatus = async (status: ResourceStatus) => {
     setError('');
@@ -356,7 +207,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
           <div>
             <h1 className="text-sm font-semibold text-gray-900">Каталог</h1>
             <p className="text-xs text-gray-500">
-              {loading ? 'Загружаем каталог...' : `${filtered.length} из ${resources.length} · проблем: ${stats.needsAttention}`}
+              {loading ? 'Загружаем каталог...' : `${filtered.length} из ${resources.length}`}
             </p>
           </div>
 
@@ -381,7 +232,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
         </div>
 
         {/* Bulk Actions & Quick Filters */}
-        {selectedIds.length > 0 || search || statusFilter || categoryFilter || availabilityFilter || healthFilter ? (
+        {selectedIds.length > 0 || search || statusFilter || categoryFilter ? (
           <div className="border-t border-gray-100 px-6 py-2 flex items-center gap-2 flex-wrap text-sm">
             {selectedIds.length > 0 && (
               <>
@@ -408,23 +259,21 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
-            <table className="min-w-[1264px] w-full table-fixed border-collapse text-sm">
+            <table className="w-full table-fixed border-collapse text-sm">
               <colgroup>
-                <col className="w-64" />
-                <col className="w-36" />
-                <col className="w-24" />
-                <col className="w-20" />
-                <col className="w-36" />
+                <col className="w-16" />
+                <col />
+                <col className="w-40" />
                 <col className="w-32" />
-                <col className="w-28" />
-                <col className="w-20" />
-                <col className="w-28" />
                 <col className="w-28" />
               </colgroup>
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  {/* Resource column (fixed) */}
-                  <th className="sticky left-0 z-20 bg-gray-50 border-r border-gray-200 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
+                  {/* Image column */}
+                  <th className="border-r border-gray-200" />
+
+                  {/* Resource (title) */}
+                  <th className="border-r border-gray-200 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
                     <button
                       onClick={(e) => handleColumnOpen(e, 'resource')}
                       className="flex items-center gap-1 px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700 relative"
@@ -445,7 +294,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
                   </th>
 
                   {/* Category */}
-                  <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
+                  <th className="border-r border-gray-200 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
                     <button
                       onClick={(e) => handleColumnOpen(e, 'category')}
                       className="flex items-center gap-1 px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
@@ -465,90 +314,8 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
                     />
                   </th>
 
-                  {/* Price */}
-                  <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'price')}
-                      className="flex items-center justify-end gap-1 ml-auto px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Цена
-                      <ChevronDown size={13} className={sortColumn === 'price' ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <ColumnFlyout
-                      isOpen={flyoutState.column === 'price'}
-                      position={flyoutState.position}
-                      options={[
-                        { label: 'Сначала дешевле', value: 'asc' },
-                        { label: 'Сначала дороже', value: 'desc' },
-                      ]}
-                      onSort={(order) => handleSort('price', order)}
-                      activeOrder={sortColumn === 'price' ? sortOrder : null}
-                    />
-                  </th>
-
-                  {/* Stock */}
-                  <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'stock')}
-                      className="flex items-center justify-end gap-1 ml-auto px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Остаток
-                      <ChevronDown size={13} className={sortColumn === 'stock' ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <ColumnFlyout
-                      isOpen={flyoutState.column === 'stock'}
-                      position={flyoutState.position}
-                      options={[
-                        { label: 'Сначала меньше', value: 'asc' },
-                        { label: 'Сначала больше', value: 'desc' },
-                      ]}
-                      onSort={(order) => handleSort('stock', order)}
-                      activeOrder={sortColumn === 'stock' ? sortOrder : null}
-                    />
-                  </th>
-
-                  {/* Availability */}
-                  <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'availability')}
-                      className="flex items-center gap-1 px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Доступность
-                      <ChevronDown size={13} className={availabilityFilter ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <AvailabilityFilterFlyout
-                      isOpen={flyoutState.column === 'availability'}
-                      position={flyoutState.position}
-                      value={availabilityFilter}
-                      onChange={(val) => {
-                        setAvailabilityFilter(val);
-                        setFlyoutState({ column: null, position: null });
-                      }}
-                    />
-                  </th>
-
-                  {/* Health */}
-                  <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'health')}
-                      className="flex items-center gap-1 px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Готовность
-                      <ChevronDown size={13} className={healthFilter ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <HealthFilterFlyout
-                      isOpen={flyoutState.column === 'health'}
-                      position={flyoutState.position}
-                      value={healthFilter}
-                      onChange={(val) => {
-                        setHealthFilter(val);
-                        setFlyoutState({ column: null, position: null });
-                      }}
-                    />
-                  </th>
-
                   {/* Status */}
-                  <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
+                  <th className="border-r border-gray-200 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 relative">
                     <button
                       onClick={(e) => handleColumnOpen(e, 'status')}
                       className="flex items-center gap-1 px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
@@ -564,48 +331,6 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
                         setStatusFilter(val);
                         setFlyoutState({ column: null, position: null });
                       }}
-                    />
-                  </th>
-
-                  {/* Bookings */}
-                  <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'bookings')}
-                      className="flex items-center justify-end gap-1 ml-auto px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Брони
-                      <ChevronDown size={13} className={sortColumn === 'bookings' ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <ColumnFlyout
-                      isOpen={flyoutState.column === 'bookings'}
-                      position={flyoutState.position}
-                      options={[
-                        { label: 'Сначала меньше', value: 'asc' },
-                        { label: 'Сначала больше', value: 'desc' },
-                      ]}
-                      onSort={(order) => handleSort('bookings', order)}
-                      activeOrder={sortColumn === 'bookings' ? sortOrder : null}
-                    />
-                  </th>
-
-                  {/* Revenue */}
-                  <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-700 relative">
-                    <button
-                      onClick={(e) => handleColumnOpen(e, 'revenue')}
-                      className="flex items-center justify-end gap-1 ml-auto px-1.5 py-1 rounded hover:bg-gray-200 transition text-gray-700"
-                    >
-                      Выручка
-                      <ChevronDown size={13} className={sortColumn === 'revenue' ? 'text-blue-600' : 'text-gray-400'} />
-                    </button>
-                    <ColumnFlyout
-                      isOpen={flyoutState.column === 'revenue'}
-                      position={flyoutState.position}
-                      options={[
-                        { label: 'Сначала меньше', value: 'asc' },
-                        { label: 'Сначала больше', value: 'desc' },
-                      ]}
-                      onSort={(order) => handleSort('revenue', order)}
-                      activeOrder={sortColumn === 'revenue' ? sortOrder : null}
                     />
                   </th>
 
@@ -635,7 +360,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-14 text-center">
+                    <td colSpan={5} className="px-4 py-14 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <AlertTriangle size={40} className="text-gray-300" />
                         <p className="mt-3 text-sm font-medium text-gray-900">Позиции не найдены</p>
@@ -643,8 +368,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
                       </div>
                     </td>
                   </tr>
-                ) : paginated.map(row => {
-                  const { resource } = row;
+                ) : paginated.map(resource => {
                   const status = statusBadge[resource.status];
                   const isSelected = selectedIds.includes(resource.id);
 
@@ -660,74 +384,34 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
                       }}
                       className={`cursor-pointer border-b border-gray-100 transition ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                     >
-                      {/* Resource (fixed) */}
-                      <td className={`sticky left-0 z-10 border-r border-gray-100 px-4 py-3 ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
-                        <div className="flex items-center gap-2">
-                          {resource.imageUrl ? (
-                            <img src={resource.imageUrl} alt={resource.title} className="h-8 w-8 rounded object-cover border border-gray-200" />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-gray-50 text-gray-400">
-                              <ImageOff size={12} />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-gray-900">{resource.title}</p>
+                      {/* Image (flush square) */}
+                      <td className="h-16 w-16 border-r border-gray-100 p-0">
+                        {resource.mediaPreviewUrl ? (
+                          <img src={resource.mediaPreviewUrl} alt={resource.title} className="block h-16 w-16 object-cover" />
+                        ) : (
+                          <div className="flex h-16 w-16 items-center justify-center bg-gray-50 text-gray-300">
+                            <ImageOff size={22} />
                           </div>
-                          {row.healthState === 'needs_attention' && (
-                            <AlertTriangle size={14} className="flex-shrink-0 text-amber-600" />
-                          )}
-                        </div>
+                        )}
+                      </td>
+
+                      {/* Title */}
+                      <td className="border-r border-gray-100 px-4 py-2">
+                        <p className="truncate text-sm font-medium text-gray-900">{resource.title}</p>
                       </td>
 
                       {/* Category */}
-                      <td className="truncate px-4 py-3 text-sm text-gray-700">{resource.categoryName}</td>
-
-                      {/* Price */}
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                        {row.basePrice ? `${row.basePrice.toLocaleString()}` : '—'}
-                      </td>
-
-                      {/* Stock */}
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">{row.totalStock}</td>
-
-                      {/* Availability */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-900">{row.availableStock}/{row.totalStock}</p>
-                          <p className="text-xs text-gray-500">{availabilityLabel[row.availabilityState]}</p>
-                        </div>
-                      </td>
-
-                      {/* Health */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <p className={`font-medium ${row.healthState === 'ready' ? 'text-green-700' : 'text-amber-700'}`}>
-                            {row.healthState === 'ready' ? 'Готово' : `${row.completenessScore}%`}
-                          </p>
-                          {row.healthState !== 'ready' && (
-                            <p className="text-xs text-gray-500">{row.healthLabel}</p>
-                          )}
-                        </div>
-                      </td>
+                      <td className="truncate border-r border-gray-100 px-4 py-2 text-sm text-gray-700">{resource.categoryName}</td>
 
                       {/* Status */}
-                      <td className="px-4 py-3">
+                      <td className="border-r border-gray-100 px-4 py-2">
                         <Badge variant={status.variant} size="sm">{status.label}</Badge>
                       </td>
 
-                      {/* Bookings */}
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">{row.bookingCount}</td>
-
-                      {/* Revenue */}
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                        {row.revenue.toLocaleString()} RUB
-                      </td>
-
                       {/* Updated */}
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-4 py-2 text-sm text-gray-700">
                         {new Date(resource.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                       </td>
-
                     </tr>
                   );
                 })}
@@ -929,88 +613,3 @@ function StatusFilterFlyout({
   );
 }
 
-function AvailabilityFilterFlyout({
-  isOpen,
-  position,
-  value,
-  onChange,
-}: {
-  isOpen: boolean;
-  position: { top: number; left: number } | null;
-  value: string;
-  onChange: (val: string) => void;
-}) {
-  if (!isOpen || !position) return null;
-
-  const options = [
-    { value: '', label: 'Любая доступность' },
-    { value: 'available', label: 'Доступно' },
-    { value: 'partially_booked', label: 'Частично занято' },
-    { value: 'fully_booked', label: 'Занято' },
-    { value: 'no_stock', label: 'Нет остатков' },
-  ];
-
-  return (
-    <div
-      className="fixed z-[80] w-44 rounded-lg border border-gray-200 bg-white shadow-xl"
-      style={{ top: `${position.top}px`, left: `${position.left}px` }}
-      onClick={event => event.stopPropagation()}
-    >
-      <div className="p-2 space-y-1">
-        {options.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => onChange(opt.value)}
-            className={`w-full text-left px-3 py-2 rounded text-sm transition ${
-              value === opt.value ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-700'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HealthFilterFlyout({
-  isOpen,
-  position,
-  value,
-  onChange,
-}: {
-  isOpen: boolean;
-  position: { top: number; left: number } | null;
-  value: string;
-  onChange: (val: string) => void;
-}) {
-  if (!isOpen || !position) return null;
-
-  const options = [
-    { value: '', label: 'Любая готовность' },
-    { value: 'ready', label: 'Готово' },
-    { value: 'needs_attention', label: 'Нужно внимание' },
-  ];
-
-  return (
-    <div
-      className="fixed z-[80] w-40 rounded-lg border border-gray-200 bg-white shadow-xl"
-      style={{ top: `${position.top}px`, left: `${position.left}px` }}
-      onClick={event => event.stopPropagation()}
-    >
-      <div className="p-2 space-y-1">
-        {options.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => onChange(opt.value)}
-            className={`w-full text-left px-3 py-2 rounded text-sm transition ${
-              value === opt.value ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-700'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

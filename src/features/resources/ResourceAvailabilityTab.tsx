@@ -2,24 +2,25 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { ApiError, availabilityApi } from '../../lib/api-client';
+import { Select } from '../../components/ui/Select';
+import { ApiError, availabilityApi, offerAvailabilityApi, offersApi } from '../../lib/api-client';
 import type {
   AvailabilityDiagnostics,
-  AvailabilityProfile,
   CapacitySlot,
+  Offer,
+  OfferAvailability,
   Resource,
 } from '../../types';
 import { AvailabilityDiagnosticsCard } from '../availability/AvailabilityDiagnosticsCard';
 import { AvailabilityProfileCard } from '../availability/AvailabilityProfileCard';
 import { AvailabilitySlotsCard } from '../availability/AvailabilityScheduleCards';
 import {
-  DEFAULT_TIMEZONE,
   availabilityModeFor,
-  emptyProfileForm,
+  emptyOfferAvailabilityForm,
   emptySlotForm,
   modeLabel,
-  profileToForm,
-  type ProfileForm,
+  offerAvailabilityToForm,
+  type OfferAvailabilityForm,
   type SlotForm,
 } from '../availability/availabilityTypes';
 
@@ -28,75 +29,55 @@ interface ResourceAvailabilityTabProps {
 }
 
 export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabProps) {
-  const [profile, setProfile] = useState<AvailabilityProfile | null>(null);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState('');
+  const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [diagnostics, setDiagnostics] = useState<AvailabilityDiagnostics | null>(null);
   const [slots, setSlots] = useState<CapacitySlot[]>([]);
-  const [profileForm, setProfileForm] = useState<ProfileForm>(emptyProfileForm(availabilityModeFor(resource)));
+  const [form, setForm] = useState<OfferAvailabilityForm>(emptyOfferAvailabilityForm());
   const [slotForm, setSlotForm] = useState<SlotForm>(emptySlotForm());
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingAvailability, setSavingAvailability] = useState(false);
   const [savingSlot, setSavingSlot] = useState(false);
   const [error, setError] = useState('');
-  const [profileMissing, setProfileMissing] = useState(false);
 
   const expectedMode = availabilityModeFor(resource);
   const scheduledMode = expectedMode === 'scheduled_slot';
-  const scheduledProfileReady = scheduledMode && profile?.status === 'active' && profile.availabilityMode === expectedMode;
+  const selectedOffer = offers.find(o => o.offerId === selectedOfferId) ?? null;
+  const availabilityActive = availability?.status === 'active';
+  const scheduledProfileReady = scheduledMode && availabilityActive;
 
-  const loadDiagnostics = async (cancelled = false) => {
+  const loadDiagnostics = async () => {
     try {
-      const nextDiagnostics = await availabilityApi.getDiagnostics(resource.resourceId);
-      if (!cancelled) setDiagnostics(nextDiagnostics);
+      const next = await availabilityApi.getDiagnostics(resource.resourceId);
+      setDiagnostics(next);
     } catch (err) {
-      if (!cancelled && !(err instanceof ApiError && err.status === 404)) {
+      if (!(err instanceof ApiError && err.status === 404)) {
         setError(err instanceof ApiError ? `Не удалось загрузить проверку: ${err.message}` : 'Не удалось загрузить проверку.');
       }
     }
   };
 
-  const loadSlots = async (cancelled = false) => {
+  const loadSlots = async () => {
     try {
-      const nextSlots = await availabilityApi.listSlots(resource.resourceId);
-      if (!cancelled) setSlots(nextSlots);
+      setSlots(await availabilityApi.listSlots(resource.resourceId));
     } catch (err) {
-      if (!cancelled) {
-        setError(err instanceof ApiError ? `Не удалось загрузить расписание: ${err.message}` : 'Не удалось загрузить расписание.');
-      }
+      setError(err instanceof ApiError ? `Не удалось загрузить расписание: ${err.message}` : 'Не удалось загрузить расписание.');
     }
   };
 
-  const loadAvailability = async () => {
-    let cancelled = false;
-
-    setLoading(true);
-    setError('');
-    setProfileMissing(false);
-    setDiagnostics(null);
-    setSlots([]);
-
+  const loadOfferAvailability = async (offerId: string) => {
+    setAvailability(null);
+    setForm(emptyOfferAvailabilityForm());
     try {
-      const nextProfile = await availabilityApi.getProfile(resource.resourceId);
-      if (cancelled) return;
-      setProfile(nextProfile);
-      setProfileForm(profileToForm(nextProfile, expectedMode));
+      const next = await offerAvailabilityApi.get(offerId);
+      setAvailability(next);
+      setForm(offerAvailabilityToForm(next));
     } catch (err) {
-      if (cancelled) return;
-      if (err instanceof ApiError && err.status === 404) {
-        setProfile(null);
-        setProfileMissing(true);
-        setProfileForm(emptyProfileForm(expectedMode));
-      } else {
-        setError(err instanceof ApiError ? `Не удалось загрузить правила: ${err.message}` : 'Не удалось загрузить правила.');
+      if (!(err instanceof ApiError && err.status === 404)) {
+        setError(err instanceof ApiError ? `Не удалось загрузить доступность: ${err.message}` : 'Не удалось загрузить доступность.');
       }
     }
-
-    await loadDiagnostics(cancelled);
-    if (expectedMode === 'scheduled_slot') await loadSlots(cancelled);
-    if (!cancelled) setLoading(false);
-
-    return () => {
-      cancelled = true;
-    };
   };
 
   useEffect(() => {
@@ -105,57 +86,65 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     const load = async () => {
       setLoading(true);
       setError('');
-      setProfileMissing(false);
+      setOffers([]);
+      setAvailability(null);
       setDiagnostics(null);
       setSlots([]);
 
       try {
-        const nextProfile = await availabilityApi.getProfile(resource.resourceId);
+        const allOffers = await offersApi.list();
+        const resourceOffers = allOffers.filter(
+          o => o.primaryResourceId === resource.resourceId || o.resourceId === resource.resourceId
+        );
         if (cancelled) return;
-        setProfile(nextProfile);
-        setProfileForm(profileToForm(nextProfile, expectedMode));
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.status === 404) {
-          setProfile(null);
-          setProfileMissing(true);
-          setProfileForm(emptyProfileForm(expectedMode));
-        } else {
-          setError(err instanceof ApiError ? `Не удалось загрузить правила: ${err.message}` : 'Не удалось загрузить правила.');
+        setOffers(resourceOffers);
+
+        const firstId = resourceOffers[0]?.offerId ?? '';
+        if (firstId) {
+          setSelectedOfferId(firstId);
+          await loadOfferAvailability(firstId);
         }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof ApiError ? `Не удалось загрузить предложения: ${err.message}` : 'Не удалось загрузить предложения.');
       }
 
-      await loadDiagnostics(cancelled);
-      if (expectedMode === 'scheduled_slot') await loadSlots(cancelled);
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        await loadDiagnostics();
+        if (scheduledMode) await loadSlots();
+        setLoading(false);
+      }
     };
 
     void load();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [resource.resourceId]);
 
-  const saveProfile = async () => {
-    setSavingProfile(true);
+  const handleOfferChange = async (offerId: string) => {
+    setSelectedOfferId(offerId);
+    setError('');
+    await loadOfferAvailability(offerId);
+  };
+
+  const saveAvailability = async () => {
+    if (!selectedOfferId || !availability) return;
+    setSavingAvailability(true);
     setError('');
     try {
-      const nextProfile = await availabilityApi.putProfile(resource.resourceId, {
-        availabilityMode: expectedMode,
-        timezone: profileForm.timezone.trim() || DEFAULT_TIMEZONE,
-        bookingHorizonDays: Number(profileForm.bookingHorizonDays) || 30,
-        status: profileForm.status || 'active',
+      const next = await offerAvailabilityApi.put(selectedOfferId, {
+        timezone: form.timezone.trim() || 'UTC',
+        status: form.status,
+        minRentHours: Number(form.minRentHours) || 1,
+        maxRentHours: Number(form.maxRentHours) || 24,
+        availabilityWindows: availability.availabilityWindows,
+        blockedPeriods: availability.blockedPeriods,
       });
-      setProfile(nextProfile);
-      setProfileForm(profileToForm(nextProfile, expectedMode));
-      setProfileMissing(false);
-      if (expectedMode === 'scheduled_slot' && nextProfile.status === 'active') await loadSlots();
+      setAvailability(next);
+      setForm(offerAvailabilityToForm(next));
       await loadDiagnostics();
     } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось сохранить правила: ${err.message}` : 'Не удалось сохранить правила.');
+      setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить.');
     } finally {
-      setSavingProfile(false);
+      setSavingAvailability(false);
     }
   };
 
@@ -163,7 +152,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     setSavingSlot(true);
     setError('');
     try {
-      const nextSlot = await availabilityApi.createSlot(resource.resourceId, {
+      const next = await availabilityApi.createSlot(resource.resourceId, {
         title: slotForm.title.trim() || null,
         startsAt: new Date(slotForm.startsAt).toISOString(),
         endsAt: new Date(slotForm.endsAt).toISOString(),
@@ -171,7 +160,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
         status: 'open',
         meetingPoint: slotForm.meetingPoint.trim() || null,
       });
-      setSlots(current => [...current, nextSlot].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      setSlots(current => [...current, next].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       setSlotForm(emptySlotForm());
       await loadDiagnostics();
     } catch (err) {
@@ -185,11 +174,11 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
     setSavingSlot(true);
     setError('');
     try {
-      const nextSlot = await availabilityApi.closeSlot(resource.resourceId, slot.slotId, 'provider_closed');
-      setSlots(current => current.map(item => (item.slotId === nextSlot.slotId ? nextSlot : item)));
+      const next = await availabilityApi.closeSlot(resource.resourceId, slot.slotId, 'provider_closed');
+      setSlots(current => current.map(item => (item.slotId === next.slotId ? next : item)));
       await loadDiagnostics();
     } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось закрыть окно записи: ${err.message}` : 'Не удалось закрыть окно записи.');
+      setError(err instanceof ApiError ? `Не удалось закрыть окно: ${err.message}` : 'Не удалось закрыть окно.');
     } finally {
       setSavingSlot(false);
     }
@@ -200,17 +189,26 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-6 py-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Доступность</h3>
           <p className="mt-0.5 text-xs text-gray-500">
-            {modeLabel(expectedMode)} · настройте, когда клиенты смогут бронировать эту позицию
+            {modeLabel(expectedMode)} · настройки применяются к выбранному предложению
           </p>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => void loadAvailability()}>
-          <RefreshCw size={13} /> Проверить
-        </Button>
+        <div className="flex items-center gap-2">
+          {offers.length > 1 && (
+            <Select
+              options={offers.map(o => ({ value: o.offerId, label: o.title }))}
+              value={selectedOfferId}
+              onChange={e => void handleOfferChange(e.target.value)}
+            />
+          )}
+          <Button size="sm" variant="secondary" onClick={() => void loadOfferAvailability(selectedOfferId).then(loadDiagnostics)}>
+            <RefreshCw size={13} /> Проверить
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -219,18 +217,26 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
-        <AvailabilityProfileCard
-          resource={resource}
-          form={profileForm}
-          missing={profileMissing}
-          profile={profile}
-          saving={savingProfile}
-          onFormChange={setProfileForm}
-          onSave={() => void saveProfile()}
-        />
-        <AvailabilityDiagnosticsCard diagnostics={diagnostics} />
-      </div>
+      {offers.length === 0 ? (
+        <Card>
+          <p className="text-sm font-semibold text-gray-900">Нет предложений</p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            Создайте предложение во вкладке «Предложения», чтобы настроить доступность.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
+          <AvailabilityProfileCard
+            offer={selectedOffer}
+            form={form}
+            availability={availability}
+            saving={savingAvailability}
+            onFormChange={setForm}
+            onSave={() => void saveAvailability()}
+          />
+          <AvailabilityDiagnosticsCard diagnostics={diagnostics} />
+        </div>
+      )}
 
       {scheduledProfileReady ? (
         <AvailabilitySlotsCard
@@ -241,26 +247,19 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
           onCreate={() => void createSlot()}
           onClose={slot => void closeSlot(slot)}
         />
-      ) : scheduledMode ? (
+      ) : scheduledMode && offers.length > 0 ? (
         <Card>
           <div className="flex items-start gap-3">
             <AlertTriangle size={18} className="mt-0.5 text-amber-600" />
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Сначала включите правила бронирования</h3>
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                Окна записи появятся после сохранения включенных правил бронирования.
+                Окна записи появятся после сохранения включённых правил бронирования.
               </p>
             </div>
           </div>
         </Card>
-      ) : (
-        <Card>
-          <p className="text-sm font-semibold text-gray-900">Инвентарь управляет фактической доступностью</p>
-          <p className="mt-1 text-xs leading-5 text-gray-500">
-            Для прокатных велосипедов здесь задается горизонт бронирования. Конкретные велосипеды и готовность к прокату находятся во вкладке "Инвентарь".
-          </p>
-        </Card>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -3,6 +3,13 @@ import type { EquipmentAttribute, EquipmentAttributeSchema } from '../../lib/api
 
 export const fixedVariantAttributeKeys = new Set(['brand', 'brand_id', 'brand_name', 'model']);
 
+function inputTypeFor(valueType: string) {
+  if (valueType === 'integer' || valueType === 'decimal') return 'number';
+  if (valueType === 'datetime') return 'datetime-local';
+  if (valueType === 'date') return 'date';
+  return 'text';
+}
+
 function optionsForField(field: EquipmentAttribute | undefined) {
   if (!field?.allowedValues.length) return [{ value: '', label: 'Выберите значение' }];
 
@@ -36,7 +43,7 @@ export function visibleVariantAttributes(
 
   return attributes
     .filter(attribute =>
-      attribute.appliesTo.includes('variant') &&
+      (attribute.appliesTo ?? []).includes('variant') &&
       (!hideFixed || !fixedVariantAttributeKeys.has(attribute.key)) &&
       isVariantAttributeVisible(attribute, values)
     )
@@ -129,7 +136,7 @@ function VariantAttributeField({
   return (
     <Input
       label={label}
-      type={attribute.valueType === 'integer' || attribute.valueType === 'decimal' ? 'number' : 'text'}
+      type={inputTypeFor(attribute.valueType)}
       value={value}
       onChange={event => onChange(event.target.value)}
       error={error}

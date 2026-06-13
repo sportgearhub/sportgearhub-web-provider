@@ -127,64 +127,6 @@ export interface PayoutBankRequisites {
   correspondentAccount?: string | null;
 }
 
-export interface PayoutLegalAddress {
-  type?: string | null;
-  zip?: string | null;
-  country?: string | null;
-  city?: string | null;
-  street?: string | null;
-}
-
-export interface PayoutPerson {
-  firstName?: string | null;
-  lastName?: string | null;
-  middleName?: string | null;
-  birthDate?: string | null;
-  birthPlace?: string | null;
-  citizenship?: string | null;
-  documentType?: string | null;
-  documentNumber?: string | null;
-  documentIssueDate?: string | null;
-  documentIssuedBy?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  country?: string | null;
-  position?: string | null;
-}
-
-export interface PayoutTBankShop {
-  shopId: string;
-  providerId: string;
-  status: string;
-  shopCode?: string | null;
-  terminalKey?: string | null;
-  billingDescriptor?: string | null;
-  fullName?: string | null;
-  shortName?: string | null;
-  inn?: string | null;
-  kpp?: string | null;
-  ogrn?: string | null;
-  okved?: string | null;
-  registrationDepartment?: string | null;
-  registrationDate?: string | null;
-  siteUrl?: string | null;
-  email?: string | null;
-  serviceProviderEmail?: string | null;
-  legalAddress?: PayoutLegalAddress | null;
-  chiefExecutive?: PayoutPerson | null;
-  settlementProfile?: {
-    bankName?: string | null;
-    bankAccount?: string | null;
-    correspondentAccount?: string | null;
-    bik?: string | null;
-    details?: string | null;
-  } | null;
-  comment?: string | null;
-  lastSentToBankAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface PayoutContract {
   contractId: string;
   providerId: string;
@@ -195,8 +137,6 @@ export interface PayoutContract {
   status: PayoutContractStatus;
   bankRequisites?: PayoutBankRequisites | null;
   sbpPayout?: Record<string, unknown> | null;
-  tBankSbpPayoutRecipient?: Record<string, unknown> | null;
-  tBankShop?: PayoutTBankShop | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -363,6 +303,7 @@ export interface Resource {
   categoryName: string;
   description?: string;
   imageUrl?: string;
+  mediaPreviewUrl?: string | null;
   variantCount?: number;
 }
 
@@ -400,7 +341,6 @@ export interface OfferAvailability {
   blockedPeriods: OfferAvailabilityBlockedPeriod[];
   minRentHours: number;
   maxRentHours: number;
-  advanceNoticeHours: number;
   status: string;
   updatedAt: string;
 }
@@ -488,9 +428,8 @@ export interface AvailabilityDiagnostics {
 export interface ResourceUnit {
   unitId: string;
   resourceId: string;
-  resourceVariantId?: string | null;
   inventoryCode?: string | null;
-  displayName?: string | null;
+  notes?: string | null;
   status: string;
   conditionStatus?: string | null;
   externalReferenceCode?: string | null;
@@ -498,13 +437,21 @@ export interface ResourceUnit {
   updatedAt: string;
 }
 
+export type ResourceUnitInput = {
+  inventoryCode?: string | null;
+  notes?: string | null;
+  status?: string | null;
+  conditionStatus?: string | null;
+  externalReferenceCode?: string | null;
+};
+
 export interface ResourceVariantInventorySummary {
   resourceVariantId: string;
-  variantKey: string;
+  sku: string;
   label: string;
   status: string;
   totalUnits: number;
-  activeUnits: number;
+  availableUnits: number;
   readyUnits: number;
   maintenanceUnits: number;
   damagedUnits: number;
@@ -514,17 +461,51 @@ export interface ResourceVariantInventorySummary {
 export interface ResourceInventorySummary {
   resourceId: string;
   totalUnits: number;
-  activeUnits: number;
+  availableUnits: number;
   readyUnits: number;
   maintenanceUnits: number;
   damagedUnits: number;
-  inactiveUnits: number;
+  inUseUnits: number;
   retiredUnits: number;
   lostUnits: number;
   classifiedUnits: number;
   unclassifiedUnits: number;
   variants: ResourceVariantInventorySummary[];
   updatedAt: string;
+}
+
+export type StockBalanceAction = 'none' | 'create' | 'retire' | 'partial_retire' | 'error';
+
+export interface StockBalancePreviewRow {
+  sku: string;
+  label: string;
+  currentBalance: number;
+  targetBalance: number;
+  delta: number;
+  action: StockBalanceAction;
+  warning: string | null;
+  error: string | null;
+}
+
+export interface StockBalancePreview {
+  rows: StockBalancePreviewRow[];
+  hasWarnings: boolean;
+  hasErrors: boolean;
+}
+
+export interface StockBalanceApplyRow {
+  sku: string;
+  label: string;
+  previousBalance: number;
+  newBalance: number;
+  unitsCreated: number;
+  unitsRetired: number;
+  warning: string | null;
+}
+
+export interface StockBalanceApplyResult {
+  rows: StockBalanceApplyRow[];
+  hasWarnings: boolean;
 }
 
 // ─── Variants ─────────────────────────────────────────────────────────────────
@@ -537,7 +518,7 @@ export interface NormalizedAttribute {
 export interface ResourceVariant {
   variantId: string;
   resourceId: string;
-  variantKey: string;
+  sku: string;
   label: string;
   status: 'active' | 'inactive' | 'archived';
   attributes: Record<string, string>;
@@ -547,7 +528,6 @@ export interface ResourceVariant {
   /** kept for backward-compat with existing UI */
   id: string;
   title: string;
-  sku?: string;
   stock?: number;
   createdAt?: string;
 }
@@ -661,6 +641,39 @@ export type PolicyDeposit =
   | { unit: 'percentage'; value: number }
   | { unit: 'fixed_amount'; value: number; currency: string };
 
+export interface OfferCancellationTier {
+  thresholdHoursBeforeStart: number;
+  refundPercent: number;
+}
+
+/** Offer-level policy override (GET/PUT /offers/{offerId}/policy). */
+export interface OfferPolicy {
+  policyOverrideId?: string;
+  ownerType?: string;
+  ownerId?: string;
+  leadTimeHours?: number | null;
+  cancellationTiers?: OfferCancellationTier[] | null;
+  isCancellationAllowed?: boolean | null;
+  noShowChargePercent?: number | null;
+  deposit?: PolicyDeposit | null;
+  readiness?: Record<string, unknown>;
+  publishabilityImpact?: PublishabilityImpact;
+  updatedAt?: string;
+}
+
+export interface OfferInclusions {
+  included: string[];
+  excluded: string[];
+}
+
+export type OfferPolicyInput = {
+  leadTimeHours?: number | null;
+  cancellationTiers?: OfferCancellationTier[] | null;
+  isCancellationAllowed?: boolean | null;
+  noShowChargePercent?: number | null;
+  deposit?: PolicyDeposit | null;
+};
+
 export interface ProviderPolicy {
   ownerType?: string;
   ownerId?: string;
@@ -756,7 +769,6 @@ export interface Offer {
   status: OfferStatus;
   primaryResourceId: string;
   bookingFlowType: string;
-  variantExposureMode?: string;
   title: string;
   subtitle?: string;
   description?: string;
@@ -829,11 +841,11 @@ export interface OfferAuthoringOption {
 export interface OfferAuthoringOptions {
   offerTypes: OfferAuthoringOption[];
   bookingFlowTypes: OfferAuthoringOption[];
-  variantExposureModes: OfferAuthoringOption[];
+  pricingModes: OfferAuthoringOption[];
   defaults: {
     offerType: string;
     bookingFlowType: string;
-    variantExposureMode: string;
+    pricingMode?: string;
   };
   resourceCompatibility: {
     resourceId: string;

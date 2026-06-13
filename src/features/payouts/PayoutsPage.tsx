@@ -120,18 +120,12 @@ function PayoutContractCard({ contract }: { contract: PayoutContract }) {
         <p className="max-w-md text-xs leading-5 text-gray-500">{statusDescription(contract.status)}</p>
       </div>
 
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)]">
-        <div className="space-y-4 px-4 py-4">
-          {isSbp ? (
-            <SbpDetails contract={contract} />
-          ) : (
-            <BankDetails contract={contract} />
-          )}
-        </div>
-
-        <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-4 lg:border-l lg:border-t-0">
-          <TBankDetails contract={contract} />
-        </div>
+      <div className="space-y-4 px-4 py-4">
+        {isSbp ? (
+          <SbpDetails contract={contract} />
+        ) : (
+          <BankDetails contract={contract} />
+        )}
       </div>
     </Card>
   );
@@ -154,7 +148,7 @@ function BankDetails({ contract }: { contract: PayoutContract }) {
 }
 
 function SbpDetails({ contract }: { contract: PayoutContract }) {
-  const source = contract.sbpPayout ?? contract.tBankSbpPayoutRecipient;
+  const source = contract.sbpPayout;
 
   return (
     <section>
@@ -169,54 +163,6 @@ function SbpDetails({ contract }: { contract: PayoutContract }) {
       ) : (
         <p className="mt-3 text-xs text-gray-500">СБП реквизиты пока не указаны.</p>
       )}
-    </section>
-  );
-}
-
-function TBankDetails({ contract }: { contract: PayoutContract }) {
-  const shop = contract.tBankShop;
-
-  if (!shop) {
-    return (
-      <section>
-        <SectionTitle icon={<Building2 size={14} />} title="T-Bank" />
-        <p className="mt-3 text-xs text-gray-500">Настройка T-Bank еще не создана.</p>
-      </section>
-    );
-  }
-
-  const chiefExecutive = [shop.chiefExecutive?.lastName, shop.chiefExecutive?.firstName, shop.chiefExecutive?.middleName]
-    .filter(Boolean)
-    .join(' ');
-  const legalAddress = [shop.legalAddress?.zip, shop.legalAddress?.city, shop.legalAddress?.street]
-    .filter(Boolean)
-    .join(', ');
-
-  return (
-    <section>
-      <div className="flex items-center justify-between gap-3">
-        <SectionTitle icon={<Building2 size={14} />} title="T-Bank" />
-        <Badge variant={shop.status === 'active' ? 'green' : shop.status === 'rejected' ? 'red' : 'gray'}>{shop.status}</Badge>
-      </div>
-      <div className="mt-3 space-y-3">
-        <InfoItem label="Shop code" value={shop.shopCode} mono />
-        <InfoItem label="Billing descriptor" value={shop.billingDescriptor} mono />
-        <InfoItem label="Юридическое имя" value={shop.fullName} />
-        <InfoItem label="Краткое имя" value={shop.shortName} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <InfoItem label="ИНН" value={shop.inn} mono />
-          <InfoItem label="КПП" value={shop.kpp} mono />
-          <InfoItem label="ОГРН" value={shop.ogrn} mono />
-          <InfoItem label="ОКВЭД" value={shop.okved} mono />
-        </div>
-        <InfoItem label="Сайт" value={shop.siteUrl} />
-        <InfoItem label="Email" value={shop.email} />
-        <InfoItem label="Юр. адрес" value={legalAddress} />
-        <InfoItem label="Руководитель" value={chiefExecutive} />
-        <InfoItem label="Телефон руководителя" value={shop.chiefExecutive?.phone} mono />
-        <InfoItem label="Назначение" value={shop.settlementProfile?.details} />
-        <p className="text-[11px] text-gray-400">Обновлено: {formatDateTime(shop.updatedAt)}</p>
-      </div>
     </section>
   );
 }
@@ -263,15 +209,3 @@ function formatDate(value: string) {
   return date.toLocaleDateString('ru-RU');
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}

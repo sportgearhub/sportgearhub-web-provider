@@ -7,7 +7,6 @@ import { OfferReadinessChecklist } from './OfferReadinessChecklist';
 import {
   bookingFlowLabel,
   offerTypeLabel,
-  variantExposureLabel,
 } from './offerDisplay';
 import { offerBookingSetupReady } from './offerReadiness';
 
@@ -134,7 +133,7 @@ export function OfferListTable({
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-gray-900">{offer.title}</p>
                             <p className="truncate text-[11px] text-gray-500">
-                              {offerTypeLabel(offer.offerType)} · {bookingFlowLabel(offer.bookingFlowType)} · {variantExposureLabel(offer.variantExposureMode)}
+                              {offerTypeLabel(offer.offerType)} · {bookingFlowLabel(offer.bookingFlowType)}
                             </p>
                           </div>
                         </div>

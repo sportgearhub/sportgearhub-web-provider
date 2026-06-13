@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { ApiError, availabilityApi, variantsApi } from '../../lib/api-client';
-import type { Resource, ResourceInventorySummary, ResourceUnit, ResourceVariant } from '../../types';
+import { ApiError, availabilityApi } from '../../lib/api-client';
+import type { Resource, ResourceInventorySummary, ResourceUnit } from '../../types';
 import { InventoryParkCard } from '../availability/InventoryParkCard';
 import { emptyUnitForm, unitToForm, type UnitForm } from '../availability/availabilityTypes';
+import { StockBalancePage } from './StockBalancePage';
 
 interface ResourceParkTabProps {
   resource: Resource;
   onNavigate?: (path: string) => void;
 }
 
+type ParkView = 'list' | 'stock-balance';
+
 export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) {
-  const [variants, setVariants] = useState<ResourceVariant[]>([]);
+  const [view, setView] = useState<ParkView>('list');
   const [summary, setSummary] = useState<ResourceInventorySummary | null>(null);
   const [units, setUnits] = useState<ResourceUnit[]>([]);
   const [form, setForm] = useState<UnitForm>(emptyUnitForm());
@@ -24,12 +27,10 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setLoading(true);
     setError('');
     try {
-      const [nextVariants, nextSummary, nextUnits] = await Promise.all([
-        variantsApi.list(resource.resourceId),
+      const [nextSummary, nextUnits] = await Promise.all([
         availabilityApi.getInventorySummary(resource.resourceId),
         availabilityApi.listUnits(resource.resourceId),
       ]);
-      setVariants(nextVariants);
       setSummary(nextSummary);
       setUnits(nextUnits);
     } catch (err) {
@@ -48,10 +49,9 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setUnitError('');
     try {
       const payload = {
-        resourceVariantId: form.resourceVariantId || null,
         inventoryCode: form.inventoryCode.trim() || null,
-        displayName: null,
-        status: form.status || 'active',
+        notes: form.notes.trim() || null,
+        status: form.status || 'available',
         conditionStatus: form.conditionStatus || 'ready',
         externalReferenceCode: form.externalReferenceCode.trim() || null,
       };
@@ -71,6 +71,19 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     }
   };
 
+  const quickPatch = async (unitId: string, patch: { status?: string; conditionStatus?: string }) => {
+    setSaving(true);
+    setError('');
+    try {
+      await availabilityApi.patchUnit(resource.resourceId, unitId, patch);
+      await loadPark();
+    } catch (err) {
+      setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const archiveUnit = async (unit: ResourceUnit) => {
     setSaving(true);
     setError('');
@@ -85,6 +98,20 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     }
   };
 
+  const deleteUnit = async (unit: ResourceUnit) => {
+    setSaving(true);
+    setError('');
+    setUnitError('');
+    try {
+      await availabilityApi.deleteUnit(resource.resourceId, unit.unitId);
+      await loadPark();
+    } catch (err) {
+      setError(err instanceof ApiError ? `Не удалось удалить велосипед: ${err.message}` : 'Не удалось удалить велосипед.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (resource.capacityMode === 'scheduled_slot') {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
@@ -93,19 +120,27 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     );
   }
 
+  if (view === 'stock-balance') {
+    return (
+      <StockBalancePage
+        resource={resource}
+        onBack={() => { setView('list'); void loadPark(); }}
+      />
+    );
+  }
+
   if (loading) {
     return <div className="py-12 text-center text-sm text-gray-500">Загружаем инвентарь...</div>;
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="flex items-center gap-2 border-b border-red-200 bg-red-50 px-6 py-2 text-xs text-red-700">
           <AlertTriangle size={14} /> {error}
         </div>
       )}
       <InventoryParkCard
-        variants={variants}
         summary={summary}
         units={units}
         form={form}
@@ -118,7 +153,10 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
         onSave={saveUnit}
         onEdit={unit => setForm(unitToForm(unit))}
         onArchive={unit => void archiveUnit(unit)}
+        onDelete={unit => void deleteUnit(unit)}
+        onQuickPatch={(unitId, patch) => quickPatch(unitId, patch)}
         onNavigate={onNavigate}
+        onOpenStockBalance={() => setView('stock-balance')}
       />
     </div>
   );

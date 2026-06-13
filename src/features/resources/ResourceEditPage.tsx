@@ -97,6 +97,9 @@ export function ResourceEditPage({ resourceId, onNavigate, onHeaderContentChange
         title: data.title,
         category: data.categorySlug,
       });
+      if (data.attributes) {
+        await resourcesApi.putAttributes(resource.resourceId, data.attributes);
+      }
       onNavigate(`/resources/${nextResource.resourceId}`);
     } catch {
       setError('Не удалось обновить позицию в API.');

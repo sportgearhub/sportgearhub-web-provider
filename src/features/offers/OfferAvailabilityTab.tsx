@@ -26,7 +26,6 @@ function emptySettings(offerId: string): OfferAvailability {
     blockedPeriods: [],
     minRentHours: 1,
     maxRentHours: 8,
-    advanceNoticeHours: 1,
     status: 'active',
     updatedAt: '',
   };
@@ -79,7 +78,6 @@ export function OfferAvailabilityTab({ offer }: OfferAvailabilityTabProps) {
         blockedPeriods: settings.blockedPeriods,
         minRentHours: settings.minRentHours,
         maxRentHours: settings.maxRentHours,
-        advanceNoticeHours: settings.advanceNoticeHours,
         status: settings.status,
       });
       setSettings(next);
@@ -170,13 +168,6 @@ export function OfferAvailabilityTab({ offer }: OfferAvailabilityTabProps) {
             min="1"
             value={String(settings.maxRentHours)}
             onChange={e => setSettings(s => ({ ...s, maxRentHours: Number(e.target.value) || 1 }))}
-          />
-          <Input
-            label="Заблаговременность (ч)"
-            type="number"
-            min="0"
-            value={String(settings.advanceNoticeHours)}
-            onChange={e => setSettings(s => ({ ...s, advanceNoticeHours: Number(e.target.value) || 0 }))}
           />
         </div>
         <div className="mt-4">

@@ -1,8 +1,8 @@
 import {
-  Mountain,
   Building2,
   LayoutDashboard,
   Package,
+  Tag,
   ClipboardList,
   CheckSquare,
   CreditCard,
@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Дашборд', icon: LayoutDashboard, path: '/' },
   { label: 'Выдача', icon: CheckSquare, path: '/fulfillment', badge: '8' },
   { label: 'Каталог', icon: Package, path: '/resources' },
+  { label: 'Предложения', icon: Tag, path: '/offers' },
   { label: 'Магазин', icon: Building2, path: '/settings/shop' },
   { label: 'Выплаты', icon: CreditCard, path: '/payouts' },
   {
@@ -44,7 +45,6 @@ const navItems: NavItem[] = [
       { label: 'Аккаунт', path: '/settings/account' },
       { label: 'Сотрудники', path: '/settings/employees' },
       { label: 'Локации', path: '/settings/locations' },
-      { label: 'Правила', path: '/settings/policy' },
     ],
   },
   { label: 'Отчеты', icon: ClipboardList, path: '/reports' },
@@ -58,10 +58,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPath, onNavigate, collapsed, onToggleCollapse }: SidebarProps) {
-  const { user, activeMembership, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [expanded, setExpanded] = useState<string[]>(['Настройки']);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const providerName = activeMembership?.displayName ?? 'Кабинет партнера';
 
   const toggleExpand = (label: string) => {
     setExpanded(prev =>
@@ -77,37 +76,10 @@ export function Sidebar({ currentPath, onNavigate, collapsed, onToggleCollapse }
   return (
     <aside
       className={cn(
-        'sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200',
+        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200',
         collapsed ? 'w-[76px]' : 'w-64'
       )}
     >
-      <div className="border-b px-3 py-3">
-        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Mountain size={18} />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-sidebar-foreground">{providerName}</p>
-              <div className="mt-0.5 flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                <p className="shrink-0 -skew-x-12">
-                  <span>Sportgear</span>
-                  <span>HUB</span>
-                </p>
-                <span className="-skew-x-12 text-sidebar-primary" aria-hidden="true">/</span>
-                <button
-                  type="button"
-                  className="shrink-0 border-b border-sidebar-primary pb-px text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-primary"
-                  aria-pressed="true"
-                >
-                  rental Прокат
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       <Button
         onClick={onToggleCollapse}
         variant="ghost"

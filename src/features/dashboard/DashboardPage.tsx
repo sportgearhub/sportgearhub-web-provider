@@ -203,9 +203,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           <div className="space-y-1">
             {[
               { label: 'Инвентарь', path: '/resources' },
-              { label: 'Модели', path: '/variants' },
               { label: 'Предложения и цены', path: '/resources' },
-              { label: 'Правила', path: '/settings/policy' },
             ].map(link => (
               <button
                 key={link.path}

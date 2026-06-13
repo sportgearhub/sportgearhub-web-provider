@@ -1,4 +1,4 @@
-import type { AvailabilityCalendar, AvailabilityProfile, Resource, ResourceUnit } from '../../types';
+import type { AvailabilityCalendar, AvailabilityProfile, OfferAvailability, Resource, ResourceUnit } from '../../types';
 
 export const DEFAULT_TIMEZONE = 'Asia/Yekaterinburg';
 
@@ -32,11 +32,30 @@ export type SlotForm = {
   meetingPoint: string;
 };
 
+export type OfferAvailabilityForm = {
+  timezone: string;
+  status: string;
+  minRentHours: string;
+  maxRentHours: string;
+};
+
+export function emptyOfferAvailabilityForm(): OfferAvailabilityForm {
+  return { timezone: DEFAULT_TIMEZONE, status: 'active', minRentHours: '1', maxRentHours: '24' };
+}
+
+export function offerAvailabilityToForm(avail: OfferAvailability): OfferAvailabilityForm {
+  return {
+    timezone: avail.timezone || DEFAULT_TIMEZONE,
+    status: avail.status || 'active',
+    minRentHours: String(avail.minRentHours ?? 1),
+    maxRentHours: String(avail.maxRentHours ?? 24),
+  };
+}
+
 export type UnitForm = {
   unitId?: string;
-  resourceVariantId: string;
   inventoryCode: string;
-  displayName: string;
+  notes: string;
   status: string;
   conditionStatus: string;
   externalReferenceCode: string;
@@ -91,10 +110,9 @@ export function emptySlotForm(): SlotForm {
 
 export function emptyUnitForm(): UnitForm {
   return {
-    resourceVariantId: '',
     inventoryCode: '',
-    displayName: '',
-    status: 'active',
+    notes: '',
+    status: 'available',
     conditionStatus: 'ready',
     externalReferenceCode: '',
   };
@@ -103,10 +121,9 @@ export function emptyUnitForm(): UnitForm {
 export function unitToForm(unit: ResourceUnit): UnitForm {
   return {
     unitId: unit.unitId,
-    resourceVariantId: unit.resourceVariantId ?? '',
     inventoryCode: unit.inventoryCode ?? '',
-    displayName: unit.displayName ?? '',
-    status: unit.status || 'active',
+    notes: unit.notes ?? '',
+    status: unit.status || 'available',
     conditionStatus: unit.conditionStatus || 'ready',
     externalReferenceCode: unit.externalReferenceCode ?? '',
   };

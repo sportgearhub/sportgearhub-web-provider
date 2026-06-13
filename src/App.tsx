@@ -21,8 +21,8 @@ import { ResourcesPage } from './features/resources/ResourcePage';
 import { ResourceCreatePage } from './features/resources/ResourceCreatePage';
 import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
 import { ResourceEditPage } from './features/resources/ResourceEditPage';
-import { VariantsPage } from './features/variants/VariantsPage';
 import { OffersPage } from './features/offers/OffersPage';
+import { OfferCreatePage } from './features/offers/OfferCreatePage';
 import { AvailabilityPage } from './features/availability/AvailabilityPage';
 import { PricingPage } from './features/pricing/PricingPage';
 import { PayoutsPage } from './features/payouts/PayoutsPage';
@@ -36,7 +36,6 @@ const pageConfig: Record<string, PageConfig> = {
   '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
   '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
   '/resources/create': { title: 'Добавить позицию', subtitle: 'Добавьте позицию в каталог.' },
-  '/variants': { title: 'Модели', subtitle: 'Модели и комплектации каталога' },
   '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
   '/availability': { title: 'Доступность', subtitle: 'Горизонты бронирования и вместимость' },
   '/pricing': { title: 'Цены', subtitle: 'Правила ценообразования и корректировки' },
@@ -44,11 +43,9 @@ const pageConfig: Record<string, PageConfig> = {
   '/settings': { title: '' },
   '/settings/profile': { title: '' },
   '/settings/shop': { title: '' },
-  '/settings/policy': { title: '' },
   '/settings/locations': { title: '' },
   '/settings/employees': { title: '' },
   '/settings/account': { title: '' },
-  '/policy': { title: '' },
   '/locations': { title: '' },
   '/reports': { title: 'Отчеты', subtitle: 'Показатели и аналитика' },
 };
@@ -142,31 +139,33 @@ function AppShell() {
     return <OnboardingPage />;
   }
 
-  const resourceDetailMatch = currentPath.match(/^\/resources\/([^/]+)$/);
-  const resourceEditMatch = currentPath.match(/^\/resources\/([^/]+)\/edit$/);
-  const appPath = knownPaths.has(currentPath) || resourceDetailMatch || resourceEditMatch ? currentPath : '/';
+  const pathnameOnly = currentPath.split('?')[0];
+  const offerCreateMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/offers\/new$/);
+  const resourceDetailMatch = pathnameOnly.match(/^\/resources\/([^/]+)$/);
+  const resourceEditMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/edit$/);
+  const appPath = knownPaths.has(pathnameOnly) || offerCreateMatch || resourceDetailMatch || resourceEditMatch ? pathnameOnly : '/';
   const page =
+    offerCreateMatch ? { title: 'Создать предложение' } :
     resourceEditMatch ? { title: 'Редактировать позицию', subtitle: 'Изменение позиции инвентаря' } :
     resourceDetailMatch ? { title: 'Позиция' } :
     pageConfig[appPath] || { title: 'Кабинет партнера' };
   const headerPage = headerContent ?? page;
-  const showHeader = !appPath.startsWith('/settings') && appPath !== '/policy' && appPath !== '/locations';
+  const showHeader = !appPath.startsWith('/settings') && appPath !== '/locations';
 
   const renderPage = () => {
     if (appPath === '/') return <DashboardPage onNavigate={navigateTo} />;
     if (appPath === '/fulfillment') return <FulfillmentPage />;
     if (appPath === '/resources') return <ResourcesPage onHeaderContentChange={setHeaderContent} onNavigate={navigateTo} />;
     if (appPath === '/resources/create') return <ResourceCreatePage onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
+    if (offerCreateMatch) return <OfferCreatePage resourceId={offerCreateMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
     if (resourceEditMatch) return <ResourceEditPage resourceId={resourceEditMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
     if (resourceDetailMatch) return <ResourceDetailPage resourceId={resourceDetailMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-    if (appPath === '/variants') return <VariantsPage />;
     if (appPath === '/offers') return <OffersPage />;
     if (appPath === '/availability') return <AvailabilityPage onNavigate={navigateTo} />;
     if (appPath === '/pricing') return <PricingPage onNavigate={navigateTo} />;
     if (appPath === '/payouts') return <PayoutsPage />;
     if (appPath === '/settings' || appPath === '/settings/account') return <SettingsPage tab="account" onNavigate={navigateTo} />;
     if (appPath === '/settings/profile' || appPath === '/settings/shop') return <SettingsPage tab="shop" onNavigate={navigateTo} />;
-    if (appPath === '/settings/policy' || appPath === '/policy') return <SettingsPage tab="policy" onNavigate={navigateTo} />;
     if (appPath === '/settings/locations' || appPath === '/locations') return <SettingsPage tab="locations" onNavigate={navigateTo} />;
     if (appPath === '/settings/employees') return <SettingsPage tab="employees" onNavigate={navigateTo} />;
     if (appPath === '/reports') return <ReportsPage />;
@@ -174,27 +173,29 @@ function AppShell() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar
-        currentPath={appPath}
-        onNavigate={navigateTo}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
-      />
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
-        {showHeader && (
-          <Header
-            title={headerPage.title}
-            subtitle={headerPage.subtitle}
-            breadcrumbs={headerPage.breadcrumbs}
-            onNavigate={navigateTo}
-          />
-        )}
-        <main className="relative min-h-0 flex-1 overflow-y-auto">
-          <Fragment key={`${appPath}:${navigationReloadKey}`}>
-            {renderPage()}
-          </Fragment>
-        </main>
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      {showHeader && (
+        <Header
+          title={headerPage.title}
+          subtitle={headerPage.subtitle}
+          breadcrumbs={headerPage.breadcrumbs}
+          onNavigate={navigateTo}
+        />
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <Sidebar
+          currentPath={appPath}
+          onNavigate={navigateTo}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+        />
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
+          <main className="relative min-h-0 flex-1 overflow-y-auto">
+            <Fragment key={`${appPath}:${navigationReloadKey}`}>
+              {renderPage()}
+            </Fragment>
+          </main>
+        </div>
       </div>
     </div>
   );
