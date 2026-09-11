@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi } from '../../lib/api-client';
 import { AuthShell, LoadingNotice, Notice } from './authShared';
@@ -11,20 +12,18 @@ type RegisterForm = {
   name: string;
   surname: string;
   email: string;
-  password: string;
+  phone: string;
 };
 
 export function RegisterPage({ token, onNavigate }: { token?: string | null; onNavigate: Navigate }) {
-  const { signIn } = useAuth();
+  const { reloadUser } = useAuth();
   const { returning, backToSignIn } = useBackToSignIn(onNavigate);
-  const [form, setForm] = useState<RegisterForm>({ name: '', surname: '', email: '', password: '' });
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [form, setForm] = useState<RegisterForm>({ name: '', surname: '', email: '', phone: '' });
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone?: string }>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [invitationStatus, setInvitationStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(token ? 'loading' : 'idle');
-  const [invitationRequiresPassword, setInvitationRequiresPassword] = useState(true);
   const isInvitationRegistration = Boolean(token);
-  const passwordRequired = !isInvitationRegistration || invitationRequiresPassword;
 
   useEffect(() => {
     if (!token) {
@@ -39,8 +38,7 @@ export function RegisterPage({ token, onNavigate }: { token?: string | null; onN
     authApi.registrationInvitation(token)
       .then(invitation => {
         if (cancelled) return;
-        setForm(current => ({ ...current, email: invitation.email, password: '' }));
-        setInvitationRequiresPassword(invitation.requiresPassword !== false);
+        setForm(current => ({ ...current, email: invitation.email }));
         setInvitationStatus('ready');
       })
       .catch(() => {
@@ -60,40 +58,43 @@ export function RegisterPage({ token, onNavigate }: { token?: string | null; onN
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const email = form.email.trim();
-    const password = form.password;
-    if (!form.name || !form.surname || !email || (passwordRequired && !password)) {
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    if (!form.name || !form.surname || !email || !phoneDigits) {
       setFieldErrors({});
       setError('Заполните все поля.');
       return;
     }
-    if (passwordRequired && password.length < 8) {
-      setFieldErrors({ password: 'Пароль должен содержать не менее 8 символов.' });
+    if (phoneDigits.length !== 10) {
+      setFieldErrors({ phone: 'Укажите корректный номер телефона.' });
       setError('');
       return;
     }
+
+    const phone = `+7${phoneDigits}`;
 
     setFieldErrors({});
     setError('');
     setLoading(true);
     try {
+      // Registering from an invitation already proves the address, so the API hands back a session.
       await authApi.register(isInvitationRegistration
-        ? { token: token ?? undefined, name: form.name, surname: form.surname, password }
-        : { ...form, email });
+        ? { token: token ?? undefined, name: form.name, surname: form.surname, phone }
+        : { name: form.name, surname: form.surname, email, phone });
 
       if (isInvitationRegistration) {
-        const session = await signIn(email, password);
-        onNavigate(session.memberships.length > 0 ? '/' : '/onboarding');
+        const session = await reloadUser();
+        onNavigate(session && session.memberships.length > 0 ? '/' : '/onboarding');
         return;
       }
 
       onNavigate(`/auth/check-email?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'auth.password_too_short') {
-        setFieldErrors({ password: err.message });
-        return;
-      }
       if (err instanceof ApiError && (err.code === 'auth.email_required' || err.code === 'auth.email_already_exists')) {
         setFieldErrors({ email: err.message });
+        return;
+      }
+      if (err instanceof ApiError && (err.code === 'auth.phone_required' || err.code === 'auth.phone_invalid' || err.code === 'auth.phone_already_exists')) {
+        setFieldErrors({ phone: err.message });
         return;
       }
       if (err instanceof ApiError && (err.code === 'auth.token_invalid' || err.code === 'auth.token_invalid_or_expired')) {
@@ -137,9 +138,7 @@ export function RegisterPage({ token, onNavigate }: { token?: string | null; onN
           <Input label="Фамилия" value={form.surname} onChange={e => updateForm({ surname: e.target.value })} autoComplete="family-name" />
         </div>
         <Input label="Почта" type="email" value={form.email} onChange={e => updateForm({ email: e.target.value })} autoComplete="email" error={fieldErrors.email} disabled={isInvitationRegistration} />
-        {passwordRequired && (
-          <Input label="Пароль" type="password" value={form.password} onChange={e => updateForm({ password: e.target.value })} autoComplete="new-password" hint="Минимум 8 символов." error={fieldErrors.password} />
-        )}
+        <RuPhoneInput value={form.phone} onChange={value => updateForm({ phone: value })} error={fieldErrors.phone} />
         <Button type="submit" variant="primary" loading={loading} className="w-full justify-center">
           Создать аккаунт
         </Button>

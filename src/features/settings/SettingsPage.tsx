@@ -87,8 +87,7 @@ function ShopProfileSettings() {
     legalName: '',
     contactEmail: '',
     contactPhone: '',
-    city: '',
-    addressLine: '',
+    address: '',
     description: '',
   });
   const [loading, setLoading] = useState(true);
@@ -114,8 +113,7 @@ function ShopProfileSettings() {
           legalName: nextProfile.legalName ?? '',
           contactEmail: nextProfile.contactEmail ?? '',
           contactPhone: nextProfile.contactPhone ?? '',
-          city: nextProfile.city ?? '',
-          addressLine: nextProfile.addressLine ?? '',
+          address: nextProfile.address ?? '',
           description: nextProfile.description ?? '',
         });
       })
@@ -134,7 +132,7 @@ function ShopProfileSettings() {
   }, [activeMembership?.displayName]);
 
   useEffect(() => {
-    const query = form.addressLine.trim();
+    const query = form.address.trim();
 
     if (!addressFocused || query.length < 3) {
       setAddressSuggestions([]);
@@ -168,7 +166,7 @@ function ShopProfileSettings() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [addressFocused, form.addressLine]);
+  }, [addressFocused, form.address]);
 
   const save = async () => {
     setSaving(true);
@@ -180,8 +178,7 @@ function ShopProfileSettings() {
         legalName: form.legalName.trim() || undefined,
         contactEmail: form.contactEmail.trim() || undefined,
         contactPhone: form.contactPhone.trim() || undefined,
-        city: form.city.trim() || undefined,
-        addressLine: form.addressLine.trim() || undefined,
+        address: form.address.trim() || undefined,
         description: form.description.trim() || undefined,
       });
       setSaved(true);
@@ -234,17 +231,12 @@ function ShopProfileSettings() {
               value={form.contactPhone}
               onChange={event => setForm(current => ({ ...current, contactPhone: event.target.value }))}
             />
-            <Input
-              label="Город"
-              value={form.city}
-              onChange={event => setForm(current => ({ ...current, city: event.target.value }))}
-            />
             <div className="relative">
               <Input
                 label="Адрес"
-                value={form.addressLine}
+                value={form.address}
                 onChange={event => {
-                  setForm(current => ({ ...current, addressLine: event.target.value }));
+                  setForm(current => ({ ...current, address: event.target.value }));
                   setAddressFocused(true);
                   setAddressSuggestionsOpen(true);
                 }}
@@ -269,8 +261,7 @@ function ShopProfileSettings() {
                       onClick={() => {
                         setForm(current => ({
                           ...current,
-                          addressLine: suggestion.value,
-                          city: current.city || suggestion.city || suggestion.settlement || '',
+                          address: suggestion.value,
                         }));
                         setAddressSuggestions([]);
                         setAddressSuggestionsOpen(false);

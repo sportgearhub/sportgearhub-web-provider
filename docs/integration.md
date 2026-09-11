@@ -15,6 +15,14 @@ Use the API repo docs as the source for product intent and deeper contracts:
 - `docs/provider-fulfillment-api.v1.md`
 - `docs/flows/sign-in-provider-onboarding.md`
 
+## Wire Format
+
+Request and response bodies are **snake_case** in both directions (`{"city_id": "...", "access_token": "..."}`).
+Case matching relaxes letter case only, not the separator, so camelCase keys do not bind. This app converts
+once at the HTTP boundary in `src/lib/case-convert.ts` and stays camelCase internally; the fields listed in
+`DATA_KEYED_MAP_FIELDS` there hold maps keyed by data (locale codes, attribute keys) and are passed through
+untouched.
+
 ## Core Rules
 
 - `ProviderResource` is the provider-owned operational root.
@@ -57,25 +65,46 @@ GET /api/v1/payment-reference/sbp-members
 
 ### Auth
 
+There are no passwords. A session starts from a one-time code mailed to the address, or from a
+passcode on a device the user has already trusted.
+
 ```http
-POST /api/v1/auth/email/start
+POST /api/v1/auth/email/start            # { email, app, delivery_mode: "code" }
+POST /api/v1/auth/email/verify-code      # { email, code } -> tokens | registration_required
+POST /api/v1/auth/email/complete-registration
 GET  /api/v1/auth/registration-invitations/{token}
 POST /api/v1/auth/register
 POST /api/v1/auth/magic-sign-in
 POST /api/v1/auth/session-login
-POST /api/v1/auth/login
+POST /api/v1/auth/login                  # authorization_code / refresh_token only
 GET  /api/v1/auth/me
 GET  /api/v1/auth/provider-memberships
 POST /api/v1/auth/signout
 POST /api/v1/auth/email/verify
 POST /api/v1/auth/email/verification
-POST /api/v1/auth/password/forgot
-POST /api/v1/auth/password/reset
 GET  /api/v1/development/emails
 GET  /connect/authorize
 POST /connect/token
 GET  /connect/userinfo
 ```
+
+### Passcode (trusted device)
+
+```http
+GET    /api/v1/auth/passcode/policy      # { length, max_attempts, max_devices_per_user }
+POST   /api/v1/auth/devices              # { client_id, platform, name, passcode } -> { device_id, device_secret }
+GET    /api/v1/auth/devices
+POST   /api/v1/auth/devices/passcode     # { device_id, device_secret, current_passcode, new_passcode }
+DELETE /api/v1/auth/devices/{deviceId}
+POST   /api/v1/auth/passcode/sign-in     # { device_id, device_secret, passcode, client_id } -> tokens
+```
+
+`device_secret` is 256 bits returned **once** at enrolment; store it in this browser and never send it
+anywhere but `/auth/passcode/sign-in` and `/auth/devices/passcode`. The sign-in request deliberately
+carries no email or user id — the account comes from the device row, which is what stops a short passcode
+from being sprayed at a leaked address list. Five wrong passcodes revoke the device permanently (never
+the account); on `auth.device_not_trusted` or `auth.passcode_locked`, drop the local secret and fall back
+to an emailed code. Never validate the passcode client-side — that hands back the attempt counter.
 
 ### Provider Onboarding
 

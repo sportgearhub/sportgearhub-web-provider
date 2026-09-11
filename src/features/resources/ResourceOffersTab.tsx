@@ -106,7 +106,7 @@ export function ResourceOffersTab({ resource, onNavigate }: ResourceOffersTabPro
         multiDayRate: data.pricingMode === 'rental_tiers' ? (data.multiDayRate ?? null) : null,
         status: data.pricingStatus || 'active',
       });
-      await offersApi.putInclusions(offer.offerId, { included: data.included ?? [], excluded: data.excluded ?? [] });
+      await offersApi.putInfoSections(offer.offerId, data.infoSections ?? []);
       setOffer(mergeOfferPricing(await attachOfferReadiness(nextOffer), data));
       setView('detail');
     } catch (err) {

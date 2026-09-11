@@ -3,11 +3,11 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import {
   CheckEmailPage,
-  ForgotPasswordPage,
+  CompleteRegistrationPage,
   MagicSignInPage,
-  PasswordSignInPage,
+  PasscodeSetupPage,
+  PasscodeSignInPage,
   RegisterPage,
-  ResetPasswordPage,
   SignInPage,
   VerifyEmailPage,
 } from './features/auth/AuthPages';
@@ -99,12 +99,12 @@ function AppShell() {
 
   const renderAuthPage = () => {
     if (currentPath === '/auth/register') return <RegisterPage token={params.get('token')} onNavigate={navigate} />;
-    if (currentPath === '/auth/password-sign-in') return <PasswordSignInPage initialEmail={params.get('email') ?? ''} onNavigate={navigate} />;
+    if (currentPath === '/auth/passcode') return <PasscodeSignInPage onNavigate={navigate} />;
+    if (currentPath === '/auth/passcode-setup') return <PasscodeSetupPage onNavigate={navigate} />;
+    if (currentPath === '/auth/complete-registration') return <CompleteRegistrationPage token={params.get('token')} onNavigate={navigate} />;
     if (currentPath === '/auth/magic-sign-in') return <MagicSignInPage token={params.get('token')} onNavigate={navigate} />;
     if (currentPath === '/auth/check-email') return <CheckEmailPage email={params.get('email') ?? user?.email ?? ''} onNavigate={navigate} />;
     if (currentPath === '/auth/verify-email' || currentPath === '/auth/verify-mail') return <VerifyEmailPage token={params.get('token')} onNavigate={navigate} />;
-    if (currentPath === '/auth/forgot-password') return <ForgotPasswordPage initialEmail={params.get('email') ?? ''} onNavigate={navigate} />;
-    if (currentPath === '/auth/reset-password') return <ResetPasswordPage token={params.get('token')} onNavigate={navigate} />;
     return <SignInPage onNavigate={navigate} />;
   };
 

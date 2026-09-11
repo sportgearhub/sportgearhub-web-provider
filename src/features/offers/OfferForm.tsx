@@ -5,10 +5,11 @@ import { Button } from '../../components/ui/Button';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { Input } from '../../components/ui/Input';
 import { StringListEditor } from '../../components/ui/StringListEditor';
+import { INFO_SECTION_KINDS } from './infoSections';
 import { TimeSelect } from '../../components/ui/TimeSelect';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, locationsApi, offersApi, pricingApi } from '../../lib/api-client';
-import type { Offer, OfferAuthoringOption, OfferAuthoringOptions, OfferAvailabilityBlockedPeriod, OfferAvailabilityWindow, ProviderLocation, RentalTier, Resource } from '../../types';
+import type { Offer, OfferAuthoringOption, OfferAuthoringOptions, OfferAvailabilityBlockedPeriod, OfferAvailabilityWindow, OfferInfoSection, ProviderLocation, RentalTier, Resource } from '../../types';
 
 type SimpleOption = {
   value: string;
@@ -52,9 +53,8 @@ export type OfferFormData = Partial<Offer> & {
   visibilityMode?: string;
   visibleFrom?: string | null;
   visibleUntil?: string | null;
-  // Inclusions
-  included?: string[];
-  excluded?: string[];
+  // Info sections (included / excluded / bring / requirements …)
+  infoSections?: OfferInfoSection[];
 };
 
 const DEFAULT_TIMEZONE = 'Asia/Yekaterinburg';
@@ -108,8 +108,7 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [rentalTiers, setRentalTiers] = useState<RentalTier[]>([]);
   const [multiDayRate, setMultiDayRate] = useState('');
   const [description, setDescription] = useState(offer?.description || '');
-  const [included, setIncluded] = useState<string[]>([]);
-  const [excluded, setExcluded] = useState<string[]>([]);
+  const [sectionItems, setSectionItems] = useState<Record<string, string[]>>({});
   const [locations, setLocations] = useState<ProviderLocation[]>([]);
   const [locationId, setLocationId] = useState(readFulfillmentLocationId(offer));
   const [authoringOptions, setAuthoringOptions] = useState<OfferAuthoringOptions | null>(null);
@@ -240,11 +239,12 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   useEffect(() => {
     if (!offer?.offerId) return;
     let cancelled = false;
-    offersApi.getInclusions(offer.offerId)
-      .then(inclusions => {
+    offersApi.getInfoSections(offer.offerId)
+      .then(result => {
         if (cancelled) return;
-        setIncluded(inclusions.included ?? []);
-        setExcluded(inclusions.excluded ?? []);
+        const next: Record<string, string[]> = {};
+        (result.sections ?? []).forEach(section => { next[section.kind] = section.items ?? []; });
+        setSectionItems(next);
       })
       .catch(() => { /* none set yet */ });
     return () => { cancelled = true; };
@@ -340,8 +340,9 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       visibilityMode,
       visibleFrom,
       visibleUntil,
-      included: included.map(item => item.trim()).filter(Boolean),
-      excluded: excluded.map(item => item.trim()).filter(Boolean),
+      infoSections: INFO_SECTION_KINDS
+        .map(({ kind }) => ({ kind, items: (sectionItems[kind] ?? []).map(item => item.trim()).filter(Boolean) }))
+        .filter(section => section.items.length > 0),
     };
   };
 
@@ -431,23 +432,19 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
 
         <div className="space-y-4 border-t border-gray-100 pt-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">Что входит в предложение</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Информация для клиента</h3>
             <p className="mt-0.5 text-xs text-gray-500">Списки видны клиенту. Порядок = порядок показа.</p>
           </div>
-          <StringListEditor
-            label="Что включено"
-            items={included}
-            onChange={setIncluded}
-            placeholder="Например: Прокат сапборда"
-            addLabel="Добавить пункт"
-          />
-          <StringListEditor
-            label="Что не включено"
-            items={excluded}
-            onChange={setExcluded}
-            placeholder="Например: Трансфер до пляжа"
-            addLabel="Добавить пункт"
-          />
+          {INFO_SECTION_KINDS.map(({ kind, label, placeholder }) => (
+            <StringListEditor
+              key={kind}
+              label={label}
+              items={sectionItems[kind] ?? []}
+              onChange={items => setSectionItems(current => ({ ...current, [kind]: items }))}
+              placeholder={placeholder}
+              addLabel="Добавить пункт"
+            />
+          ))}
         </div>
       </div>
     </Card>

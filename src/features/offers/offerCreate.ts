@@ -59,12 +59,9 @@ export async function createOfferWithSetup(
     });
   }
 
-  // Inclusions — only persist when the provider listed something.
-  if (data.included?.length || data.excluded?.length) {
-    await offersApi.putInclusions(offer.offerId, {
-      included: data.included ?? [],
-      excluded: data.excluded ?? [],
-    });
+  // Info sections — only persist when the provider listed something.
+  if (data.infoSections?.length) {
+    await offersApi.putInfoSections(offer.offerId, data.infoSections);
   }
 
   return offer;

@@ -32,7 +32,8 @@ import type {
   OfferRoutability,
   OfferPublishability,
   OfferVisibility,
-  OfferInclusions,
+  OfferInfoSection,
+  OfferInfoSections,
   OfferAuthoringOptions,
   BookingListItem,
   BookingDetail,
@@ -52,11 +53,14 @@ import type {
   StockBalanceApplyResult,
 } from '../types';
 
+import { keysToCamel, keysToSnake } from './case-convert';
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const AUTH_APP = import.meta.env.VITE_AUTH_APP || 'crm';
 const AUTH_CLIENT_ID = import.meta.env.VITE_AUTH_CLIENT_ID || 'sportgearhub-provider';
 const PROVIDER_AUTH_SCOPE = import.meta.env.VITE_PROVIDER_AUTH_SCOPE || 'openid profile email roles offline_access provider_api';
 const TOKEN_STORAGE_KEY = 'sportgearhub.provider.oidc';
+const DEVICE_STORAGE_KEY = 'sportgearhub.provider.device';
 const PROVIDER_BASE_URL = '/api/v1/provider';
 const REQUIRED_AUTH_SCOPES = PROVIDER_AUTH_SCOPE.split(/\s+/);
 
@@ -86,7 +90,6 @@ type ApiUser = {
 type RegistrationInvitationContext = {
   email: string;
   expiresAt: string;
-  requiresPassword: boolean;
 };
 
 type ApiResource = {
@@ -236,8 +239,12 @@ type OidcTokenResponse = {
 };
 
 type SimpleTokenResponse = {
+  // "authenticated" carries the tokens; "registration_required" carries a short-lived registrationToken
+  // for an email that has no account yet.
+  status: 'authenticated' | 'registration_required';
   accessToken: string;
   refreshToken: string;
+  registrationToken?: string | null;
 };
 
 type StoredOidcToken = OidcTokenResponse & {
@@ -605,6 +612,61 @@ function storeSimpleToken({ accessToken, refreshToken }: SimpleTokenResponse) {
   }, PROVIDER_AUTH_SCOPE);
 }
 
+export type PasscodePolicy = {
+  length: number;
+  maxAttempts: number;
+  maxDevicesPerUser: number;
+};
+
+export type TrustedDeviceEnrolment = {
+  deviceId: string;
+  // 256 bits of server-generated entropy, shown exactly once. This — not the short passcode — is what
+  // makes the credential strong, so it lives here and never leaves the browser.
+  deviceSecret: string;
+  name: string;
+  platform: string;
+};
+
+export type TrustedDeviceSummary = {
+  deviceId: string;
+  name: string;
+  platform: string;
+  createdAt: string;
+  lastUsedAt: string;
+};
+
+function storeDevice(device: TrustedDeviceEnrolment) {
+  try {
+    window.localStorage.setItem(
+      DEVICE_STORAGE_KEY,
+      JSON.stringify({ deviceId: device.deviceId, deviceSecret: device.deviceSecret }));
+  } catch {
+    // Without storage the device cannot be remembered; sign-in falls back to an emailed code.
+  }
+}
+
+function loadStoredDevice(): { deviceId: string; deviceSecret: string } | null {
+  try {
+    const raw = window.localStorage.getItem(DEVICE_STORAGE_KEY);
+    if (!raw) return null;
+
+    const device = JSON.parse(raw) as Partial<{ deviceId: string; deviceSecret: string }>;
+    return device.deviceId && device.deviceSecret
+      ? { deviceId: device.deviceId, deviceSecret: device.deviceSecret }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredDevice() {
+  try {
+    window.localStorage.removeItem(DEVICE_STORAGE_KEY);
+  } catch {
+    // Nothing to clear if storage is unavailable.
+  }
+}
+
 function clearStoredToken() {
   authToken = null;
   try {
@@ -641,16 +703,6 @@ async function oidcTokenRequest(body: URLSearchParams, scope: string) {
   const token = await res.json() as OidcTokenResponse;
   storeToken(token, scope);
   return token;
-}
-
-async function passwordGrant(email: string, password: string) {
-  return oidcTokenRequest(new URLSearchParams({
-    grant_type: 'password',
-    client_id: AUTH_CLIENT_ID,
-    username: email,
-    password,
-    scope: PROVIDER_AUTH_SCOPE,
-  }), PROVIDER_AUTH_SCOPE);
 }
 
 async function refreshGrant(token: StoredOidcToken) {
@@ -699,6 +751,13 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
   if (fetchOptions.body && !headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
+  if (typeof fetchOptions.body === 'string' && headers.get('Content-Type')?.includes('application/json')) {
+    try {
+      fetchOptions.body = JSON.stringify(keysToSnake(JSON.parse(fetchOptions.body)));
+    } catch {
+      // Not a JSON object literal — send it through unchanged.
+    }
+  }
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
@@ -720,7 +779,8 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
       headers,
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText }));
+      const err = keysToCamel<{ message?: string; title?: string; code?: string }>(
+        await res.json().catch(() => ({ message: res.statusText })));
       if (auth && res.status === 401) {
         clearStoredToken();
       }
@@ -731,7 +791,7 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
       return undefined as T;
     }
 
-    return res.json() as Promise<T>;
+    return keysToCamel<T>(await res.json());
   })();
 
   if (canDedupe) {
@@ -771,12 +831,45 @@ export const authApi = {
       body: JSON.stringify({ token }),
     }));
   },
-  login: async (email: string, password: string) => {
-    await passwordGrant(email, password);
+  // Sign-in step 1: ask for a one-time code by email.
+  requestCode: (email: string) =>
+    request<void>('/api/v1/auth/email/start', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ email, app: AUTH_APP, deliveryMode: 'code' }),
+    }),
+  // Sign-in step 2: exchange the code for a session. An unknown email comes back as
+  // registration_required with a short-lived token instead of a session.
+  verifyCode: async (email: string, code: string) => {
+    const result = await request<SimpleTokenResponse>('/api/v1/auth/email/verify-code', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (result.status === 'registration_required') {
+      return { status: 'registration_required' as const, registrationToken: result.registrationToken! };
+    }
+
+    storeSimpleToken(result);
+    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
+  },
+  completeRegistration: async (data: {
+    token: string;
+    name: string;
+    surname: string;
+    phone: string;
+    birthday?: string;
+  }) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/complete-registration', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify(data),
+    }));
     return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
   },
   me: async () => normalizeUser(await request<ApiUser>('/api/v1/auth/me')),
-  register: async (data: { token?: string; name: string; surname: string; email?: string; password?: string }) => {
+  register: async (data: { token?: string; name: string; surname: string; email?: string; phone: string }) => {
     storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/register', {
       method: 'POST',
       auth: false,
@@ -796,25 +889,74 @@ export const authApi = {
       auth: false,
       body: JSON.stringify({ email, app: AUTH_APP }),
     }),
-  forgotPassword: (email: string) =>
-    request<void>('/api/v1/auth/password/forgot', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email, app: AUTH_APP }),
-    }),
-  resetPassword: (token: string, newPassword: string) =>
-    request<void>('/api/v1/auth/password/reset', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ token, newPassword }),
-    }),
-  acceptProviderInvitation: async (data: { token: string; name: string; surname: string; password: string }) => {
+  acceptProviderInvitation: async (data: { token: string; name: string; surname: string }) => {
     storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/provider-invitations/accept', {
       method: 'POST',
       auth: false,
       body: JSON.stringify(data),
     }));
   },
+  // --- trusted device / passcode ---
+  passcodePolicy: () =>
+    request<PasscodePolicy>('/api/v1/auth/passcode/policy', { auth: false }),
+  enrolDevice: async (passcode: string, name: string) => {
+    const device = await request<TrustedDeviceEnrolment>('/api/v1/auth/devices', {
+      method: 'POST',
+      body: JSON.stringify({ clientId: AUTH_CLIENT_ID, platform: 'web', name, passcode }),
+    });
+    storeDevice(device);
+    return device;
+  },
+  // The sign-in request carries no email or user id on purpose: the account comes from the device row,
+  // so a leaked address list cannot be sprayed with "1234".
+  passcodeSignIn: async (passcode: string) => {
+    const device = loadStoredDevice();
+    if (!device) throw new ApiError(401, 'Это устройство не доверено.', 'auth.device_not_trusted');
+
+    try {
+      storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/passcode/sign-in', {
+        method: 'POST',
+        auth: false,
+        body: JSON.stringify({
+          deviceId: device.deviceId,
+          deviceSecret: device.deviceSecret,
+          passcode,
+          clientId: AUTH_CLIENT_ID,
+        }),
+      }));
+    } catch (error) {
+      // The device is gone for good on these — drop the local secret so the UI falls back to email codes.
+      if (error instanceof ApiError
+        && (error.code === 'auth.device_not_trusted' || error.code === 'auth.passcode_locked')) {
+        clearStoredDevice();
+      }
+      throw error;
+    }
+
+    return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
+  },
+  listDevices: () => request<{ devices: TrustedDeviceSummary[] }>('/api/v1/auth/devices').then(r => r.devices),
+  changePasscode: (currentPasscode: string, newPasscode: string) => {
+    const device = loadStoredDevice();
+    if (!device) throw new ApiError(401, 'Это устройство не доверено.', 'auth.device_not_trusted');
+
+    return request<void>('/api/v1/auth/devices/passcode', {
+      method: 'POST',
+      body: JSON.stringify({
+        deviceId: device.deviceId,
+        deviceSecret: device.deviceSecret,
+        currentPasscode,
+        newPasscode,
+      }),
+    });
+  },
+  forgetDevice: async (deviceId: string) => {
+    await request<void>(`/api/v1/auth/devices/${deviceId}`, { method: 'DELETE' });
+    if (loadStoredDevice()?.deviceId === deviceId) clearStoredDevice();
+  },
+  hasTrustedDevice: () => loadStoredDevice() !== null,
+  forgetLocalDevice: clearStoredDevice,
+
   signout: async () => {
     try {
       await request<void>('/api/v1/auth/signout', { method: 'POST' });
@@ -902,8 +1044,7 @@ export const profileApi = {
     legalName?: string;
     contactEmail?: string;
     contactPhone?: string;
-    city?: string;
-    addressLine?: string;
+    address?: string;
     description?: string;
   }) => providerRequest<Provider>('/profile', { method: 'PATCH', body: JSON.stringify(data) }),
 
@@ -1394,13 +1535,13 @@ export const offersApi = {
       body: JSON.stringify(data),
     }),
 
-  getInclusions: (offerId: string) =>
-    providerRequest<OfferInclusions>(`/offers/${offerId}/inclusions`),
+  getInfoSections: (offerId: string) =>
+    providerRequest<OfferInfoSections>(`/offers/${offerId}/info-sections`),
 
-  putInclusions: (offerId: string, data: OfferInclusions) =>
-    providerRequest<OfferInclusions>(`/offers/${offerId}/inclusions`, {
+  putInfoSections: (offerId: string, sections: OfferInfoSection[]) =>
+    providerRequest<OfferInfoSections>(`/offers/${offerId}/info-sections`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ sections }),
     }),
 };
 

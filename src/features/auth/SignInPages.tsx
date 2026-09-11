@@ -1,120 +1,120 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Lock, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi } from '../../lib/api-client';
 import { AuthShell, IconInput, LoadingNotice, Notice } from './authShared';
+import { PasscodeInput } from './PasscodeInput';
 import { authPath, type Navigate } from './authUtils';
 
+// There are no passwords. A new session starts with a one-time code mailed to the address; a browser the
+// user has already trusted can unlock with a short passcode instead (see PasscodeSignInPage).
 export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
+  const { requestCode, verifyCode } = useAuth();
+  const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const normalizedEmail = email.trim();
-  const passwordSignInPath = normalizedEmail
-    ? `${authPath('/password-sign-in')}?email=${encodeURIComponent(normalizedEmail)}`
-    : authPath('/password-sign-in');
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!normalizedEmail) {
-      setError('Введите почту.');
-      return;
-    }
+  // A trusted browser goes straight to the passcode screen.
+  useEffect(() => {
+    if (authApi.hasTrustedDevice()) onNavigate(authPath('/passcode'), true);
+  }, [onNavigate]);
+
+  const sendCode = async () => {
     setError('');
     setLoading(true);
     try {
-      await authApi.startEmailFlow(normalizedEmail);
-      setSent(true);
+      await requestCode(normalizedEmail);
+      setStep('code');
+      setCode('');
     } catch (err) {
       if (err instanceof ApiError && (err.code === 'auth.email_required' || err.code === 'auth.email_invalid')) {
         setError(err.message || 'Укажите корректный email.');
         return;
       }
-      setError(err instanceof ApiError && err.code === 'auth.invalid_email_app'
-        ? 'Ошибка настройки входа.'
-        : 'Не удалось отправить письмо. Попробуйте еще раз.');
+      setError('Не удалось отправить код. Попробуйте еще раз.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <AuthShell title="Введите почту">
-      {sent && <Notice kind="success">Отправили письмо для входа.</Notice>}
-      {error && <Notice kind="error">{error}</Notice>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <IconInput
-          icon={Mail}
-          label="Почта"
-          type="email"
-          value={email}
-          onChange={e => {
-            setEmail(e.target.value);
-            setSent(false);
-          }}
-          placeholder="you@provider.com"
-          autoComplete="email"
-          required
-        />
-
-        <Button type="submit" variant="primary" size="md" loading={loading} className="w-full justify-center">
-          Войти
-        </Button>
-      </form>
-
-      <div className="mt-4 border-t border-gray-100 pt-4">
-        <Button onClick={() => onNavigate(passwordSignInPath)} variant="secondary" className="w-full justify-center">
-          Войти с паролем
-        </Button>
-      </div>
-    </AuthShell>
-  );
-}
-
-export function PasswordSignInPage({ initialEmail = '', onNavigate }: { initialEmail?: string; onNavigate: Navigate }) {
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState(initialEmail);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setEmail(initialEmail);
-  }, [initialEmail]);
-
-  const handleSubmit = async (e: FormEvent) => {
+  const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Заполните все поля.');
+    if (!normalizedEmail) {
+      setError('Введите почту.');
       return;
     }
+    await sendCode();
+  };
+
+  const handleCodeSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await signIn(email, password);
-      onNavigate('/');
+      const result = await verifyCode(normalizedEmail, code);
+
+      if ('registrationToken' in result) {
+        onNavigate(`${authPath('/complete-registration')}?token=${encodeURIComponent(result.registrationToken)}`);
+        return;
+      }
+
+      // Offer to remember this browser so the next visit only needs a passcode.
+      onNavigate(authApi.hasTrustedDevice() ? '/' : authPath('/passcode-setup'));
     } catch (err) {
-      setError(err instanceof ApiError && (err.status === 400 || err.status === 401)
-        ? 'Неверная почта или пароль.'
+      setCode('');
+      setError(err instanceof ApiError
+        ? err.message || 'Неверный код.'
         : 'Ошибка в работе сервиса.');
     } finally {
       setLoading(false);
     }
   };
 
-  const forgotPasswordPath = email.trim()
-    ? `${authPath('/forgot-password')}?email=${encodeURIComponent(email.trim())}`
-    : authPath('/forgot-password');
+  if (step === 'code') {
+    return (
+      <AuthShell title="Введите код из письма">
+        {error && <Notice kind="error">{error}</Notice>}
+        <p className="mb-4 text-xs text-gray-500">
+          Отправили код на <span className="font-medium text-gray-700">{normalizedEmail}</span>. Код действует 10 минут.
+        </p>
+
+        <form onSubmit={handleCodeSubmit} className="space-y-4">
+          <PasscodeInput label="Код из письма" value={code} onChange={setCode} length={6} autoFocus disabled={loading} />
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            loading={loading}
+            disabled={code.length < 6}
+            className="w-full justify-center"
+          >
+            Войти
+          </Button>
+        </form>
+
+        <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" onClick={() => void sendCode()} className="font-medium text-blue-700 hover:text-blue-800">
+            Отправить код еще раз
+          </button>
+          <button type="button" onClick={() => setStep('email')} className="font-medium text-blue-700 hover:text-blue-800">
+            Изменить почту
+          </button>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
-    <AuthShell title="Вход с паролем">
+    <AuthShell title="Введите почту">
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleEmailSubmit} className="space-y-4">
         <IconInput
           icon={Mail}
           label="Почта"
@@ -123,29 +123,155 @@ export function PasswordSignInPage({ initialEmail = '', onNavigate }: { initialE
           onChange={e => setEmail(e.target.value)}
           placeholder="you@provider.com"
           autoComplete="email"
-        />
-
-        <IconInput
-          icon={Lock}
-          label="Пароль"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="********"
-          autoComplete="current-password"
+          required
         />
 
         <Button type="submit" variant="primary" size="md" loading={loading} className="w-full justify-center">
+          Получить код
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
+
+// Sign-in on a browser the user has trusted. The request carries no email — the account comes from the
+// stored device credential — so the passcode cannot be sprayed at a leaked address list.
+export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
+  const { passcodeSignIn } = useAuth();
+  const [passcode, setPasscode] = useState('');
+  const [length, setLength] = useState(4);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authApi.hasTrustedDevice()) {
+      onNavigate(authPath('/sign-in'), true);
+      return;
+    }
+
+    void authApi.passcodePolicy().then(policy => setLength(policy.length)).catch(() => undefined);
+  }, [onNavigate]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await passcodeSignIn(passcode);
+      onNavigate('/');
+    } catch (err) {
+      setPasscode('');
+
+      // Device revoked or forgotten: the only way back is a fresh code by email.
+      if (err instanceof ApiError
+        && (err.code === 'auth.device_not_trusted' || err.code === 'auth.passcode_locked')) {
+        setError(err.message);
+        window.setTimeout(() => onNavigate(authPath('/sign-in'), true), 2500);
+        return;
+      }
+
+      setError(err instanceof ApiError ? err.message || 'Неверный код доступа.' : 'Ошибка в работе сервиса.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthShell title="Введите код доступа">
+      {error && <Notice kind="error">{error}</Notice>}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <PasscodeInput label="Код доступа" value={passcode} onChange={setPasscode} length={length} autoFocus disabled={loading} />
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="md"
+          loading={loading}
+          disabled={passcode.length < length}
+          className="w-full justify-center"
+        >
           Войти
         </Button>
       </form>
 
-      <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <button onClick={() => onNavigate(forgotPasswordPath)} className="font-medium text-blue-700 hover:text-blue-800">
-          Забыли пароль?
+      <div className="mt-4 border-t border-gray-100 pt-4 text-xs">
+        <button
+          type="button"
+          onClick={() => {
+            authApi.forgetLocalDevice();
+            onNavigate(authPath('/sign-in'), true);
+          }}
+          className="font-medium text-blue-700 hover:text-blue-800"
+        >
+          Войти по коду из почты
         </button>
-        <button onClick={() => onNavigate(authPath('/sign-in'))} className="font-medium text-blue-700 hover:text-blue-800">
-          Войти по почте
+      </div>
+    </AuthShell>
+  );
+}
+
+// Offered right after a one-time-code sign-in: remember this browser so the next visit needs only a passcode.
+export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
+  const [passcode, setPasscode] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [length, setLength] = useState(4);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void authApi.passcodePolicy().then(policy => setLength(policy.length)).catch(() => undefined);
+  }, []);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (passcode !== confirmation) {
+      setError('Коды не совпадают.');
+      setConfirmation('');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      await authApi.enrolDevice(passcode, navigator.userAgent.slice(0, 100));
+      onNavigate('/');
+    } catch (err) {
+      setPasscode('');
+      setConfirmation('');
+      setError(err instanceof ApiError ? err.message || 'Не удалось сохранить код доступа.' : 'Ошибка в работе сервиса.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthShell title="Быстрый вход">
+      {error && <Notice kind="error">{error}</Notice>}
+      <p className="mb-4 text-xs text-gray-500">
+        Задайте код доступа из {length} цифр, чтобы в следующий раз входить без письма. Код работает только
+        на этом устройстве.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <PasscodeInput label="Код доступа" value={passcode} onChange={setPasscode} length={length} autoFocus disabled={loading} />
+        <PasscodeInput label="Повторите код" value={confirmation} onChange={setConfirmation} length={length} disabled={loading} />
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="md"
+          loading={loading}
+          disabled={passcode.length < length || confirmation.length < length}
+          className="w-full justify-center"
+        >
+          Сохранить
+        </Button>
+      </form>
+
+      <div className="mt-4 border-t border-gray-100 pt-4 text-xs">
+        <button type="button" onClick={() => onNavigate('/')} className="font-medium text-blue-700 hover:text-blue-800">
+          Пропустить
         </button>
       </div>
     </AuthShell>

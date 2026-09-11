@@ -4,7 +4,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { ApiError, offerAvailabilityApi, offersApi, policyApi } from '../../lib/api-client';
-import type { Offer, OfferAvailability, OfferInclusions, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus, OfferVisibility } from '../../types';
+import type { Offer, OfferAvailability, OfferInfoSection, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus, OfferVisibility } from '../../types';
+import { infoSectionLabel } from './infoSections';
 import { OfferReadinessChecklist } from './OfferReadinessChecklist';
 import { offerBookingSetupReady, offerCustomerVisible } from './offerReadiness';
 import {
@@ -62,7 +63,7 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
     status: 'active',
   });
   const [routability, setRoutability] = useState<OfferRoutability | null>(null);
-  const [inclusions, setInclusions] = useState<OfferInclusions | null>(null);
+  const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
   const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [policy, setPolicy] = useState<OfferPolicy | null>(null);
   const [diagnosticsError, setDiagnosticsError] = useState('');
@@ -106,9 +107,9 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
 
   useEffect(() => {
     let cancelled = false;
-    offersApi.getInclusions(offer.offerId)
-      .then(next => { if (!cancelled) setInclusions(next); })
-      .catch(() => { if (!cancelled) setInclusions(null); });
+    offersApi.getInfoSections(offer.offerId)
+      .then(next => { if (!cancelled) setInfoSections(next.sections ?? []); })
+      .catch(() => { if (!cancelled) setInfoSections([]); });
     offerAvailabilityApi.get(offer.offerId)
       .then(next => { if (!cancelled) setAvailability(next); })
       .catch(() => { if (!cancelled) setAvailability(null); });
@@ -335,36 +336,30 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
             </section>
           )}
 
-          {inclusions && (inclusions.included.length > 0 || inclusions.excluded.length > 0) && (
+          {infoSections.some(section => section.items.length > 0) && (
             <section className="px-6 py-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Что входит</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Информация для клиента</h3>
               <div className="grid gap-4 sm:grid-cols-2">
-                {inclusions.included.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-emerald-700">Что включено</p>
-                    <ul className="space-y-1">
-                      {inclusions.included.map((item, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-sm text-gray-700">
-                          <CheckCircle size={13} className="mt-0.5 shrink-0 text-emerald-600" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {inclusions.excluded.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-gray-500">Что не включено</p>
-                    <ul className="space-y-1">
-                      {inclusions.excluded.map((item, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-sm text-gray-500">
-                          <X size={13} className="mt-0.5 shrink-0 text-gray-400" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {infoSections.filter(section => section.items.length > 0).map(section => {
+                  const excluded = section.kind === 'excluded';
+                  return (
+                    <div key={section.kind}>
+                      <p className={`mb-1.5 text-xs font-medium ${excluded ? 'text-gray-500' : 'text-emerald-700'}`}>
+                        {infoSectionLabel(section.kind)}
+                      </p>
+                      <ul className="space-y-1">
+                        {section.items.map((item, i) => (
+                          <li key={i} className={`flex items-start gap-1.5 text-sm ${excluded ? 'text-gray-500' : 'text-gray-700'}`}>
+                            {excluded
+                              ? <X size={13} className="mt-0.5 shrink-0 text-gray-400" />
+                              : <CheckCircle size={13} className="mt-0.5 shrink-0 text-emerald-600" />}
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}

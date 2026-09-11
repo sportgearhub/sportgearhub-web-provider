@@ -116,7 +116,7 @@ export function OffersPage() {
         multiDayRate: data.pricingMode === 'rental_tiers' ? (data.multiDayRate ?? null) : null,
         status: data.pricingStatus || 'active',
       });
-      await offersApi.putInclusions(selected.offerId, { included: data.included ?? [], excluded: data.excluded ?? [] });
+      await offersApi.putInfoSections(selected.offerId, data.infoSections ?? []);
       updateOfferInState(mergeOfferPricing(await attachOfferReadiness(nextOffer), data));
       setView('detail');
     } catch (err) {

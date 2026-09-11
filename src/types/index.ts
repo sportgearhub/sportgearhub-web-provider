@@ -107,8 +107,7 @@ export interface Provider {
   legalName?: string;
   contactEmail: string;
   contactPhone?: string;
-  city?: string;
-  addressLine?: string;
+  address?: string;
   description?: string;
   operatingState: OperatingState;
   onboardingStatus?: string;
@@ -661,9 +660,13 @@ export interface OfferPolicy {
   updatedAt?: string;
 }
 
-export interface OfferInclusions {
-  included: string[];
-  excluded: string[];
+export interface OfferInfoSection {
+  kind: string;
+  items: string[];
+}
+
+export interface OfferInfoSections {
+  sections: OfferInfoSection[];
 }
 
 export type OfferPolicyInput = {
