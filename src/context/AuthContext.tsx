@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [reloadUser]);
 
   const adoptSession = async (nextUser: AuthUser) => {
-    const currentMemberships = nextUser.emailVerified === false ? [] : await authApi.providerMemberships();
+    const currentMemberships = await authApi.providerMemberships();
     setUser(nextUser);
     setMemberships(currentMemberships);
     setSessionExpired(false);

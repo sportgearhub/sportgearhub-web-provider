@@ -86,13 +86,13 @@ function AppShell() {
   };
 
   useEffect(() => {
-    if (!loading && user && user.emailVerified !== false && memberships.length === 0 && currentPath !== '/onboarding') {
+    if (!loading && user && memberships.length === 0 && currentPath !== '/onboarding') {
       navigate('/onboarding', true);
     }
   }, [currentPath, loading, memberships.length, user]);
 
   useEffect(() => {
-    if (!loading && user && user.emailVerified !== false && memberships.length > 0 && currentPath === '/onboarding') {
+    if (!loading && user && memberships.length > 0 && currentPath === '/onboarding') {
       navigate('/', true);
     }
   }, [currentPath, loading, memberships.length, user]);
@@ -125,10 +125,6 @@ function AppShell() {
 
   if (!user) {
     return <SignInPage onNavigate={navigate} />;
-  }
-
-  if (user.emailVerified === false) {
-    return <CheckEmailPage email={user.email} onNavigate={navigate} />;
   }
 
   if (currentPath === '/onboarding') {

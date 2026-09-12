@@ -74,22 +74,20 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
       {error && <Notice kind="error">{error}</Notice>}
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input
-            label="Имя"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-            autoComplete="given-name"
-            error={fieldErrors.name}
-          />
-          <Input
-            label="Фамилия"
-            value={form.surname}
-            onChange={e => setForm({ ...form, surname: e.target.value })}
-            autoComplete="family-name"
-            error={fieldErrors.surname}
-          />
-        </div>
+        <Input
+          label="Имя"
+          value={form.name}
+          onChange={e => setForm({ ...form, name: e.target.value })}
+          autoComplete="given-name"
+          error={fieldErrors.name}
+        />
+        <Input
+          label="Фамилия"
+          value={form.surname}
+          onChange={e => setForm({ ...form, surname: e.target.value })}
+          autoComplete="family-name"
+          error={fieldErrors.surname}
+        />
 
         <Button type="submit" variant="primary" loading={loading} className="w-full justify-center">
           Продолжить

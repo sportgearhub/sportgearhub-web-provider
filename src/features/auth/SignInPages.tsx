@@ -218,7 +218,7 @@ function PushWaitingStep({
       <div className="grid justify-items-center gap-4 py-2">
         <div className="h-12 w-12 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
         <p className="text-center text-xs text-gray-500">
-          Подтвердите вход в приложении МТС. Если подтверждение не придёт, мы пришлём код в SMS.
+          Подтвердите вход на мобильном устройстве. Если подтверждение не придёт, мы пришлём код в SMS.
         </p>
 
         {/* The wait can run for a while and the number may simply be wrong, so there has to be a
