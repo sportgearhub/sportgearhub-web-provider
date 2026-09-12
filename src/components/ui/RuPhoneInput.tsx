@@ -19,9 +19,11 @@ export function RuPhoneInput({
     <div className="flex flex-col gap-1.5">
       {label && <label className="text-xs font-medium text-foreground">{label}</label>}
       <div className="flex">
-        <div className="flex h-9 items-center gap-1.5 rounded-l-md border border-r-0 border-input bg-gray-50 px-3 text-sm font-medium text-gray-700 shadow-sm">
-          <span aria-hidden="true">RU</span>
-          <span>+7</span>
+        <div className="flex h-9 items-center gap-1.5 rounded-l-md border border-r-0 border-input bg-gray-50 px-3 shadow-sm">
+          {/* "RU" is a country tag, so it reads as a label; "+7" is part of the number the user is
+              typing, so it matches the input text exactly rather than sitting heavier than it. */}
+          <span aria-hidden="true" className="text-xs font-medium text-muted-foreground">RU</span>
+          <span className="text-sm text-foreground">+7</span>
         </div>
         <input
           value={value}

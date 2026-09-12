@@ -7,6 +7,8 @@ export interface AuthUser {
   role: UserRole;
   roles: string[];
   emailVerified?: boolean;
+  phone?: string | null;
+  phoneVerified?: boolean;
 }
 
 export interface ProviderMembership {

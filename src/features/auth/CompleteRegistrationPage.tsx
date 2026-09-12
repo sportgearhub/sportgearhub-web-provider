@@ -1,18 +1,20 @@
 import { FormEvent, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
 import { AuthShell, Notice } from './authShared';
 import type { Navigate } from './authUtils';
 
-// Reached when a one-time code was verified for an address that has no account yet. The email is carried
-// by the registration token, so it is never re-submitted by the client.
+type FieldErrors = { name?: string; surname?: string };
+
+// Reached when a one-time code proved a number that has no account yet. The number itself is
+// carried by the registration token, so it is never re-submitted — and nothing else is asked for:
+// an email is optional and attached later, from the profile, with its own confirmation.
 export function CompleteRegistrationPage({ token, onNavigate }: { token: string | null; onNavigate: Navigate }) {
-  const { completeRegistration } = useAuth();
-  const [form, setForm] = useState({ name: '', surname: '', phone: '' });
-  const [fieldErrors, setFieldErrors] = useState<{ phone?: string }>({});
+  const { completePhoneRegistration } = useAuth();
+  const [form, setForm] = useState({ name: '', surname: '' });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,15 +31,12 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const phoneDigits = form.phone.replace(/\D/g, '');
+    const next: FieldErrors = {};
+    if (!form.name.trim()) next.name = 'Укажите имя.';
+    if (!form.surname.trim()) next.surname = 'Укажите фамилию.';
 
-    if (!form.name || !form.surname || !phoneDigits) {
-      setFieldErrors({});
-      setError('Заполните все поля.');
-      return;
-    }
-    if (phoneDigits.length !== 10) {
-      setFieldErrors({ phone: 'Укажите корректный номер телефона.' });
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
       setError('');
       return;
     }
@@ -46,35 +45,51 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
     setError('');
     setLoading(true);
     try {
-      const session = await completeRegistration({
+      const session = await completePhoneRegistration({
         token,
-        name: form.name,
-        surname: form.surname,
-        phone: `+7${phoneDigits}`,
+        name: form.name.trim(),
+        surname: form.surname.trim(),
       });
       onNavigate(session.memberships.length > 0 ? '/auth/passcode-setup' : '/onboarding');
     } catch (err) {
-      if (err instanceof ApiError
-        && (err.code === 'auth.phone_required' || err.code === 'auth.phone_invalid' || err.code === 'auth.phone_already_exists')) {
-        setFieldErrors({ phone: err.message });
+      if (err instanceof ApiError) {
+        const mapped: FieldErrors = {
+          name: err.fieldError('name'),
+          surname: err.fieldError('surname'),
+        };
+        const hasFieldError = Object.values(mapped).some(Boolean);
+        setFieldErrors(mapped);
+        setError(hasFieldError ? '' : err.message || 'Не удалось завершить регистрацию.');
         return;
       }
-      setError(err instanceof ApiError ? err.message : 'Не удалось завершить регистрацию.');
+
+      setError('Не удалось завершить регистрацию.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="Расскажите о себе">
+    <AuthShell title="Как вас зовут?">
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Имя" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="given-name" />
-          <Input label="Фамилия" value={form.surname} onChange={e => setForm({ ...form, surname: e.target.value })} autoComplete="family-name" />
+          <Input
+            label="Имя"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+            autoComplete="given-name"
+            error={fieldErrors.name}
+          />
+          <Input
+            label="Фамилия"
+            value={form.surname}
+            onChange={e => setForm({ ...form, surname: e.target.value })}
+            autoComplete="family-name"
+            error={fieldErrors.surname}
+          />
         </div>
-        <RuPhoneInput value={form.phone} onChange={value => setForm({ ...form, phone: value })} error={fieldErrors.phone} />
 
         <Button type="submit" variant="primary" loading={loading} className="w-full justify-center">
           Продолжить

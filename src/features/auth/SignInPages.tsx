@@ -1,54 +1,60 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Mail } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
-import { ApiError, authApi } from '../../lib/api-client';
-import { AuthShell, IconInput, LoadingNotice, Notice } from './authShared';
+import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
+import { AuthShell, LoadingNotice, Notice } from './authShared';
 import { PasscodeInput } from './PasscodeInput';
+import { useVerificationStage } from './useVerificationStage';
 import { authPath, type Navigate } from './authUtils';
 
 // There are no passwords. A new session starts with a one-time code mailed to the address; a browser the
 // user has already trusted can unlock with a short passcode instead (see PasscodeSignInPage).
 export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
-  const { requestCode, verifyCode } = useAuth();
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState('');
+  const { verifyPhoneCode } = useAuth();
+  const [step, setStep] = useState<'phone' | 'waiting' | 'code'>('phone');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [started, setStarted] = useState<VerificationStarted | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const normalizedEmail = email.trim();
+  const digits = phone.replace(/\D/g, '');
+  const e164 = `+7${digits}`;
 
-  // A trusted browser goes straight to the passcode screen.
   useEffect(() => {
     if (authApi.hasTrustedDevice()) onNavigate(authPath('/passcode'), true);
   }, [onNavigate]);
 
-  const sendCode = async () => {
+  const onProven = () => onNavigate(authApi.hasTrustedDevice() ? '/' : authPath('/passcode-setup'));
+
+  const onRegistration = (registrationToken: string) =>
+    onNavigate(`${authPath('/complete-registration')}?token=${encodeURIComponent(registrationToken)}`);
+
+  const begin = async () => {
     setError('');
     setLoading(true);
     try {
-      await requestCode(normalizedEmail);
-      setStep('code');
+      const result = await authApi.requestPhoneCode(e164);
+      setStarted(result);
       setCode('');
+      // The API says whether there is anything to type yet. With a SIM push there is not, until
+      // and unless it falls back to SMS.
+      setStep(result.stage === 'pending' ? 'waiting' : 'code');
     } catch (err) {
-      if (err instanceof ApiError && (err.code === 'auth.email_required' || err.code === 'auth.email_invalid')) {
-        setError(err.message || 'Укажите корректный email.');
-        return;
-      }
-      setError('Не удалось отправить код. Попробуйте еще раз.');
+      setError(err instanceof ApiError ? err.message : 'Не удалось отправить код. Попробуйте ещё раз.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEmailSubmit = async (e: FormEvent) => {
+  const handlePhoneSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!normalizedEmail) {
-      setError('Введите почту.');
+    if (digits.length !== 10) {
+      setError('Укажите корректный номер телефона.');
       return;
     }
-    await sendCode();
+    await begin();
   };
 
   const handleCodeSubmit = async (e: FormEvent) => {
@@ -56,42 +62,56 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     setError('');
     setLoading(true);
     try {
-      const result = await verifyCode(normalizedEmail, code);
-
-      if ('registrationToken' in result) {
-        onNavigate(`${authPath('/complete-registration')}?token=${encodeURIComponent(result.registrationToken)}`);
-        return;
-      }
-
-      // Offer to remember this browser so the next visit only needs a passcode.
-      onNavigate(authApi.hasTrustedDevice() ? '/' : authPath('/passcode-setup'));
+      const result = await verifyPhoneCode(e164, code);
+      if ('registrationToken' in result) return onRegistration(result.registrationToken);
+      onProven();
     } catch (err) {
       setCode('');
-      setError(err instanceof ApiError
-        ? err.message || 'Неверный код.'
-        : 'Ошибка в работе сервиса.');
+      setError(err instanceof ApiError ? err.message || 'Неверный код.' : 'Ошибка в работе сервиса.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (step === 'waiting' && started) {
+    return (
+      <PushWaitingStep
+        phone={digits}
+        started={started}
+        onNeedsCode={() => setStep('code')}
+        onSignedIn={onProven}
+        onNeedsRegistration={onRegistration}
+        onRestart={notice => {
+          setStep('phone');
+          setStarted(null);
+          setError(notice);
+        }}
+        onBack={() => {
+          setStep('phone');
+          setStarted(null);
+          setError('');
+        }}
+      />
+    );
+  }
+
   if (step === 'code') {
     return (
-      <AuthShell title="Введите код из письма">
+      <AuthShell title="Введите код из SMS">
         {error && <Notice kind="error">{error}</Notice>}
         <p className="mb-4 text-xs text-gray-500">
-          Отправили код на <span className="font-medium text-gray-700">{normalizedEmail}</span>. Код действует 10 минут.
+          Отправили код на <span className="font-medium text-gray-700">+7 {digits}</span>. Код действует 10 минут.
         </p>
 
         <form onSubmit={handleCodeSubmit} className="space-y-4">
-          <PasscodeInput label="Код из письма" value={code} onChange={setCode} length={6} autoFocus disabled={loading} />
+          <PasscodeInput label="Код из SMS" value={code} onChange={setCode} length={started?.codeLength ?? 6} autoFocus disabled={loading} />
 
           <Button
             type="submit"
             variant="primary"
             size="md"
             loading={loading}
-            disabled={code.length < 6}
+            disabled={code.length < (started?.codeLength ?? 6)}
             className="w-full justify-center"
           >
             Войти
@@ -99,11 +119,11 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
         </form>
 
         <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={() => void sendCode()} className="font-medium text-blue-700 hover:text-blue-800">
-            Отправить код еще раз
+          <button type="button" onClick={() => void begin()} className="font-medium text-blue-700 hover:text-blue-800">
+            Отправить код ещё раз
           </button>
-          <button type="button" onClick={() => setStep('email')} className="font-medium text-blue-700 hover:text-blue-800">
-            Изменить почту
+          <button type="button" onClick={() => setStep('phone')} className="font-medium text-blue-700 hover:text-blue-800">
+            Изменить номер
           </button>
         </div>
       </AuthShell>
@@ -111,25 +131,102 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   }
 
   return (
-    <AuthShell title="Введите почту">
+    <AuthShell title="Введите номер телефона">
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleEmailSubmit} className="space-y-4">
-        <IconInput
-          icon={Mail}
-          label="Почта"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="you@provider.com"
-          autoComplete="email"
-          required
-        />
+      <form onSubmit={handlePhoneSubmit} className="space-y-4">
+        <RuPhoneInput value={phone} onChange={setPhone} />
 
         <Button type="submit" variant="primary" size="md" loading={loading} className="w-full justify-center">
-          Получить код
+          Продолжить
         </Button>
       </form>
+    </AuthShell>
+  );
+}
+
+/**
+ * The wait while a SIM push is with the user.
+ *
+ * Nothing here is driven by the browser: the user approves the push in the MTS app, the provider
+ * tells the API, and this finds out by polling. Three things can happen and each is someone else's
+ * decision — approved (sign in, no code ever typed), fallen back to SMS (show the keypad), or over.
+ */
+function PushWaitingStep({
+  phone,
+  started,
+  onNeedsCode,
+  onSignedIn,
+  onNeedsRegistration,
+  onRestart,
+  onBack,
+}: {
+  phone: string;
+  started: VerificationStarted;
+  onNeedsCode: () => void;
+  onSignedIn: () => void;
+  onNeedsRegistration: (token: string) => void;
+  onRestart: (notice: string) => void;
+  onBack: () => void;
+}) {
+  const stage = useVerificationStage(started.verificationId, started.stage);
+
+  // The stage settles once. Without this guard the effect re-runs whenever a parent render gives
+  // the callbacks new identities, and the redeem would be sent twice.
+  const handled = useRef(false);
+
+  useEffect(() => {
+    if (handled.current || stage === 'pending') return;
+
+    if (stage === 'code_required') {
+      handled.current = true;
+      onNeedsCode();
+      return;
+    }
+
+    if (stage !== 'confirmed') {
+      handled.current = true;
+      onRestart(
+        stage === 'expired'
+          ? 'Время подтверждения истекло. Попробуйте ещё раз.'
+          : 'Подтвердить вход не удалось. Попробуйте ещё раз.',
+      );
+      return;
+    }
+
+    handled.current = true;
+    void (async () => {
+      try {
+        const result = await authApi.redeemConfirmedPhone(started.verificationId);
+        if (result.status === 'registration_required') {
+          onNeedsRegistration(result.registrationToken);
+          return;
+        }
+        onSignedIn();
+      } catch (err) {
+        onRestart(err instanceof ApiError ? err.message : 'Подтвердить вход не удалось.');
+      }
+    })();
+  }, [stage, started.verificationId, onNeedsCode, onSignedIn, onNeedsRegistration, onRestart]);
+
+  return (
+    <AuthShell title="Подтвердите вход">
+      <p className="mb-4 text-xs text-gray-500">
+        Отправили запрос на <span className="font-medium text-gray-700">+7 {phone}</span>.
+      </p>
+
+      <div className="grid justify-items-center gap-4 py-2">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
+        <p className="text-center text-xs text-gray-500">
+          Подтвердите вход в приложении МТС. Если подтверждение не придёт, мы пришлём код в SMS.
+        </p>
+
+        {/* The wait can run for a while and the number may simply be wrong, so there has to be a
+            way out that is not waiting for a timeout. */}
+        <button type="button" onClick={onBack} className="text-xs font-medium text-blue-700 hover:text-blue-800">
+          Изменить номер
+        </button>
+      </div>
     </AuthShell>
   );
 }
@@ -204,7 +301,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
           }}
           className="font-medium text-blue-700 hover:text-blue-800"
         >
-          Войти по коду из почты
+          Войти по коду из SMS
         </button>
       </div>
     </AuthShell>

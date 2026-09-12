@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { EmailAttachCard } from './EmailAttachCard';
 import { Building2, Globe2, MapPin, Plus, Save, Trash2, UserRound, UsersRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -935,11 +936,12 @@ function AccountSettings() {
         <h2 className="text-sm font-semibold text-gray-900">Аккаунт</h2>
         <div className="mt-4 space-y-3 text-sm">
           <InfoRow label="Имя" value={user?.name ?? '—'} />
-          <InfoRow label="Email" value={user?.email ?? '—'} />
+          <InfoRow label="Телефон" value={user?.phone ?? '—'} />
           <InfoRow label="Роли" value={user?.roles?.join(', ') || user?.role || '—'} />
-          <InfoRow label="Email подтвержден" value={user?.emailVerified === false ? 'Нет' : 'Да'} />
         </div>
       </Card>
+
+      <EmailAttachCard />
     </div>
   );
 }

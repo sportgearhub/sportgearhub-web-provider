@@ -7,16 +7,17 @@ interface AuthContextType {
   memberships: ProviderMembership[];
   activeMembership: ProviderMembership | null;
   loading: boolean;
-  // Step 1 of sign-in: mail a one-time code. Step 2 is verifyCode / passcodeSignIn below.
-  requestCode: (email: string) => Promise<void>;
-  verifyCode: (email: string, code: string) => Promise<SessionSnapshot | { registrationToken: string }>;
-  passcodeSignIn: (passcode: string) => Promise<SessionSnapshot>;
-  completeRegistration: (data: {
+  // Sign-in is phone-first: send a code to the number, then exchange it. An unknown number comes
+  // back as a registration token rather than an error.
+  requestPhoneCode: (phone: string) => Promise<void>;
+  verifyPhoneCode: (phone: string, code: string) => Promise<SessionSnapshot | { registrationToken: string }>;
+  completePhoneRegistration: (data: {
     token: string;
     name: string;
     surname: string;
-    phone: string;
   }) => Promise<SessionSnapshot>;
+  passcodeSignIn: (passcode: string) => Promise<SessionSnapshot>;
+
   signOut: () => Promise<void>;
   reloadUser: () => Promise<{ user: AuthUser; memberships: ProviderMembership[] } | null>;
   sessionExpired: boolean;
@@ -91,23 +92,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user: nextUser, memberships: currentMemberships };
   };
 
-  const requestCode = (email: string) => authApi.requestCode(email);
+  const requestPhoneCode = async (phone: string) => {
+    await authApi.requestPhoneCode(phone);
+  };
 
-  const verifyCode = async (email: string, code: string) => {
-    const result = await authApi.verifyCode(email, code);
+  const verifyPhoneCode = async (phone: string, code: string) => {
+    const result = await authApi.verifyPhoneCode(phone, code);
     return result.status === 'registration_required'
       ? { registrationToken: result.registrationToken }
       : adoptSession(result.user);
   };
 
+  const completePhoneRegistration = async (data: { token: string; name: string; surname: string }) =>
+    adoptSession(await authApi.completePhoneRegistration(data));
+
   const passcodeSignIn = async (passcode: string) => adoptSession(await authApi.passcodeSignIn(passcode));
 
-  const completeRegistration = async (data: {
-    token: string;
-    name: string;
-    surname: string;
-    phone: string;
-  }) => adoptSession(await authApi.completeRegistration(data));
+
 
   const signOut = async () => {
     await authApi.signout().catch(() => undefined);
@@ -124,10 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       memberships,
       activeMembership,
       loading,
-      requestCode,
-      verifyCode,
+      requestPhoneCode,
+      verifyPhoneCode,
+      completePhoneRegistration,
       passcodeSignIn,
-      completeRegistration,
       signOut,
       reloadUser,
       sessionExpired,

@@ -67,18 +67,29 @@ const REQUIRED_AUTH_SCOPES = PROVIDER_AUTH_SCOPE.split(/\s+/);
 export class ApiError extends Error {
   status: number;
   code?: string;
+  /** Per-field validation messages keyed by field name, as returned by the API. */
+  fieldErrors: Record<string, string[]>;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(status: number, message: string, code?: string, fieldErrors: Record<string, string[]> = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.fieldErrors = fieldErrors;
+  }
+
+  /** First message for a field, matched case-insensitively (the API answers "Name", forms use "name"). */
+  fieldError(field: string): string | undefined {
+    const key = Object.keys(this.fieldErrors).find(item => item.toLowerCase() === field.toLowerCase());
+    return key ? this.fieldErrors[key]?.[0] : undefined;
   }
 }
 
 type ApiUser = {
   id?: string;
   userId?: string;
+  phone?: string | null;
+  phoneVerified?: boolean;
   email?: string | null;
   name?: string | null;
   surname?: string | null;
@@ -454,6 +465,8 @@ function normalizeUser(user: ApiUser): AuthUser {
     role: roles[0] ?? 'User',
     roles,
     emailVerified: user.emailVerified,
+    phone: user.phone ?? null,
+    phoneVerified: user.phoneVerified,
   };
 }
 
@@ -611,6 +624,24 @@ function storeSimpleToken({ accessToken, refreshToken }: SimpleTokenResponse) {
     refresh_token: refreshToken,
   }, PROVIDER_AUTH_SCOPE);
 }
+
+export type VerificationStage =
+  | 'pending'
+  | 'code_required'
+  | 'confirmed'
+  | 'consumed'
+  | 'failed'
+  | 'expired';
+
+export type VerificationStarted = {
+  accepted: boolean;
+  message: string;
+  verificationId: string;
+  /** `pending` means a silent SIM push is with the user — wait, do not prompt for a code. */
+  stage: VerificationStage;
+  codeLength: number;
+  expiresAt: string;
+};
 
 export type PasscodePolicy = {
   length: number;
@@ -779,12 +810,27 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
       headers,
     });
     if (!res.ok) {
-      const err = keysToCamel<{ message?: string; title?: string; code?: string }>(
-        await res.json().catch(() => ({ message: res.statusText })));
+      const err = keysToCamel<{
+        message?: string;
+        title?: string;
+        detail?: string;
+        code?: string;
+        errors?: Record<string, string[]>;
+      }>(await res.json().catch(() => ({ message: res.statusText })));
       if (auth && res.status === 401) {
         clearStoredToken();
       }
-      throw new ApiError(res.status, err.message || err.title || `API error ${res.status}`, err.code);
+
+      // A validation failure carries the useful text per field; its top-level message is only
+      // "One or more validation errors occurred.", so prefer the first field message for display.
+      const fieldErrors = err.errors ?? {};
+      const firstFieldMessage = Object.values(fieldErrors)[0]?.[0];
+
+      throw new ApiError(
+        res.status,
+        firstFieldMessage || err.detail || err.title || err.message || `API error ${res.status}`,
+        err.code,
+        fieldErrors);
     }
 
     if (res.status === 204) {
@@ -831,6 +877,72 @@ export const authApi = {
       body: JSON.stringify({ token }),
     }));
   },
+  // --- phone sign-in (primary) ---
+  // Step 1: send a one-time code to the number.
+  requestPhoneCode: (phone: string) =>
+    request<VerificationStarted>('/api/v1/auth/phone/start', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ phone }),
+    }),
+  // Step 2: exchange it for a session. A number with no account comes back as
+  // registration_required with a short-lived token carrying the proven number.
+  verifyPhoneCode: async (phone: string, code: string) => {
+    const result = await request<SimpleTokenResponse>('/api/v1/auth/phone/verify-code', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ phone, code }),
+    });
+
+    if (result.status === 'registration_required') {
+      return { status: 'registration_required' as const, registrationToken: result.registrationToken! };
+    }
+
+    storeSimpleToken(result);
+    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
+  },
+  // Where an out-of-band attempt has got to. Polled while the stage is `pending`.
+  verificationStage: (verificationId: string) =>
+    request<{ verificationId: string; stage: VerificationStage; expiresAt: string }>(
+      `/api/v1/auth/verifications/${verificationId}`,
+      { auth: false },
+    ),
+  // The MTS ID ending: the push was the proof, so no code is ever typed.
+  redeemConfirmedPhone: async (verificationId: string) => {
+    const result = await request<SimpleTokenResponse>('/api/v1/auth/phone/redeem', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ verificationId }),
+    });
+
+    if (result.status === 'registration_required') {
+      return { status: 'registration_required' as const, registrationToken: result.registrationToken! };
+    }
+
+    storeSimpleToken(result);
+    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
+  },
+  completePhoneRegistration: async (data: { token: string; name: string; surname: string }) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/phone/complete-registration', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify(data),
+    }));
+    return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
+  },
+
+  // --- email as an optional, verified attribute ---
+  startEmailAttach: (email: string) =>
+    request<VerificationStarted>('/api/v1/auth/email/attach/start', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  confirmEmailAttach: (email: string, code: string) =>
+    request<{ email: string | null; emailVerified: boolean }>('/api/v1/auth/email/attach/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+
   // Sign-in step 1: ask for a one-time code by email.
   requestCode: (email: string) =>
     request<void>('/api/v1/auth/email/start', {
@@ -859,7 +971,8 @@ export const authApi = {
     name: string;
     surname: string;
     phone: string;
-    birthday?: string;
+    // ISO yyyy-MM-dd; the API binds it to DateOnly and rejects a missing value.
+    birthday: string;
   }) => {
     storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/complete-registration', {
       method: 'POST',
