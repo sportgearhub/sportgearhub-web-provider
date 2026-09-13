@@ -11,8 +11,6 @@ import type {
   DashboardResponse,
   Resource,
   ResourceImage,
-  CapacitySlot,
-  AvailabilityDiagnostics,
   ResourceAllocation,
   ResourceAllocationRules,
   ResourceInventorySummary,
@@ -1375,49 +1373,8 @@ export const equipmentApi = {
 
 // ─── Availability ─────────────────────────────────────────────────────────────
 
-export const availabilityApi = {
-  listSlots: (
-    resourceId: string,
-    params: { dateFrom?: string; dateTo?: string; status?: string } = {}
-  ) => {
-    const qs = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(k, v));
-    const suffix = qs.size > 0 ? `?${qs.toString()}` : '';
-    return providerRequest<CapacitySlot[]>(`/resources/${resourceId}/slots${suffix}`);
-  },
-
-  createSlot: (
-    resourceId: string,
-    data: {
-      startsAt: string;
-      endsAt: string;
-      totalCapacity: number;
-      status: string;
-      title?: string | null;
-      meetingPoint?: string | null;
-      bookingSubjectRef?: CapacitySlot['bookingSubjectRef'];
-    }
-  ) =>
-    providerRequest<CapacitySlot>(`/resources/${resourceId}/slots`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  patchSlot: (resourceId: string, slotId: string, data: Partial<CapacitySlot>) =>
-    providerRequest<CapacitySlot>(`/resources/${resourceId}/slots/${slotId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-
-  closeSlot: (resourceId: string, slotId: string, reasonCode?: string | null) =>
-    providerRequest<CapacitySlot>(`/resources/${resourceId}/slots/${slotId}/close`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode: reasonCode || null }),
-    }),
-
-  getDiagnostics: (resourceId: string) =>
-    providerRequest<AvailabilityDiagnostics>(`/resources/${resourceId}/availability-diagnostics`),
-
+// Inventory: the units a resource is made of, and the allocation rules that turn them into capacity.
+export const inventoryApi = {
   getInventorySummary: (resourceId: string) =>
     providerRequest<ResourceInventorySummary>(`/resources/${resourceId}/inventory-summary`),
 

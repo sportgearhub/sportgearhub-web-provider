@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { ApiError, availabilityApi } from '../../lib/api-client';
+import { ApiError, inventoryApi } from '../../lib/api-client';
 import type { Resource, ResourceInventorySummary, ResourceUnit } from '../../types';
 import {
   AllocationCard,
   allocationToForm,
   emptyAllocationForm,
   type AllocationForm,
-} from '../availability/AllocationCard';
-import { InventoryParkCard } from '../availability/InventoryParkCard';
-import { emptyUnitForm, unitToForm, type UnitForm } from '../availability/availabilityTypes';
+} from './AllocationCard';
+import { InventoryParkCard } from './InventoryParkCard';
+import { emptyUnitForm, unitToForm, type UnitForm } from './inventoryTypes';
 import { StockBalancePage } from './StockBalancePage';
 
 interface ResourceParkTabProps {
@@ -37,10 +37,10 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setError('');
     try {
       const [nextSummary, nextUnits, nextAllocation] = await Promise.all([
-        availabilityApi.getInventorySummary(resource.resourceId),
-        availabilityApi.listUnits(resource.resourceId),
+        inventoryApi.getInventorySummary(resource.resourceId),
+        inventoryApi.listUnits(resource.resourceId),
         // No allocation row yet is the normal starting state — it means "count the ready units".
-        availabilityApi.getAllocation(resource.resourceId).catch(() => null),
+        inventoryApi.getAllocation(resource.resourceId).catch(() => null),
       ]);
       setSummary(nextSummary);
       setUnits(nextUnits);
@@ -61,7 +61,7 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setAllocationError('');
     try {
       const sharedInventory = allocationForm.allocationMode === 'shared_inventory';
-      const next = await availabilityApi.putAllocation(resource.resourceId, {
+      const next = await inventoryApi.putAllocation(resource.resourceId, {
         allocationMode: allocationForm.allocationMode,
         baseQuantity: sharedInventory ? Number(allocationForm.baseQuantity) || 0 : null,
         allocationRules: {
@@ -72,7 +72,7 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
         status: 'active',
       });
       setAllocationForm(allocationToForm(next));
-      setSummary(await availabilityApi.getInventorySummary(resource.resourceId).catch(() => summary));
+      setSummary(await inventoryApi.getInventorySummary(resource.resourceId).catch(() => summary));
     } catch (err) {
       setAllocationError(err instanceof ApiError ? `Не удалось сохранить правила: ${err.message}` : 'Не удалось сохранить правила.');
     } finally {
@@ -92,9 +92,9 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
         externalReferenceCode: form.externalReferenceCode.trim() || null,
       };
       if (form.unitId) {
-        await availabilityApi.patchUnit(resource.resourceId, form.unitId, payload);
+        await inventoryApi.patchUnit(resource.resourceId, form.unitId, payload);
       } else {
-        await availabilityApi.createUnit(resource.resourceId, payload);
+        await inventoryApi.createUnit(resource.resourceId, payload);
       }
       setForm(emptyUnitForm());
       await loadPark();
@@ -111,7 +111,7 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setSaving(true);
     setError('');
     try {
-      await availabilityApi.patchUnit(resource.resourceId, unitId, patch);
+      await inventoryApi.patchUnit(resource.resourceId, unitId, patch);
       await loadPark();
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить.');
@@ -125,7 +125,7 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setError('');
     setUnitError('');
     try {
-      await availabilityApi.archiveUnit(resource.resourceId, unit.unitId);
+      await inventoryApi.archiveUnit(resource.resourceId, unit.unitId);
       await loadPark();
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось убрать велосипед: ${err.message}` : 'Не удалось убрать велосипед.');
@@ -139,7 +139,7 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
     setError('');
     setUnitError('');
     try {
-      await availabilityApi.deleteUnit(resource.resourceId, unit.unitId);
+      await inventoryApi.deleteUnit(resource.resourceId, unit.unitId);
       await loadPark();
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось удалить велосипед: ${err.message}` : 'Не удалось удалить велосипед.');

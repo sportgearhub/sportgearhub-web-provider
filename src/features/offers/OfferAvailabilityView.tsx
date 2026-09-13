@@ -14,7 +14,7 @@ import {
   emptyOfferAvailabilityForm,
   offerAvailabilityToForm,
   type OfferAvailabilityForm,
-} from '../availability/availabilityTypes';
+} from './offerAvailabilityTypes';
 
 function emptyWindow(): OfferAvailabilityWindow {
   return { startsOn: '', endsOn: '', dailyOpensAt: '09:00', dailyClosesAt: '21:00' };

@@ -9,7 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import type { ResourceInventorySummary, ResourceUnit } from '../../types';
-import { emptyUnitForm, type UnitForm } from './availabilityTypes';
+import { emptyUnitForm, type UnitForm } from './inventoryTypes';
 
 interface InventoryParkCardProps {
   summary: ResourceInventorySummary | null;

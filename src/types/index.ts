@@ -346,37 +346,6 @@ export interface OfferAvailability {
   updatedAt: string | null;
 }
 
-export interface CapacitySlot {
-  slotId: string;
-  resourceId: string;
-  startsAt: string;
-  endsAt: string;
-  totalCapacity: number;
-  reservedCapacity: number;
-  availableCapacity: number;
-  status: string;
-  title?: string | null;
-  meetingPoint?: string | null;
-  createdAt?: string;
-  bookingSubjectRef?: {
-    resourceId: string;
-    resourceType: string;
-    bookingSubjectStatus: string;
-  };
-  updatedAt: string;
-}
-
-export interface AvailabilityDiagnostics {
-  resourceId?: string;
-  availabilityReady: boolean;
-  bookingRoutable: boolean;
-  modeValid: boolean;
-  errors: string[];
-  warnings: string[];
-  publishabilityImpact?: PublishabilityImpact | Array<{ key: string; value: string | null }>;
-  checkedAt?: string;
-}
-
 export interface ResourceUnit {
   unitId: string;
   resourceId: string;

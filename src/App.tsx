@@ -12,7 +12,6 @@ import {
   VerifyEmailPage,
 } from './features/auth/AuthPages';
 import { OnboardingPage } from './features/onboarding/OnboardingPage';
-import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import type { HeaderBreadcrumb } from './components/layout/Header';
 import { DashboardPage } from './features/dashboard/DashboardPage';
@@ -23,10 +22,6 @@ import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
 import { ResourceEditPage } from './features/resources/ResourceEditPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
-import { AvailabilityPage } from './features/availability/AvailabilityPage';
-import { PricingPage } from './features/pricing/PricingPage';
-import { PayoutsPage } from './features/payouts/PayoutsPage';
-import { ReportsPage } from './features/reports/ReportsPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
 type PageConfig = { title: string; subtitle?: string; breadcrumbs?: HeaderBreadcrumb[] };
@@ -37,17 +32,20 @@ const pageConfig: Record<string, PageConfig> = {
   '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
   '/resources/create': { title: 'Добавить позицию', subtitle: 'Добавьте позицию в каталог.' },
   '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
-  '/availability': { title: 'Доступность', subtitle: 'Горизонты бронирования и вместимость' },
-  '/pricing': { title: 'Цены', subtitle: 'Правила ценообразования и корректировки' },
-  '/payouts': { title: 'Выплаты', subtitle: 'Договоры и статус настройки выплат' },
-  '/settings': { title: '' },
-  '/settings/profile': { title: '' },
+  // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/locations': { title: '' },
   '/settings/employees': { title: '' },
+  '/settings/payouts': { title: '' },
   '/settings/account': { title: '' },
-  '/locations': { title: '' },
-  '/reports': { title: 'Отчеты', subtitle: 'Показатели и аналитика' },
+};
+
+// Paths that moved when navigation became header-based.
+const legacyRedirects: Record<string, string> = {
+  '/payouts': '/settings/payouts',
+  '/locations': '/settings/locations',
+  '/settings': '/settings/account',
+  '/settings/profile': '/settings/shop',
 };
 
 type HeaderContent = PageConfig | null;
@@ -57,7 +55,6 @@ function AppShell() {
   const knownPaths = useMemo(() => new Set(Object.keys(pageConfig)), []);
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname || '/');
   const [navigationReloadKey, setNavigationReloadKey] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [headerContent, setHeaderContent] = useState<HeaderContent>(null);
   const params = new URLSearchParams(window.location.search);
 
@@ -77,13 +74,20 @@ function AppShell() {
   };
 
   const navigateTo = (nextPath: string) => {
-    const safePath = knownPaths.has(nextPath) || nextPath.startsWith('/resources/') ? nextPath : '/';
+    const redirected = legacyRedirects[nextPath] ?? nextPath;
+    const safePath = knownPaths.has(redirected) || redirected.startsWith('/resources/') ? redirected : '/';
     if (window.location.pathname !== safePath || window.location.search !== '') {
       window.history.pushState({}, '', safePath);
     }
     setCurrentPath(safePath);
     setNavigationReloadKey(key => key + 1);
   };
+
+  // A bookmark on a path that moved should land on the new one, address bar included.
+  useEffect(() => {
+    const canonical = legacyRedirects[currentPath];
+    if (canonical) navigate(canonical, true);
+  }, [currentPath]);
 
   useEffect(() => {
     if (!loading && user && memberships.length === 0 && currentPath !== '/onboarding') {
@@ -135,7 +139,7 @@ function AppShell() {
     return <OnboardingPage />;
   }
 
-  const pathnameOnly = currentPath.split('?')[0];
+  const pathnameOnly = legacyRedirects[currentPath.split('?')[0]] ?? currentPath.split('?')[0];
   const offerCreateMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/offers\/new$/);
   const resourceDetailMatch = pathnameOnly.match(/^\/resources\/([^/]+)$/);
   const resourceEditMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/edit$/);
@@ -146,7 +150,6 @@ function AppShell() {
     resourceDetailMatch ? { title: 'Позиция' } :
     pageConfig[appPath] || { title: 'Кабинет партнера' };
   const headerPage = headerContent ?? page;
-  const showHeader = !appPath.startsWith('/settings') && appPath !== '/locations';
 
   const renderPage = () => {
     if (appPath === '/') return <DashboardPage onNavigate={navigateTo} />;
@@ -157,42 +160,28 @@ function AppShell() {
     if (resourceEditMatch) return <ResourceEditPage resourceId={resourceEditMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
     if (resourceDetailMatch) return <ResourceDetailPage resourceId={resourceDetailMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
     if (appPath === '/offers') return <OffersPage />;
-    if (appPath === '/availability') return <AvailabilityPage onNavigate={navigateTo} />;
-    if (appPath === '/pricing') return <PricingPage onNavigate={navigateTo} />;
-    if (appPath === '/payouts') return <PayoutsPage />;
-    if (appPath === '/settings' || appPath === '/settings/account') return <SettingsPage tab="account" onNavigate={navigateTo} />;
-    if (appPath === '/settings/profile' || appPath === '/settings/shop') return <SettingsPage tab="shop" onNavigate={navigateTo} />;
-    if (appPath === '/settings/locations' || appPath === '/locations') return <SettingsPage tab="locations" onNavigate={navigateTo} />;
+    if (appPath === '/settings/account') return <SettingsPage tab="account" onNavigate={navigateTo} />;
+    if (appPath === '/settings/shop') return <SettingsPage tab="shop" onNavigate={navigateTo} />;
+    if (appPath === '/settings/locations') return <SettingsPage tab="locations" onNavigate={navigateTo} />;
     if (appPath === '/settings/employees') return <SettingsPage tab="employees" onNavigate={navigateTo} />;
-    if (appPath === '/reports') return <ReportsPage />;
+    if (appPath === '/settings/payouts') return <SettingsPage tab="payouts" onNavigate={navigateTo} />;
     return <DashboardPage onNavigate={navigateTo} />;
   };
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      {showHeader && (
-        <Header
-          title={headerPage.title}
-          subtitle={headerPage.subtitle}
-          breadcrumbs={headerPage.breadcrumbs}
-          onNavigate={navigateTo}
-        />
-      )}
-      <div className="flex min-h-0 min-w-0 flex-1">
-        <Sidebar
-          currentPath={appPath}
-          onNavigate={navigateTo}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
-        />
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
-          <main className="relative min-h-0 flex-1 overflow-y-auto">
-            <Fragment key={`${appPath}:${navigationReloadKey}`}>
-              {renderPage()}
-            </Fragment>
-          </main>
-        </div>
-      </div>
+      <Header
+        currentPath={appPath}
+        title={headerPage.title}
+        subtitle={headerPage.subtitle}
+        breadcrumbs={headerPage.breadcrumbs}
+        onNavigate={navigateTo}
+      />
+      <main className="relative min-h-0 flex-1 overflow-y-auto bg-muted/30">
+        <Fragment key={`${appPath}:${navigationReloadKey}`}>
+          {renderPage()}
+        </Fragment>
+      </main>
     </div>
   );
 }
