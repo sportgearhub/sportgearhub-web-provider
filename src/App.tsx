@@ -13,7 +13,8 @@ import {
 } from './features/auth/AuthPages';
 import { OnboardingPage } from './features/onboarding/OnboardingPage';
 import { Header } from './components/layout/Header';
-import type { HeaderBreadcrumb } from './components/layout/Header';
+import { PageHeading } from './components/layout/PageHeading';
+import type { PageBreadcrumb } from './components/layout/PageHeading';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { FulfillmentPage } from './features/fulfillment/FulfillmentPage';
 import { ResourcesPage } from './features/resources/ResourcePage';
@@ -24,10 +25,10 @@ import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
 import { SettingsPage } from './features/settings/SettingsPage';
 
-type PageConfig = { title: string; subtitle?: string; breadcrumbs?: HeaderBreadcrumb[] };
+type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageBreadcrumb[] };
 
 const pageConfig: Record<string, PageConfig> = {
-  '/': { title: 'Дашборд', subtitle: 'Обзор партнера' },
+  '/': { title: '' },
   '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
   '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
   '/resources/create': { title: 'Добавить позицию', subtitle: 'Добавьте позицию в каталог.' },
@@ -170,16 +171,16 @@ function AppShell() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <Header
-        currentPath={appPath}
-        title={headerPage.title}
-        subtitle={headerPage.subtitle}
-        breadcrumbs={headerPage.breadcrumbs}
-        onNavigate={navigateTo}
-      />
+      <Header currentPath={appPath} onNavigate={navigateTo} />
       <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
         {/* One centred column for every page, so screens line up with the header above them. */}
         <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
+          <PageHeading
+            title={headerPage.title}
+            subtitle={headerPage.subtitle}
+            breadcrumbs={headerPage.breadcrumbs}
+            onNavigate={navigateTo}
+          />
           <Fragment key={`${appPath}:${navigationReloadKey}`}>
             {renderPage()}
           </Fragment>

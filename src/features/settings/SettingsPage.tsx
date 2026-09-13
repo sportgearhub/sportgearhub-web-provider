@@ -45,7 +45,7 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   const showSettingsTabs = tab !== 'storefront';
 
   return (
-    <div className="flex min-h-full flex-col bg-white">
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
       {showSettingsTabs && (
         <div className="shrink-0 border-b border-gray-200 bg-white px-6">
           <div className="flex flex-wrap gap-2">

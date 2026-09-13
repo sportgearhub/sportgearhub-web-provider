@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight, HelpCircle, LogOut, Mountain, UserRound } from 'lucide-react';
+import { ChevronDown, HelpCircle, LogOut, Mountain, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
-
-export type HeaderBreadcrumb = {
-  label: string;
-  path?: string;
-};
 
 type MenuItem = {
   label: string;
@@ -34,40 +29,37 @@ export const settingsMenuItems: MenuItem[] = [
 
 interface HeaderProps {
   currentPath: string;
-  title?: string;
-  subtitle?: string;
-  breadcrumbs?: HeaderBreadcrumb[];
   onNavigate: (path: string) => void;
   actions?: React.ReactNode;
 }
 
-export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, actions }: HeaderProps) {
+export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
   const { user, activeMembership, signOut } = useAuth();
   const providerName = activeMembership?.displayName ?? 'Кабинет партнёра';
-  const hasBreadcrumbs = Boolean(breadcrumbs?.length);
-  const hasTitle = Boolean(title);
   const settingsActive = currentPath.startsWith('/settings');
 
   const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
-      <div className="mx-auto flex w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-1.5">
         <button
           type="button"
           onClick={() => onNavigate('/')}
           className="flex shrink-0 items-center gap-2.5 rounded-md pr-1 text-left transition hover:opacity-80"
           title="На главную"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Mountain size={18} />
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+            <Mountain size={15} />
           </span>
           <span className="hidden max-w-[180px] truncate text-sm font-semibold text-foreground sm:block">{providerName}</span>
         </button>
 
         {/* Wraps to its own row on narrow screens rather than scrolling, so nothing can clip the menu. */}
+        {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
+            are portalled: a scroll container can no longer clip them. */}
         <nav
-          className="order-last flex w-full flex-wrap items-center justify-center gap-1 pb-1 lg:order-none lg:w-auto lg:flex-1 lg:pb-0"
+          className="order-last flex w-full items-center gap-1 overflow-x-auto pb-1 lg:order-none lg:w-auto lg:flex-1 lg:justify-center lg:overflow-visible lg:pb-0"
           aria-label="Разделы"
         >
           {navItems.map(item => (
@@ -77,7 +69,7 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
               onClick={() => onNavigate(item.path)}
               aria-current={isActive(item.path) ? 'page' : undefined}
               className={cn(
-                'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'shrink-0 rounded-md px-3 py-1 text-sm font-medium transition-colors',
                 isActive(item.path)
                   ? 'bg-sidebar-accent text-sidebar-primary'
                   : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
@@ -92,8 +84,8 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
 
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}
-          <Button type="button" variant="secondary" size="icon" title="Помощь">
-            <HelpCircle size={15} />
+          <Button type="button" variant="secondary" size="icon" className="h-8 w-8" title="Помощь">
+            <HelpCircle size={14} />
           </Button>
           <UserMenu
             name={user?.name ?? ''}
@@ -104,38 +96,6 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
         </div>
       </div>
 
-      {(hasTitle || hasBreadcrumbs) && (
-        <div className="mx-auto w-full max-w-screen-xl px-6 pb-3 pt-1.5">
-          {hasBreadcrumbs ? (
-            <nav className="flex min-w-0 items-center gap-1.5 text-base font-semibold" aria-label="Хлебные крошки">
-              {breadcrumbs!.map((crumb, index) => {
-                const last = index === breadcrumbs!.length - 1;
-                return (
-                  <span key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
-                    {crumb.path && !last ? (
-                      <button
-                        type="button"
-                        onClick={() => onNavigate(crumb.path!)}
-                        className="shrink-0 text-muted-foreground transition hover:text-foreground"
-                      >
-                        {crumb.label}
-                      </button>
-                    ) : (
-                      <span className={last ? 'truncate text-foreground' : 'shrink-0 text-muted-foreground'}>
-                        {last ? title : crumb.label}
-                      </span>
-                    )}
-                    {!last && <ChevronRight size={15} className="shrink-0 text-muted-foreground" />}
-                  </span>
-                );
-              })}
-            </nav>
-          ) : (
-            <h1 className="truncate text-base font-semibold text-foreground">{title}</h1>
-          )}
-          {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
-        </div>
-      )}
     </header>
   );
 }
@@ -160,7 +120,7 @@ function SettingsMenu({
         aria-expanded={menu.open}
         aria-haspopup="menu"
         className={cn(
-          'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+          'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors',
           active || menu.open
             ? 'bg-sidebar-accent text-sidebar-primary'
             : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'

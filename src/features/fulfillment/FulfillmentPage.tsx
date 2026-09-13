@@ -113,11 +113,7 @@ export function FulfillmentPage() {
   }
 
   return (
-    <div className="space-y-5 p-6">
-      <div>
-        <h2 className="text-sm font-semibold text-gray-900">Очередь выдачи</h2>
-        <p className="text-xs text-gray-500 mt-0.5">Выдачи, возвраты и работа с обращениями.</p>
-      </div>
+    <div className="space-y-5 px-6 pb-6">
 
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">

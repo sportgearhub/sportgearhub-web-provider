@@ -140,7 +140,7 @@ export function OffersPage() {
   // ── Edit view ──────────────────────────────────────────────────────────────
   if (view === 'edit' && selected) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setView('detail')} className="text-xs text-gray-500 hover:text-gray-800">← Назад</button>
@@ -162,7 +162,7 @@ export function OffersPage() {
   // ── Policy sub-view ──────────────────────────────────────────────────────────
   if (view === 'policy' && selected) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Правила</h3>
@@ -180,7 +180,7 @@ export function OffersPage() {
   // ── Detail view ────────────────────────────────────────────────────────────
   if (view === 'detail' && selected) {
     return (
-      <div className="flex h-full flex-col overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         <OfferDetail
           offer={selected}
           onBack={openList}
@@ -197,7 +197,7 @@ export function OffersPage() {
   // ── Create view ────────────────────────────────────────────────────────────
   if (view === 'create') {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
           <div className="flex items-center gap-3">
             <button type="button" onClick={openList} className="text-xs text-gray-500 hover:text-gray-800">← Назад</button>
@@ -213,16 +213,13 @@ export function OffersPage() {
 
   // ── List view ──────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
       {/* Nav bar */}
       <nav className="border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-6 py-3">
-          <div>
-            <h1 className="text-sm font-semibold text-gray-900">Предложения</h1>
-            <p className="text-xs text-gray-500">
-              {loading ? 'Загружаем...' : `${filtered.length} из ${offers.length} · видно клиентам: ${filtered.filter(offerCustomerVisible).length}`}
-            </p>
-          </div>
+          <p className="shrink-0 text-xs text-muted-foreground">
+            {loading ? 'Загружаем...' : `${filtered.length} из ${offers.length} · видно клиентам: ${filtered.filter(offerCustomerVisible).length}`}
+          </p>
           <div className="flex items-center gap-2 mx-6 flex-1">
             <div className="relative flex-1 max-w-md">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -253,7 +250,7 @@ export function OffersPage() {
 
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto px-6">
-        <table className="w-full table-fixed border-collapse text-sm">
+        <table className="w-full min-w-[760px] table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-gray-50">
             <tr className="border-b border-gray-200">
               <th className="w-[30%] px-4 py-2 text-left text-xs font-semibold text-gray-700">Предложение</th>

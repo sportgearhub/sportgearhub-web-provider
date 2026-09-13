@@ -199,17 +199,14 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
+    <div className="flex min-h-0 flex-1 flex-col bg-background">
       {/* Compact Navbar */}
       <nav className="border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-6 py-3">
           {/* Left: Title & Stats */}
-          <div>
-            <h1 className="text-sm font-semibold text-gray-900">Каталог</h1>
-            <p className="text-xs text-gray-500">
-              {loading ? 'Загружаем каталог...' : `${filtered.length} из ${resources.length}`}
-            </p>
-          </div>
+          <p className="shrink-0 text-xs text-muted-foreground">
+            {loading ? 'Загружаем каталог...' : `${filtered.length} из ${resources.length}`}
+          </p>
 
           {/* Center: Search */}
           <div className="relative flex-1 mx-6">
@@ -259,7 +256,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto px-6">
-            <table className="w-full table-fixed border-collapse text-sm">
+            <table className="w-full min-w-[760px] table-fixed border-collapse text-sm">
               <colgroup>
                 <col className="w-16" />
                 <col />
