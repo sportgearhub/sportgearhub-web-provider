@@ -6,6 +6,12 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ApiError, pricingApi } from '../../lib/api-client';
+import {
+  baseAmountLabel,
+  DEFAULT_PRICING_MODE,
+  PRICING_MODE_OPTIONS,
+  PRICING_STATUS_OPTIONS,
+} from '../../lib/pricing-options';
 import type { Offer, PricingDiagnostics, PricingPolicy, RentalTier } from '../../types';
 
 type PricingForm = {
@@ -16,32 +22,17 @@ type PricingForm = {
   status: string;
 };
 
-const pricingModeOptions = [
-  { value: 'per_unit_time', label: 'За время проката' },
-  { value: 'fixed', label: 'Фиксированная' },
-  { value: 'rental_tiers', label: 'По тарифным ступеням' },
-  { value: 'per_participant', label: 'За участника' },
-  { value: 'tiered', label: 'По объёму' },
-  { value: 'dynamic', label: 'Динамическая' },
-];
-
-const statusOptions = [
-  { value: 'active', label: 'Активна' },
-  { value: 'draft', label: 'Черновик' },
-  { value: 'archived', label: 'В архиве' },
-];
-
 function emptyTier(): RentalTier {
   return { upToHours: 0, price: 0, label: '' };
 }
 
 function emptyForm(): PricingForm {
-  return { pricingMode: 'per_unit_time', currency: 'RUB', baseAmount: '', multiDayRate: '', status: 'active' };
+  return { pricingMode: DEFAULT_PRICING_MODE, currency: 'RUB', baseAmount: '', multiDayRate: '', status: 'active' };
 }
 
 function policyToForm(policy: PricingPolicy): PricingForm {
   return {
-    pricingMode: policy.pricingMode || 'per_unit_time',
+    pricingMode: policy.pricingMode || DEFAULT_PRICING_MODE,
     currency: policy.currency || 'RUB',
     baseAmount: policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''),
     multiDayRate: policy.multiDayRate != null ? String(policy.multiDayRate) : '',
@@ -186,7 +177,7 @@ export function OfferPricingTab({ offer }: OfferPricingTabProps) {
           <Select
             label="Способ расчёта"
             value={form.pricingMode}
-            options={pricingModeOptions}
+            options={PRICING_MODE_OPTIONS}
             onChange={e => setForm(f => ({ ...f, pricingMode: e.target.value }))}
           />
           <Input
@@ -198,7 +189,7 @@ export function OfferPricingTab({ offer }: OfferPricingTabProps) {
           <Select
             label="Статус цены"
             value={form.status}
-            options={statusOptions}
+            options={PRICING_STATUS_OPTIONS}
             onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
           />
         </div>
@@ -206,7 +197,7 @@ export function OfferPricingTab({ offer }: OfferPricingTabProps) {
         {!isRentalTiers && (
           <div className="mt-3">
             <Input
-              label={form.pricingMode === 'per_unit_time' ? 'Цена за час' : 'Базовая цена'}
+              label={baseAmountLabel(form.pricingMode)}
               type="number"
               min="0"
               value={form.baseAmount}

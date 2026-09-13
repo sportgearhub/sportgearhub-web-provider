@@ -21,6 +21,7 @@ export async function createOfferWithSetup(
     bookingFlowType: data.bookingFlowType || 'direct_checkout',
     title: data.title || 'Новое предложение',
     description: data.description || undefined,
+    durationHours: data.durationHours ?? null,
     fulfillmentLocationId: data.fulfillmentLocationId ?? null,
   });
 
@@ -43,8 +44,7 @@ export async function createOfferWithSetup(
         dailyClosesAt: `${toHhMm(w.dailyClosesAt)}:00`,
       })),
       blockedPeriods: data.blockedPeriods ?? [],
-      minRentHours: data.minRentHours ?? 1,
-      maxRentHours: data.maxRentHours ?? 24,
+      slotIntervalMinutes: data.slotIntervalMinutes ?? null,
       status: data.availabilityStatus || 'active',
     });
   }

@@ -82,8 +82,7 @@ export function OfferAvailabilityView({ offer, onBack }: OfferAvailabilityViewPr
       const next = await offerAvailabilityApi.put(offer.offerId, {
         timezone: form.timezone.trim() || DEFAULT_TIMEZONE,
         status: form.status,
-        minRentHours: Number(form.minRentHours) || 1,
-        maxRentHours: Number(form.maxRentHours) || 24,
+        slotIntervalMinutes: Number(form.slotIntervalMinutes) || null,
         availabilityWindows: windows.map(w => ({
           ...w,
           dailyOpensAt: `${toHhMm(w.dailyOpensAt)}:00`,
@@ -145,18 +144,12 @@ export function OfferAvailabilityView({ offer, onBack }: OfferAvailabilityViewPr
 
           <div className="grid gap-3 md:grid-cols-2">
             <Input
-              label="Минимальное время аренды (ч)"
+              label="Шаг слота (мин)"
               type="number"
               min="1"
-              value={form.minRentHours}
-              onChange={e => setForm(f => ({ ...f, minRentHours: e.target.value }))}
-            />
-            <Input
-              label="Максимальное время аренды (ч)"
-              type="number"
-              min="1"
-              value={form.maxRentHours}
-              onChange={e => setForm(f => ({ ...f, maxRentHours: e.target.value }))}
+              value={form.slotIntervalMinutes}
+              onChange={e => setForm(f => ({ ...f, slotIntervalMinutes: e.target.value }))}
+              placeholder="Не задан"
             />
           </div>
 

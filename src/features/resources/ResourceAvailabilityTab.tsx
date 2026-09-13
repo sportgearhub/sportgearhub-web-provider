@@ -133,8 +133,7 @@ export function ResourceAvailabilityTab({ resource }: ResourceAvailabilityTabPro
       const next = await offerAvailabilityApi.put(selectedOfferId, {
         timezone: form.timezone.trim() || 'UTC',
         status: form.status,
-        minRentHours: Number(form.minRentHours) || 1,
-        maxRentHours: Number(form.maxRentHours) || 24,
+        slotIntervalMinutes: Number(form.slotIntervalMinutes) || null,
         availabilityWindows: availability.availabilityWindows,
         blockedPeriods: availability.blockedPeriods,
       });

@@ -333,7 +333,9 @@ function ResultTable({ rows }: { rows: StockBalanceApplyResult['rows'] }) {
               <td className="px-3 py-2 text-right text-red-700">{row.unitsRetired > 0 ? `-${row.unitsRetired}` : '—'}</td>
               <td className="px-3 py-2">
                 {row.warning && (
-                  <AlertTriangle size={13} className="text-amber-500" title={row.warning} />
+                  <span title={row.warning}>
+                    <AlertTriangle size={13} className="text-amber-500" />
+                  </span>
                 )}
               </td>
             </tr>

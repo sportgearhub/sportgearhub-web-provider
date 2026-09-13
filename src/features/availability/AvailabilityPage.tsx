@@ -5,7 +5,6 @@ import { Card } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { ApiError, availabilityApi, offerAvailabilityApi, offersApi, resourcesApi } from '../../lib/api-client';
 import type {
-  AvailabilityCalendar,
   AvailabilityDiagnostics,
   CapacitySlot,
   Offer,
@@ -15,11 +14,10 @@ import type {
 import { AvailabilityDiagnosticsCard } from './AvailabilityDiagnosticsCard';
 import { AvailabilityProfileCard } from './AvailabilityProfileCard';
 import { AvailabilityResourceList } from './AvailabilityResourceList';
-import { AvailabilityCalendarCard, AvailabilitySlotsCard } from './AvailabilityScheduleCards';
+import { AvailabilitySlotsCard, OfferScheduleCard } from './AvailabilityScheduleCards';
 import {
   DEFAULT_TIMEZONE,
   availabilityModeFor,
-  emptyCalendar,
   emptyOfferAvailabilityForm,
   emptySlotForm,
   modeLabel,
@@ -39,14 +37,12 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
   const [selectedOfferId, setSelectedOfferId] = useState('');
   const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [diagnostics, setDiagnostics] = useState<AvailabilityDiagnostics | null>(null);
-  const [calendar, setCalendar] = useState<AvailabilityCalendar | null>(null);
   const [slots, setSlots] = useState<CapacitySlot[]>([]);
   const [form, setForm] = useState<OfferAvailabilityForm>(emptyOfferAvailabilityForm());
   const [slotForm, setSlotForm] = useState<SlotForm>(emptySlotForm());
   const [loadingResources, setLoadingResources] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [savingAvailability, setSavingAvailability] = useState(false);
-  const [savingCalendar, setSavingCalendar] = useState(false);
   const [savingSlot, setSavingSlot] = useState(false);
   const [error, setError] = useState('');
 
@@ -84,7 +80,6 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
       setOffers([]);
       setAvailability(null);
       setDiagnostics(null);
-      setCalendar(null);
       setSlots([]);
       setForm(emptyOfferAvailabilityForm());
       return;
@@ -98,7 +93,6 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
       setError('');
       setAvailability(null);
       setDiagnostics(null);
-      setCalendar(null);
       setSlots([]);
       setForm(emptyOfferAvailabilityForm());
 
@@ -138,16 +132,10 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
 
       if (mode === 'scheduled_slot') {
         try {
-          const [nextCalendar, nextSlots] = await Promise.all([
-            availabilityApi.getCalendar(selectedResource.resourceId).catch(err => {
-              if (err instanceof ApiError && err.status === 404) return emptyCalendar();
-              throw err;
-            }),
-            availabilityApi.listSlots(selectedResource.resourceId),
-          ]);
-          if (!cancelled) { setCalendar(nextCalendar); setSlots(nextSlots); }
+          const nextSlots = await availabilityApi.listSlots(selectedResource.resourceId);
+          if (!cancelled) setSlots(nextSlots);
         } catch (err) {
-          if (!cancelled) setError(err instanceof ApiError ? `Не удалось загрузить расписание: ${err.message}` : 'Не удалось загрузить расписание.');
+          if (!cancelled) setError(err instanceof ApiError ? `Не удалось загрузить окна записи: ${err.message}` : 'Не удалось загрузить окна записи.');
         }
       }
 
@@ -182,10 +170,9 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
       const next = await offerAvailabilityApi.put(selectedOfferId, {
         timezone: form.timezone.trim() || DEFAULT_TIMEZONE,
         status: form.status,
-        minRentHours: Number(form.minRentHours) || 1,
-        maxRentHours: Number(form.maxRentHours) || 24,
-        availabilityWindows: availability.availabilityWindows,
-        blockedPeriods: availability.blockedPeriods,
+        slotIntervalMinutes: Number(form.slotIntervalMinutes) || null,
+        availabilityWindows: form.windows,
+        blockedPeriods: form.blockedPeriods,
       });
       setAvailability(next);
       setForm(offerAvailabilityToForm(next));
@@ -197,25 +184,6 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
       setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить.');
     } finally {
       setSavingAvailability(false);
-    }
-  };
-
-  const saveCalendar = async () => {
-    if (!selectedResource || !calendar) return;
-    setSavingCalendar(true);
-    setError('');
-    try {
-      const next = await availabilityApi.putCalendar(selectedResource.resourceId, {
-        timezone: calendar.timezone || form.timezone || DEFAULT_TIMEZONE,
-        recurringRules: calendar.recurringRules,
-        blockedPeriods: calendar.blockedPeriods,
-        exceptions: calendar.exceptions,
-      });
-      setCalendar(next);
-    } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось сохранить календарь: ${err.message}` : 'Не удалось сохранить календарь.');
-    } finally {
-      setSavingCalendar(false);
     }
   };
 
@@ -322,14 +290,15 @@ export function AvailabilityPage({ onNavigate }: AvailabilityPageProps) {
                 <AvailabilityDiagnosticsCard diagnostics={diagnostics} />
               </div>
 
+              <OfferScheduleCard
+                form={form}
+                saving={savingAvailability}
+                onChange={setForm}
+                onSave={() => void saveAvailability()}
+              />
+
               {scheduledProfileReady ? (
                 <>
-                  <AvailabilityCalendarCard
-                    calendar={calendar ?? emptyCalendar()}
-                    saving={savingCalendar}
-                    onChange={setCalendar}
-                    onSave={() => void saveCalendar()}
-                  />
                   <AvailabilitySlotsCard
                     slots={slots}
                     form={slotForm}

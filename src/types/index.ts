@@ -331,68 +331,19 @@ export interface OfferAvailabilityWindow {
 export interface OfferAvailabilityBlockedPeriod {
   startsOn: string;
   endsOn: string;
-  reasonCode: string;
+  reasonCode: string | null;
 }
 
 export interface OfferAvailability {
-  settingsId: string;
+  settingsId: string | null;
   offerId: string;
   timezone: string;
   availabilityWindows: OfferAvailabilityWindow[];
   blockedPeriods: OfferAvailabilityBlockedPeriod[];
-  minRentHours: number;
-  maxRentHours: number;
+  /** Booking step for slot-based offers; null when the offer is not slotted. */
+  slotIntervalMinutes: number | null;
   status: string;
-  updatedAt: string;
-}
-
-export interface AvailabilityProfile {
-  profileId: string;
-  resourceId: string;
-  availabilityMode: string;
-  timezone: string;
-  bookingHorizonDays: number | null;
-  status: string;
-  readiness?: Record<string, unknown>;
-  publishabilityImpact?: Record<string, unknown>;
-  updatedAt: string;
-  /** kept for backward-compat with existing UI */
-  id: string;
-  resourceTitle?: string;
-  minAdvanceBookingHours?: number;
-  maxAdvanceBookingDays?: number;
-  defaultCapacity?: number;
-}
-
-export interface RecurringRule {
-  dayOfWeek: string | null;
-  startsAtLocal: string | null;
-  endsAtLocal: string | null;
-  capacity: number | null;
-}
-
-export interface BlockedPeriod {
-  startsAt: string | null;
-  endsAt: string | null;
-  reasonCode: string | null;
-}
-
-export interface AvailabilityException {
-  date?: string | null;
-  isClosed?: boolean | null;
-  opensAtLocal?: string | null;
-  closesAtLocal?: string | null;
-  capacity?: number | null;
-}
-
-export interface AvailabilityCalendar {
-  calendarId?: string;
-  resourceId?: string;
-  timezone: string;
-  recurringRules: RecurringRule[];
-  blockedPeriods: BlockedPeriod[];
-  exceptions: AvailabilityException[];
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 export interface CapacitySlot {
@@ -446,19 +397,6 @@ export type ResourceUnitInput = {
   externalReferenceCode?: string | null;
 };
 
-export interface ResourceVariantInventorySummary {
-  resourceVariantId: string;
-  sku: string;
-  label: string;
-  status: string;
-  totalUnits: number;
-  availableUnits: number;
-  readyUnits: number;
-  maintenanceUnits: number;
-  damagedUnits: number;
-  updatedAt: string;
-}
-
 export interface ResourceInventorySummary {
   resourceId: string;
   totalUnits: number;
@@ -469,9 +407,6 @@ export interface ResourceInventorySummary {
   inUseUnits: number;
   retiredUnits: number;
   lostUnits: number;
-  classifiedUnits: number;
-  unclassifiedUnits: number;
-  variants: ResourceVariantInventorySummary[];
   updatedAt: string;
 }
 
@@ -516,32 +451,21 @@ export interface NormalizedAttribute {
   value: string;
 }
 
-export interface ResourceVariant {
-  variantId: string;
+export interface ResourceAllocation {
+  allocationId: string;
   resourceId: string;
-  sku: string;
-  label: string;
-  status: 'active' | 'inactive' | 'archived';
-  attributes: Record<string, string>;
-  normalizedAttributes?: NormalizedAttribute[];
-  sortOrder: number;
+  /** `dedicated_units` counts ready units; `shared_inventory` uses `baseQuantity` as the capacity. */
+  allocationMode: string;
+  baseQuantity: number | null;
+  allocationRules: ResourceAllocationRules | null;
+  status: string;
   updatedAt: string;
-  /** kept for backward-compat with existing UI */
-  id: string;
-  title: string;
-  stock?: number;
-  createdAt?: string;
 }
 
-export interface VariantAllocation {
-  allocationMode: string;
-  baseQuantity: number;
-  allocationRules: {
-    sharedPoolCode?: string;
-    maxPerBooking?: number;
-    maxConcurrent?: number;
-  };
-  status: string;
+export interface ResourceAllocationRules {
+  maxPerBooking?: number | null;
+  maxConcurrent?: number | null;
+  sharedPoolCode?: string | null;
 }
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────

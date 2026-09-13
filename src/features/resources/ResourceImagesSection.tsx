@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ChangeEvent } from 'react';
-import { GripVertical, ImageOff, Plus, Trash2, Upload, X } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ApiError, resourcesApi } from '../../lib/api-client';
@@ -566,13 +566,33 @@ export function ResourceImageDraftSection({ files, onChange, disabled = false }:
             const preview = previews[i];
             if (preview) {
               return (
-                <div key={`${preview.file.name}-${i}`} className="relative h-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 group">
+                <div
+                  key={`${preview.file.name}-${i}`}
+                  draggable={!disabled}
+                  onDragStart={(event: DragEvent<HTMLDivElement>) => {
+                    event.dataTransfer.setData('text/plain', String(i));
+                    event.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault();
+                    const from = Number(event.dataTransfer.getData('text/plain'));
+                    if (!Number.isNaN(from) && from !== i) reorderFile(from, i);
+                  }}
+                  className="group relative h-full cursor-grab overflow-hidden rounded-lg border border-gray-200 bg-gray-100 active:cursor-grabbing"
+                >
                   <img src={preview.url} alt={preview.file.name} className="h-full w-full object-cover" />
                   {i === 0 && <span className="absolute left-1 top-1 rounded bg-white/90 px-1 text-[10px] font-semibold text-gray-700">Главное</span>}
                   <button type="button" onClick={() => removeFile(i)}
                     className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-600 transition">
                     <X size={10} />
                   </button>
+                  <div className="absolute bottom-1 left-1 flex h-5 w-5 items-center justify-center rounded bg-white/90 text-gray-500 opacity-0 transition group-hover:opacity-100">
+                    <GripVertical size={11} />
+                  </div>
                 </div>
               );
             }

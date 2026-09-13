@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { ApiError, availabilityApi } from '../../lib/api-client';
 import type { Resource, ResourceInventorySummary, ResourceUnit } from '../../types';
+import {
+  AllocationCard,
+  allocationToForm,
+  emptyAllocationForm,
+  type AllocationForm,
+} from '../availability/AllocationCard';
 import { InventoryParkCard } from '../availability/InventoryParkCard';
 import { emptyUnitForm, unitToForm, type UnitForm } from '../availability/availabilityTypes';
 import { StockBalancePage } from './StockBalancePage';
@@ -18,21 +24,27 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
   const [summary, setSummary] = useState<ResourceInventorySummary | null>(null);
   const [units, setUnits] = useState<ResourceUnit[]>([]);
   const [form, setForm] = useState<UnitForm>(emptyUnitForm());
+  const [allocationForm, setAllocationForm] = useState<AllocationForm>(emptyAllocationForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAllocation, setSavingAllocation] = useState(false);
   const [error, setError] = useState('');
   const [unitError, setUnitError] = useState('');
+  const [allocationError, setAllocationError] = useState('');
 
   const loadPark = async () => {
     setLoading(true);
     setError('');
     try {
-      const [nextSummary, nextUnits] = await Promise.all([
+      const [nextSummary, nextUnits, nextAllocation] = await Promise.all([
         availabilityApi.getInventorySummary(resource.resourceId),
         availabilityApi.listUnits(resource.resourceId),
+        // No allocation row yet is the normal starting state — it means "count the ready units".
+        availabilityApi.getAllocation(resource.resourceId).catch(() => null),
       ]);
       setSummary(nextSummary);
       setUnits(nextUnits);
+      setAllocationForm(nextAllocation ? allocationToForm(nextAllocation) : emptyAllocationForm());
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось загрузить инвентарь: ${err.message}` : 'Не удалось загрузить инвентарь.');
     } finally {
@@ -43,6 +55,30 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
   useEffect(() => {
     void loadPark();
   }, [resource.resourceId]);
+
+  const saveAllocation = async () => {
+    setSavingAllocation(true);
+    setAllocationError('');
+    try {
+      const sharedInventory = allocationForm.allocationMode === 'shared_inventory';
+      const next = await availabilityApi.putAllocation(resource.resourceId, {
+        allocationMode: allocationForm.allocationMode,
+        baseQuantity: sharedInventory ? Number(allocationForm.baseQuantity) || 0 : null,
+        allocationRules: {
+          maxPerBooking: Number(allocationForm.maxPerBooking) || null,
+          maxConcurrent: Number(allocationForm.maxConcurrent) || null,
+          sharedPoolCode: allocationForm.sharedPoolCode.trim() || null,
+        },
+        status: 'active',
+      });
+      setAllocationForm(allocationToForm(next));
+      setSummary(await availabilityApi.getInventorySummary(resource.resourceId).catch(() => summary));
+    } catch (err) {
+      setAllocationError(err instanceof ApiError ? `Не удалось сохранить правила: ${err.message}` : 'Не удалось сохранить правила.');
+    } finally {
+      setSavingAllocation(false);
+    }
+  };
 
   const saveUnit = async () => {
     setSaving(true);
@@ -140,6 +176,16 @@ export function ResourceParkTab({ resource, onNavigate }: ResourceParkTabProps) 
           <AlertTriangle size={14} /> {error}
         </div>
       )}
+      <AllocationCard
+        form={allocationForm}
+        saving={savingAllocation}
+        error={allocationError}
+        onChange={value => {
+          setAllocationError('');
+          setAllocationForm(value);
+        }}
+        onSave={() => void saveAllocation()}
+      />
       <InventoryParkCard
         summary={summary}
         units={units}

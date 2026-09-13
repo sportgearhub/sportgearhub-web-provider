@@ -19,15 +19,14 @@ function emptyBlockedPeriod(): OfferAvailabilityBlockedPeriod {
 
 function emptySettings(offerId: string): OfferAvailability {
   return {
-    settingsId: '',
+    settingsId: null,
     offerId,
     timezone: DEFAULT_TIMEZONE,
     availabilityWindows: [],
     blockedPeriods: [],
-    minRentHours: 1,
-    maxRentHours: 8,
+    slotIntervalMinutes: null,
     status: 'active',
-    updatedAt: '',
+    updatedAt: null,
   };
 }
 
@@ -76,8 +75,7 @@ export function OfferAvailabilityTab({ offer }: OfferAvailabilityTabProps) {
         timezone: settings.timezone.trim() || DEFAULT_TIMEZONE,
         availabilityWindows: settings.availabilityWindows,
         blockedPeriods: settings.blockedPeriods,
-        minRentHours: settings.minRentHours,
-        maxRentHours: settings.maxRentHours,
+        slotIntervalMinutes: settings.slotIntervalMinutes,
         status: settings.status,
       });
       setSettings(next);
@@ -156,18 +154,12 @@ export function OfferAvailabilityTab({ offer }: OfferAvailabilityTabProps) {
             placeholder="Asia/Yekaterinburg"
           />
           <Input
-            label="Мин. часов аренды"
+            label="Шаг слота (мин)"
             type="number"
             min="1"
-            value={String(settings.minRentHours)}
-            onChange={e => setSettings(s => ({ ...s, minRentHours: Number(e.target.value) || 1 }))}
-          />
-          <Input
-            label="Макс. часов аренды"
-            type="number"
-            min="1"
-            value={String(settings.maxRentHours)}
-            onChange={e => setSettings(s => ({ ...s, maxRentHours: Number(e.target.value) || 1 }))}
+            value={settings.slotIntervalMinutes === null ? '' : String(settings.slotIntervalMinutes)}
+            onChange={e => setSettings(s => ({ ...s, slotIntervalMinutes: Number(e.target.value) || null }))}
+            placeholder="Не задан"
           />
         </div>
         <div className="mt-4">
@@ -276,7 +268,7 @@ export function OfferAvailabilityTab({ offer }: OfferAvailabilityTabProps) {
                 />
                 <Input
                   label="Причина"
-                  value={period.reasonCode}
+                  value={period.reasonCode ?? ''}
                   onChange={e => patchBlocked(index, { reasonCode: e.target.value })}
                   placeholder="maintenance"
                 />

@@ -235,7 +235,7 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
             {availabilityConfigured(availability) ? (
               <div className="space-y-2">
                 <Row label="Часовой пояс" value={availability!.timezone || '—'} />
-                <Row label="Часы аренды" value={`${availability!.minRentHours}–${availability!.maxRentHours} ч`} />
+                <Row label="Шаг слота" value={availability!.slotIntervalMinutes ? `${availability!.slotIntervalMinutes} мин` : '—'} />
                 <Row label="Окна работы" value={String(availability!.availabilityWindows.length)} />
                 <Row label="Закрытые периоды" value={String(availability!.blockedPeriods.length)} />
                 <Row label="Приём броней" value={availability!.status === 'active' ? 'Включён' : 'Выключен'} />

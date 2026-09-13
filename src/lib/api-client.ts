@@ -13,11 +13,11 @@ import type {
   ResourceImage,
   CapacitySlot,
   AvailabilityDiagnostics,
+  ResourceAllocation,
+  ResourceAllocationRules,
   ResourceInventorySummary,
   ResourceUnit,
   ResourceUnitInput,
-  ResourceVariant,
-  VariantAllocation,
   PricingPolicy,
   PricingQuotePreview,
   PricingDiagnostics,
@@ -188,8 +188,6 @@ export type EquipmentAttribute = {
   unitLabel?: string | null;
   referenceType?: string | null;
   requiredOn: string[];
-  /** @deprecated removed from the API — kept optional for back-compat. */
-  appliesTo?: string[];
   helpText?: string | null;
   helpTexts?: Record<string, string>;
   visibleWhen: EquipmentAttributeVisibilityCondition[];
@@ -1448,68 +1446,23 @@ export const availabilityApi = {
     providerRequest<void>(`/resources/${resourceId}/units/${unitId}`, {
       method: 'DELETE',
     }),
-};
 
-// ─── Variants ─────────────────────────────────────────────────────────────────
+  getAllocation: (resourceId: string) =>
+    providerRequest<ResourceAllocation>(`/resources/${resourceId}/allocation`),
 
-export const variantsApi = {
-  list: (resourceId: string) =>
-    providerRequest<ResourceVariant[]>(`/resources/${resourceId}/variants`),
-
-  create: (
+  putAllocation: (
     resourceId: string,
     data: {
-      sku: string;
-      label: string;
-      attributes: ResourceVariant['attributes'];
-      sortOrder: number;
+      allocationMode: string;
+      baseQuantity: number | null;
+      allocationRules: ResourceAllocationRules | null;
       status: string;
     }
   ) =>
-    providerRequest<ResourceVariant>(`/resources/${resourceId}/variants`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  get: (resourceId: string, variantId: string) =>
-    providerRequest<ResourceVariant>(`/resources/${resourceId}/variants/${variantId}`),
-
-  patch: (
-    resourceId: string,
-    variantId: string,
-    data: Partial<Pick<ResourceVariant, 'label' | 'sku' | 'attributes' | 'sortOrder' | 'status'>>
-  ) =>
-    providerRequest<ResourceVariant>(`/resources/${resourceId}/variants/${variantId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-
-  archive: (resourceId: string, variantId: string) =>
-    providerRequest<ResourceVariant>(`/resources/${resourceId}/variants/${variantId}/archive`, {
-      method: 'POST',
-    }),
-
-  getAllocation: (resourceId: string, variantId: string) =>
-    providerRequest<VariantAllocation>(`/resources/${resourceId}/variants/${variantId}/allocation`),
-
-  putAllocation: (resourceId: string, variantId: string, data: VariantAllocation) =>
-    providerRequest<VariantAllocation>(`/resources/${resourceId}/variants/${variantId}/allocation`, {
+    providerRequest<ResourceAllocation>(`/resources/${resourceId}/allocation`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-
-  getResourceDiagnostics: (resourceId: string) =>
-    providerRequest<{
-      resourceId?: string;
-      variantReady: boolean;
-      availabilityCompatible: boolean;
-      pricingCompatible: boolean;
-      bookingRoutable: boolean;
-      errors: string[];
-      warnings: string[];
-      publishabilityImpact?: Array<{ key: string; value: string | null }>;
-      checkedAt?: string;
-    }>(`/resources/${resourceId}/variant-diagnostics`),
 };
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
@@ -1591,8 +1544,9 @@ export const offersApi = {
     offerType: string;
     bookingFlowType: string;
     title: string;
-    subtitle?: string;
     description?: string;
+    /** Fixed session length for slot-based offers; null for open-ended rentals. */
+    durationHours?: number | null;
     fulfillmentLocationId?: string | null;
     meetupLocation?: Record<string, unknown> | null;
     locationRef?: Offer['locationRef'];
@@ -1670,8 +1624,7 @@ export const offerAvailabilityApi = {
       timezone: string;
       availabilityWindows: OfferAvailabilityWindow[];
       blockedPeriods: OfferAvailabilityBlockedPeriod[];
-      minRentHours: number;
-      maxRentHours: number;
+      slotIntervalMinutes: number | null;
       status: string;
     }
   ) =>

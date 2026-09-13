@@ -2,18 +2,31 @@
 
 This is the provider-console integration contract for `sportgearhub-web-provider-console`.
 
-Use the API repo docs as the source for product intent and deeper contracts:
+**The generated spec wins over this file.** `docs/api-swagger.json` is the provider document exported from
+the running API (`/swagger/provider/swagger.json`); everything below is intent and background, and parts of it
+predate the current surface. Where they disagree, follow the spec.
 
-- `docs/provider-console-api-surface.v1.md`
-- `docs/provider-resource-api.v1.md`
-- `docs/provider-variant-api.v1.md`
-- `docs/provider-availability-api.v1.md`
-- `docs/provider-pricing-api.v1.md`
-- `docs/provider-policy-api.v1.md`
-- `docs/provider-routability-api.v1.md`
-- `docs/provider-booking-operations-api.v1.md`
-- `docs/provider-fulfillment-api.v1.md`
-- `docs/flows/sign-in-provider-onboarding.md`
+Copies of the API repo docs, fetched from `sportgearhub-api/docs`:
+
+- `docs/api/provider-api.md` — the route index the API team maintains
+- `docs/api/sign-in-provider-onboarding.md` — sign-in and onboarding flow
+- `docs/api/offer-fulfillment-model.design.md` — offer/fulfillment model
+- `docs/api/billing-and-payout-model.design.md` — billing and payout model
+- `docs/provider-console-api-surface.v1.md` — original surface design (kept for product intent)
+
+### Surface Changes This File Predates
+
+- **Variants are gone.** No `/resources/{id}/variants*`. Inventory is `/resources/{id}/units`, and
+  allocation moved to `/resources/{id}/allocation`.
+- **No resource availability calendar.** `/resources/{id}/availability-calendar` does not exist; schedule is
+  offer-level (`/offers/{id}/availability`, with `availability_windows` and `blocked_periods`) plus
+  `/resources/{id}/slots` for slot-based capacity.
+- **No resource-level pricing or policy write.** Both are offer-level
+  (`/offers/{id}/pricing-policy`, `/offers/{id}/policy`); the resource exposes read-only
+  `*-diagnostics` endpoints only.
+- **Rent duration left availability.** `min_rent_hours`/`max_rent_hours` are gone. Offer availability
+  carries `slot_interval_minutes`; session length is the offer's own `duration_hours`, and rental
+  pricing bands live in the pricing policy's `rental_tiers`.
 
 ## Wire Format
 
@@ -21,7 +34,9 @@ Request and response bodies are **snake_case** in both directions (`{"city_id": 
 Case matching relaxes letter case only, not the separator, so camelCase keys do not bind. This app converts
 once at the HTTP boundary in `src/lib/case-convert.ts` and stays camelCase internally; the fields listed in
 `DATA_KEYED_MAP_FIELDS` there hold maps keyed by data (locale codes, attribute keys) and are passed through
-untouched.
+untouched. That list is matched against the value too: `attributes` is a data-keyed map when written
+(`{"frame_size": "M"}`) but a contract-shaped array when read (the category attribute schema), and arrays are
+always converted.
 
 ## Core Rules
 

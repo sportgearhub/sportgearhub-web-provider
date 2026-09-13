@@ -1,4 +1,10 @@
-import type { AvailabilityCalendar, AvailabilityProfile, OfferAvailability, Resource, ResourceUnit } from '../../types';
+import type {
+  OfferAvailability,
+  OfferAvailabilityBlockedPeriod,
+  OfferAvailabilityWindow,
+  Resource,
+  ResourceUnit,
+} from '../../types';
 
 export const DEFAULT_TIMEZONE = 'Asia/Yekaterinburg';
 
@@ -6,23 +12,6 @@ export const availabilityStatusOptions = [
   { value: 'active', label: 'Да, принимать' },
   { value: 'inactive', label: 'Нет, временно закрыто' },
 ];
-
-export const dayOptions = [
-  { value: 'monday', label: 'Пн' },
-  { value: 'tuesday', label: 'Вт' },
-  { value: 'wednesday', label: 'Ср' },
-  { value: 'thursday', label: 'Чт' },
-  { value: 'friday', label: 'Пт' },
-  { value: 'saturday', label: 'Сб' },
-  { value: 'sunday', label: 'Вс' },
-];
-
-export type ProfileForm = {
-  availabilityMode: string;
-  timezone: string;
-  bookingHorizonDays: string;
-  status: string;
-};
 
 export type SlotForm = {
   title: string;
@@ -32,24 +21,58 @@ export type SlotForm = {
   meetingPoint: string;
 };
 
+// The whole offer availability contract travels in one PUT, so the working windows and the blocked
+// periods live in the form alongside the scalar settings rather than in a separate resource calendar.
 export type OfferAvailabilityForm = {
   timezone: string;
   status: string;
-  minRentHours: string;
-  maxRentHours: string;
+  slotIntervalMinutes: string;
+  windows: OfferAvailabilityWindow[];
+  blockedPeriods: OfferAvailabilityBlockedPeriod[];
 };
 
 export function emptyOfferAvailabilityForm(): OfferAvailabilityForm {
-  return { timezone: DEFAULT_TIMEZONE, status: 'active', minRentHours: '1', maxRentHours: '24' };
+  return {
+    timezone: DEFAULT_TIMEZONE,
+    status: 'active',
+    slotIntervalMinutes: '',
+    windows: [],
+    blockedPeriods: [],
+  };
 }
 
 export function offerAvailabilityToForm(avail: OfferAvailability): OfferAvailabilityForm {
   return {
     timezone: avail.timezone || DEFAULT_TIMEZONE,
     status: avail.status || 'active',
-    minRentHours: String(avail.minRentHours ?? 1),
-    maxRentHours: String(avail.maxRentHours ?? 24),
+    slotIntervalMinutes: avail.slotIntervalMinutes === null || avail.slotIntervalMinutes === undefined
+      ? ''
+      : String(avail.slotIntervalMinutes),
+    windows: avail.availabilityWindows ?? [],
+    blockedPeriods: avail.blockedPeriods ?? [],
   };
+}
+
+export function emptyAvailabilityWindow(): OfferAvailabilityWindow {
+  return {
+    startsOn: todayIso(),
+    endsOn: todayIso(),
+    dailyOpensAt: '10:00',
+    dailyClosesAt: '20:00',
+  };
+}
+
+export function emptyBlockedPeriod(): OfferAvailabilityBlockedPeriod {
+  return { startsOn: todayIso(), endsOn: todayIso(), reasonCode: 'provider_closed' };
+}
+
+/** `<input type="time">` accepts "HH:mm" and "HH:mm:ss"; the API answers with seconds. */
+export function toTimeInput(value: string | null | undefined) {
+  return (value ?? '').slice(0, 5);
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export type UnitForm = {
@@ -68,34 +91,6 @@ export function availabilityModeFor(resource: Resource | null) {
 
 export function modeLabel(mode: string) {
   return mode === 'scheduled_slot' ? 'По расписанию' : 'По наличию в инвентаре';
-}
-
-export function emptyProfileForm(mode: string): ProfileForm {
-  return {
-    availabilityMode: mode,
-    timezone: DEFAULT_TIMEZONE,
-    bookingHorizonDays: '30',
-    status: 'active',
-  };
-}
-
-export function profileToForm(profile: AvailabilityProfile, fallbackMode: string): ProfileForm {
-  return {
-    availabilityMode: profile.availabilityMode || fallbackMode,
-    timezone: profile.timezone || DEFAULT_TIMEZONE,
-    bookingHorizonDays: String(profile.bookingHorizonDays ?? 30),
-    status: profile.status || 'active',
-  };
-}
-
-export function emptyCalendar(): AvailabilityCalendar {
-  return {
-    timezone: DEFAULT_TIMEZONE,
-    recurringRules: [],
-    blockedPeriods: [],
-    exceptions: [],
-    updatedAt: new Date().toISOString(),
-  };
 }
 
 export function emptySlotForm(): SlotForm {

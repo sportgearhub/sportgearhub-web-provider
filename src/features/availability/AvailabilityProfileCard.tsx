@@ -52,24 +52,18 @@ export function AvailabilityProfileCard({
               onChange={event => onFormChange({ ...form, status: event.target.value })}
             />
             <Input
-              label="Минимальное время аренды (ч)"
+              label="Шаг слота (мин)"
               type="number"
               min="1"
-              value={form.minRentHours}
-              onChange={event => onFormChange({ ...form, minRentHours: event.target.value })}
-            />
-            <Input
-              label="Максимальное время аренды (ч)"
-              type="number"
-              min="1"
-              value={form.maxRentHours}
-              onChange={event => onFormChange({ ...form, maxRentHours: event.target.value })}
+              value={form.slotIntervalMinutes}
+              onChange={event => onFormChange({ ...form, slotIntervalMinutes: event.target.value })}
+              placeholder="Не задан"
             />
           </div>
 
-          {availability && (availability.availabilityWindows.length > 0 || availability.blockedPeriods.length > 0) && (
+          {(form.windows.length > 0 || form.blockedPeriods.length > 0) && (
             <p className="mt-3 text-xs text-gray-500">
-              Окна работы: {availability.availabilityWindows.length} · Заблокированные периоды: {availability.blockedPeriods.length}
+              Периоды работы: {form.windows.length} · Закрытые даты: {form.blockedPeriods.length}
             </p>
           )}
 

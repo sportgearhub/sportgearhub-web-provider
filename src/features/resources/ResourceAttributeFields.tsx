@@ -1,7 +1,5 @@
 import { Input } from '../../components/ui/Input';
-import type { EquipmentAttribute, EquipmentAttributeSchema } from '../../lib/api-client';
-
-export const fixedVariantAttributeKeys = new Set(['brand', 'brand_id', 'brand_name', 'model']);
+import type { EquipmentAttribute } from '../../lib/api-client';
 
 function inputTypeFor(valueType: string) {
   if (valueType === 'integer' || valueType === 'decimal') return 'number';
@@ -11,7 +9,7 @@ function inputTypeFor(valueType: string) {
 }
 
 function optionsForField(field: EquipmentAttribute | undefined) {
-  if (!field?.allowedValues.length) return [{ value: '', label: 'Выберите значение' }];
+  if (!field?.allowedValues?.length) return [{ value: '', label: 'Выберите значение' }];
 
   return [
     { value: '', label: 'Выберите значение' },
@@ -22,47 +20,17 @@ function optionsForField(field: EquipmentAttribute | undefined) {
   ];
 }
 
-export function isVariantAttributeVisible(attribute: EquipmentAttribute, values: Record<string, string>) {
-  if (attribute.visibleWhen.length === 0) return true;
+export function isAttributeVisible(attribute: EquipmentAttribute, values: Record<string, string>) {
+  const conditions = attribute.visibleWhen ?? [];
+  if (conditions.length === 0) return true;
 
-  return attribute.visibleWhen.every(condition => {
+  return conditions.every(condition => {
     const selectedValue = values[condition.attributeKey];
     return selectedValue ? condition.allowedValueKeys.includes(selectedValue) : false;
   });
 }
 
-export function visibleVariantAttributes(
-  schemaOrAttributes: EquipmentAttributeSchema | EquipmentAttribute[] | null,
-  values: Record<string, string>,
-  options: { hideFixed?: boolean } = {}
-) {
-  const attributes = Array.isArray(schemaOrAttributes)
-    ? schemaOrAttributes
-    : schemaOrAttributes?.attributes ?? [];
-  const hideFixed = options.hideFixed ?? true;
-
-  return attributes
-    .filter(attribute =>
-      (attribute.appliesTo ?? []).includes('variant') &&
-      (!hideFixed || !fixedVariantAttributeKeys.has(attribute.key)) &&
-      isVariantAttributeVisible(attribute, values)
-    )
-    .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-}
-
-export function pruneHiddenVariantAttributes(
-  schemaOrAttributes: EquipmentAttributeSchema | EquipmentAttribute[] | null,
-  values: Record<string, string>,
-  options: { hideFixed?: boolean } = {}
-) {
-  if (!schemaOrAttributes) return values;
-
-  const visibleKeys = new Set(visibleVariantAttributes(schemaOrAttributes, values, options).map(attribute => attribute.key));
-  return Object.fromEntries(Object.entries(values).filter(([key]) => visibleKeys.has(key) || fixedVariantAttributeKeys.has(key)));
-}
-
-export function VariantAttributeBuilder({
+export function ResourceAttributeBuilder({
   attributes,
   values,
   errors = {},
@@ -84,7 +52,7 @@ export function VariantAttributeBuilder({
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {attributes.map(attribute => (
-        <VariantAttributeField
+        <ResourceAttributeField
           key={attribute.key}
           attribute={attribute}
           value={values[attribute.key] ?? ''}
@@ -96,7 +64,7 @@ export function VariantAttributeBuilder({
   );
 }
 
-function VariantAttributeField({
+function ResourceAttributeField({
   attribute,
   value,
   error,
@@ -113,7 +81,7 @@ function VariantAttributeField({
       ? `${attribute.label}, ${attribute.unit}`
       : attribute.label;
 
-  if (attribute.allowedValues.length > 0) {
+  if ((attribute.allowedValues?.length ?? 0) > 0) {
     return (
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-700">{label}</label>

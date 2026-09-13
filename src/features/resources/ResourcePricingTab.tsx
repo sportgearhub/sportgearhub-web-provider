@@ -5,8 +5,14 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { ApiError, pricingApi } from '../../lib/api-client';
-import type { PricingDiagnostics, PricingPolicy, RentalTier, Resource } from '../../types';
+import { ApiError, offersApi, pricingApi } from '../../lib/api-client';
+import {
+  baseAmountLabel,
+  DEFAULT_PRICING_MODE,
+  PRICING_MODE_OPTIONS,
+  PRICING_STATUS_OPTIONS,
+} from '../../lib/pricing-options';
+import type { Offer, PricingDiagnostics, PricingPolicy, RentalTier, Resource } from '../../types';
 
 type PricingForm = {
   pricingMode: string;
@@ -15,21 +21,6 @@ type PricingForm = {
   multiDayRate: string;
   status: string;
 };
-
-const pricingModeOptions = [
-  { value: 'per_unit_time', label: 'За время проката' },
-  { value: 'fixed', label: 'Фиксированная' },
-  { value: 'rental_tiers', label: 'По тарифным ступеням' },
-  { value: 'per_participant', label: 'За участника' },
-  { value: 'tiered', label: 'По объёму' },
-  { value: 'dynamic', label: 'Динамическая' },
-];
-
-const statusOptions = [
-  { value: 'active', label: 'Активна' },
-  { value: 'draft', label: 'Черновик' },
-  { value: 'archived', label: 'В архиве' },
-];
 
 function emptyTier(): RentalTier {
   return { upToHours: 0, price: 0, label: '' };
@@ -40,6 +31,9 @@ interface ResourcePricingTabProps {
 }
 
 export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
+  // Pricing is configured per offer — the resource itself only exposes read-only diagnostics.
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState('');
   const [policy, setPolicy] = useState<PricingPolicy | null>(null);
   const [diagnostics, setDiagnostics] = useState<PricingDiagnostics | null>(null);
   const [form, setForm] = useState<PricingForm>(emptyPricingForm());
@@ -51,13 +45,11 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
 
   const isRentalTiers = form.pricingMode === 'rental_tiers';
 
-  const loadPricing = async () => {
-    setLoading(true);
+  const loadOfferPolicy = async (offerId: string) => {
     setError('');
     setPolicyMissing(false);
-
     try {
-      const nextPolicy = await pricingApi.getResourcePolicy(resource.resourceId);
+      const nextPolicy = await pricingApi.getOfferPolicy(offerId);
       setPolicy(nextPolicy);
       setForm(policyToForm(nextPolicy));
       setTiers(nextPolicy.rentalTiers ?? []);
@@ -70,6 +62,26 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
       } else {
         setError(err instanceof ApiError ? `Не удалось загрузить цену: ${err.message}` : 'Не удалось загрузить цену.');
       }
+    }
+  };
+
+  const loadPricing = async () => {
+    setLoading(true);
+    setError('');
+    setPolicyMissing(false);
+
+    try {
+      const allOffers = await offersApi.list();
+      const resourceOffers = allOffers.filter(
+        offer => offer.primaryResourceId === resource.resourceId || offer.resourceId === resource.resourceId
+      );
+      setOffers(resourceOffers);
+
+      const firstOfferId = resourceOffers[0]?.offerId ?? '';
+      setSelectedOfferId(firstOfferId);
+      if (firstOfferId) await loadOfferPolicy(firstOfferId);
+    } catch (err) {
+      setError(err instanceof ApiError ? `Не удалось загрузить предложения: ${err.message}` : 'Не удалось загрузить предложения.');
     }
 
     try {
@@ -87,7 +99,16 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     void loadPricing();
   }, [resource.resourceId]);
 
+  const handleOfferChange = async (offerId: string) => {
+    setSelectedOfferId(offerId);
+    await loadOfferPolicy(offerId);
+  };
+
   const savePricing = async () => {
+    if (!selectedOfferId) {
+      setError('Сначала создайте предложение для этой позиции.');
+      return;
+    }
     if (isRentalTiers) {
       const tierError = validateTiers(tiers);
       if (tierError) { setError(tierError); return; }
@@ -103,11 +124,10 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
     setError('');
     try {
       const baseAmount = isRentalTiers ? null : (form.baseAmount.trim() === '' ? null : Number(form.baseAmount));
-      const nextPolicy = await pricingApi.putResourcePolicy(resource.resourceId, {
-        pricingMode: form.pricingMode || 'per_unit_time',
+      const nextPolicy = await pricingApi.putOfferPolicy(selectedOfferId, {
+        pricingMode: form.pricingMode || DEFAULT_PRICING_MODE,
         currency: form.currency || 'RUB',
         baseAmount,
-        adjustmentRules: policy?.adjustmentRules ?? [],
         rentalTiers: isRentalTiers ? tiers : null,
         multiDayRate: isRentalTiers && form.multiDayRate.trim() !== '' ? Number(form.multiDayRate) : null,
         status: form.status || 'active',
@@ -135,12 +155,23 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
   const ready = diagnostics?.pricingReady;
   const issues = [...(diagnostics?.errors ?? []), ...(diagnostics?.warnings ?? [])];
 
+  if (offers.length === 0) {
+    return (
+      <Card>
+        <p className="text-sm font-semibold text-gray-900">Нет предложений</p>
+        <p className="mt-1 text-xs leading-5 text-gray-500">
+          Цена задаётся в предложении. Создайте предложение для этой позиции, чтобы настроить тариф.
+        </p>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
       <Card>
         <CardHeader
           title="Цена"
-          subtitle={policyMissing ? 'Цена ещё не настроена. Без неё предложение нельзя опубликовать.' : 'Базовая цена для предложений этой позиции.'}
+          subtitle={policyMissing ? 'Цена ещё не настроена. Без неё предложение нельзя опубликовать.' : 'Тариф выбранного предложения.'}
           action={<Badge variant={policy?.status === 'active' ? 'green' : 'yellow'}>{policy?.status === 'active' ? 'Цена включена' : 'Нужно настроить'}</Badge>}
         />
 
@@ -156,15 +187,26 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
           </div>
           <div>
             <p className="text-xs font-medium text-gray-900">Расчёт стоимости проката</p>
-            <p className="mt-0.5 text-xs text-gray-500">Базовый тариф применяется ко всем предложениям позиции, если не задан свой.</p>
+            <p className="mt-0.5 text-xs text-gray-500">Тариф применяется к выбранному предложению этой позиции.</p>
           </div>
         </div>
+
+        {offers.length > 1 && (
+          <div className="mb-3">
+            <Select
+              label="Предложение"
+              value={selectedOfferId}
+              options={offers.map(offer => ({ value: offer.offerId, label: offer.title }))}
+              onChange={e => void handleOfferChange(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="grid gap-3 md:grid-cols-[1fr_160px_180px]">
           <Select
             label="Способ расчёта"
             value={form.pricingMode}
-            options={pricingModeOptions}
+            options={PRICING_MODE_OPTIONS}
             onChange={e => setForm(f => ({ ...f, pricingMode: e.target.value }))}
           />
           <Input
@@ -176,7 +218,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
           <Select
             label="Статус цены"
             value={form.status}
-            options={statusOptions}
+            options={PRICING_STATUS_OPTIONS}
             onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
           />
         </div>
@@ -184,13 +226,12 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
         {!isRentalTiers && (
           <div className="mt-3">
             <Input
-              label={form.pricingMode === 'per_unit_time' ? 'Цена за час' : 'Базовая цена'}
+              label={baseAmountLabel(form.pricingMode)}
               type="number"
               min="0"
               value={form.baseAmount}
               onChange={e => setForm(f => ({ ...f, baseAmount: e.target.value }))}
               placeholder="500"
-              hint="Предложения используют эту цену, если у них нет своей."
             />
           </div>
         )}
@@ -301,7 +342,7 @@ export function ResourcePricingTab({ resource }: ResourcePricingTabProps) {
 
 function emptyPricingForm(): PricingForm {
   return {
-    pricingMode: 'per_unit_time',
+    pricingMode: DEFAULT_PRICING_MODE,
     currency: 'RUB',
     baseAmount: '',
     multiDayRate: '',
@@ -311,7 +352,7 @@ function emptyPricingForm(): PricingForm {
 
 function policyToForm(policy: PricingPolicy): PricingForm {
   return {
-    pricingMode: policy.pricingMode || 'per_unit_time',
+    pricingMode: policy.pricingMode || DEFAULT_PRICING_MODE,
     currency: policy.currency || 'RUB',
     baseAmount: policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''),
     multiDayRate: policy.multiDayRate != null ? String(policy.multiDayRate) : '',

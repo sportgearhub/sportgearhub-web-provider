@@ -42,12 +42,12 @@ export type OfferFormData = Partial<Offer> & {
   rentalTiers?: RentalTier[];
   multiDayRate?: number | null;
   fulfillmentLocationId?: string | null;
+  durationHours?: number | null;
   // Availability (wizard step 3)
   timezone?: string;
   availabilityWindows?: OfferAvailabilityWindow[];
   blockedPeriods?: OfferAvailabilityBlockedPeriod[];
-  minRentHours?: number;
-  maxRentHours?: number;
+  slotIntervalMinutes?: number | null;
   availabilityStatus?: string;
   // Visibility (wizard step 4)
   visibilityMode?: string;
@@ -126,8 +126,8 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   // Availability (wizard step 3)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [availabilityStatus, setAvailabilityStatus] = useState('active');
-  const [minRentHours, setMinRentHours] = useState('1');
-  const [maxRentHours, setMaxRentHours] = useState('24');
+  const [durationHours, setDurationHours] = useState('');
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState('');
   const [windows, setWindows] = useState<OfferAvailabilityWindow[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<OfferAvailabilityBlockedPeriod[]>([]);
 
@@ -289,9 +289,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
 
   const validateAvailability = () => {
     const e: Record<string, string> = {};
-    if (Number(minRentHours) > Number(maxRentHours)) {
-      e.rentHours = 'Минимальное время аренды не может превышать максимальное.';
-    }
     windows.forEach((w, i) => {
       if (!w.startsOn || !w.endsOn) e[`window-${i}`] = `Окно ${i + 1}: укажите период сезона.`;
       else if (w.startsOn > w.endsOn) e[`window-${i}`] = `Окно ${i + 1}: начало сезона позже конца.`;
@@ -330,12 +327,12 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       multiDayRate: pricingMode === 'rental_tiers' && multiDayRate.trim() !== '' ? Number(multiDayRate) : null,
       description,
       fulfillmentLocationId: locationId || null,
+      durationHours: Number(durationHours) || null,
       // Availability + visibility (used by the create wizard; ignored on edit)
       timezone,
       availabilityWindows: windows,
       blockedPeriods,
-      minRentHours: Number(minRentHours) || 1,
-      maxRentHours: Number(maxRentHours) || 24,
+      slotIntervalMinutes: Number(slotIntervalMinutes) || null,
       availabilityStatus,
       visibilityMode,
       visibleFrom,
@@ -631,10 +628,23 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <Input label="Мин. часов аренды" type="number" min="1" value={minRentHours} onChange={e => setMinRentHours(e.target.value)} />
-          <Input label="Макс. часов аренды" type="number" min="1" value={maxRentHours} onChange={e => setMaxRentHours(e.target.value)} />
+          <Input
+            label="Длительность (ч)"
+            type="number"
+            min="1"
+            value={durationHours}
+            onChange={e => setDurationHours(e.target.value)}
+            placeholder="Для сеансов фиксированной длины"
+          />
+          <Input
+            label="Шаг слота (мин)"
+            type="number"
+            min="1"
+            value={slotIntervalMinutes}
+            onChange={e => setSlotIntervalMinutes(e.target.value)}
+            placeholder="Не задан"
+          />
         </div>
-        {errors.rentHours && <p className="text-xs text-red-600">{errors.rentHours}</p>}
 
         <div className="space-y-2 border-t border-gray-100 pt-4">
           <div className="flex items-center justify-between">

@@ -3,28 +3,33 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import type { AvailabilityCalendar, BlockedPeriod, CapacitySlot, RecurringRule } from '../../types';
-import { dayOptions, fromDatetimeLocal, toDatetimeLocal, type SlotForm } from './availabilityTypes';
+import type { CapacitySlot, OfferAvailabilityBlockedPeriod, OfferAvailabilityWindow } from '../../types';
+import {
+  emptyAvailabilityWindow,
+  emptyBlockedPeriod,
+  toTimeInput,
+  type OfferAvailabilityForm,
+  type SlotForm,
+} from './availabilityTypes';
 
-interface AvailabilityCalendarCardProps {
-  calendar: AvailabilityCalendar;
+interface OfferScheduleCardProps {
+  form: OfferAvailabilityForm;
   saving: boolean;
-  onChange: (value: AvailabilityCalendar) => void;
+  onChange: (value: OfferAvailabilityForm) => void;
   onSave: () => void;
 }
 
-export function AvailabilityCalendarCard({ calendar, saving, onChange, onSave }: AvailabilityCalendarCardProps) {
-  const updateRule = (index: number, patch: Partial<RecurringRule>) => {
+export function OfferScheduleCard({ form, saving, onChange, onSave }: OfferScheduleCardProps) {
+  const updateWindow = (index: number, patch: Partial<OfferAvailabilityWindow>) => {
     onChange({
-      ...calendar,
-      recurringRules: calendar.recurringRules.map((rule, ruleIndex) => (ruleIndex === index ? { ...rule, ...patch } : rule)),
+      ...form,
+      windows: form.windows.map((window, windowIndex) => (windowIndex === index ? { ...window, ...patch } : window)),
     });
   };
-  const updateBlock = (index: number, patch: Partial<BlockedPeriod>) => {
+  const updateBlock = (index: number, patch: Partial<OfferAvailabilityBlockedPeriod>) => {
     onChange({
-      ...calendar,
-      blockedPeriods: calendar.blockedPeriods.map((block, blockIndex) => (blockIndex === index ? { ...block, ...patch } : block)),
+      ...form,
+      blockedPeriods: form.blockedPeriods.map((block, blockIndex) => (blockIndex === index ? { ...block, ...patch } : block)),
     });
   };
 
@@ -32,48 +37,36 @@ export function AvailabilityCalendarCard({ calendar, saving, onChange, onSave }:
     <Card>
       <CardHeader
         title="Расписание"
-        subtitle="Укажите дни и время, когда клиенты могут записаться."
+        subtitle="Периоды, когда предложение доступно, и часы работы внутри них."
         action={<Button size="sm" variant="primary" onClick={onSave} loading={saving}><Save size={13} /> Сохранить</Button>}
       />
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <Input
-            label="Часовой пояс расписания"
-            value={calendar.timezone}
-            onChange={event => onChange({ ...calendar, timezone: event.target.value })}
-          />
+          <p className="text-xs text-gray-500">Часовой пояс — {form.timezone}. Меняется в правилах бронирования.</p>
           <Button
             size="sm"
             variant="secondary"
-            className="mt-6"
-            onClick={() => onChange({
-              ...calendar,
-              recurringRules: [...calendar.recurringRules, { dayOfWeek: 'monday', startsAtLocal: '10:00', endsAtLocal: '18:00', capacity: 1 }],
-            })}
+            onClick={() => onChange({ ...form, windows: [...form.windows, emptyAvailabilityWindow()] })}
           >
-            Добавить день
+            Добавить период
           </Button>
         </div>
 
         <div className="space-y-2">
-          {calendar.recurringRules.length === 0 ? (
+          {form.windows.length === 0 ? (
             <div className="rounded-md border border-dashed border-gray-200 px-3 py-6 text-center text-sm text-gray-500">
-              Добавьте дни недели и время записи.
+              Добавьте период работы — например сезон с часами выдачи.
             </div>
-          ) : calendar.recurringRules.map((rule, index) => (
-            <div key={index} className="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 md:grid-cols-[110px_1fr_1fr_100px_80px]">
-              <Select
-                options={dayOptions}
-                value={rule.dayOfWeek ?? 'monday'}
-                onChange={event => updateRule(index, { dayOfWeek: event.target.value })}
-              />
-              <Input type="time" value={rule.startsAtLocal ?? ''} onChange={event => updateRule(index, { startsAtLocal: event.target.value })} />
-              <Input type="time" value={rule.endsAtLocal ?? ''} onChange={event => updateRule(index, { endsAtLocal: event.target.value })} />
-              <Input type="number" min="1" value={String(rule.capacity ?? '')} onChange={event => updateRule(index, { capacity: Number(event.target.value) || null })} />
+          ) : form.windows.map((window, index) => (
+            <div key={index} className="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 md:grid-cols-[1fr_1fr_110px_110px_80px]">
+              <Input type="date" value={window.startsOn ?? ''} onChange={event => updateWindow(index, { startsOn: event.target.value })} />
+              <Input type="date" value={window.endsOn ?? ''} onChange={event => updateWindow(index, { endsOn: event.target.value })} />
+              <Input type="time" value={toTimeInput(window.dailyOpensAt)} onChange={event => updateWindow(index, { dailyOpensAt: event.target.value })} />
+              <Input type="time" value={toTimeInput(window.dailyClosesAt)} onChange={event => updateWindow(index, { dailyClosesAt: event.target.value })} />
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onChange({ ...calendar, recurringRules: calendar.recurringRules.filter((_, ruleIndex) => ruleIndex !== index) })}
+                onClick={() => onChange({ ...form, windows: form.windows.filter((_, windowIndex) => windowIndex !== index) })}
               >
                 Удалить
               </Button>
@@ -84,29 +77,26 @@ export function AvailabilityCalendarCard({ calendar, saving, onChange, onSave }:
         <div className="flex items-center justify-between border-t border-gray-100 pt-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Закрытые даты</h3>
-            <p className="text-xs text-gray-500">Дни или часы, когда запись временно недоступна.</p>
+            <p className="text-xs text-gray-500">Дни, когда бронирование временно недоступно.</p>
           </div>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => onChange({
-              ...calendar,
-              blockedPeriods: [...calendar.blockedPeriods, { startsAt: '', endsAt: '', reasonCode: 'provider_closed' }],
-            })}
+            onClick={() => onChange({ ...form, blockedPeriods: [...form.blockedPeriods, emptyBlockedPeriod()] })}
           >
-            Закрыть дату
+            Закрыть даты
           </Button>
         </div>
         <div className="space-y-2">
-          {calendar.blockedPeriods.map((block, index) => (
+          {form.blockedPeriods.map((block, index) => (
             <div key={index} className="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 md:grid-cols-[1fr_1fr_1fr_80px]">
-              <Input type="datetime-local" value={toDatetimeLocal(block.startsAt)} onChange={event => updateBlock(index, { startsAt: fromDatetimeLocal(event.target.value) })} />
-              <Input type="datetime-local" value={toDatetimeLocal(block.endsAt)} onChange={event => updateBlock(index, { endsAt: fromDatetimeLocal(event.target.value) })} />
+              <Input type="date" value={block.startsOn ?? ''} onChange={event => updateBlock(index, { startsOn: event.target.value })} />
+              <Input type="date" value={block.endsOn ?? ''} onChange={event => updateBlock(index, { endsOn: event.target.value })} />
               <Input value={block.reasonCode ?? ''} onChange={event => updateBlock(index, { reasonCode: event.target.value })} placeholder="Причина, например ремонт" />
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onChange({ ...calendar, blockedPeriods: calendar.blockedPeriods.filter((_, blockIndex) => blockIndex !== index) })}
+                onClick={() => onChange({ ...form, blockedPeriods: form.blockedPeriods.filter((_, blockIndex) => blockIndex !== index) })}
               >
                 Удалить
               </Button>

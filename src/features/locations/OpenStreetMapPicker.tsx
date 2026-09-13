@@ -142,7 +142,7 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
       setDetectedAddress(address);
       selectedAddressRef.current = address || null;
       setMapDrivenQuery(address);
-    } catch (err) {
+    } catch {
       if (reverseGeocodeRequestRef.current !== requestId) return;
       setDetectedAddress('');
       setMapDrivenQuery('');

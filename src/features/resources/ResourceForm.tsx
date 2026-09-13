@@ -4,7 +4,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ResourceImageDraftSection, ResourceImagesSection } from './ResourceImagesSection';
-import { isVariantAttributeVisible, VariantAttributeBuilder } from '../variants/VariantAttributeBuilder';
+import { isAttributeVisible, ResourceAttributeBuilder } from './ResourceAttributeFields';
 import type { Resource } from '../../types';
 import { ApiError, equipmentApi, resourcesApi, type EquipmentAttribute, type EquipmentAttributeSchema, type EquipmentBrandSuggestion, type ResourceCategory } from '../../lib/api-client';
 
@@ -113,7 +113,7 @@ export function ResourceForm({
   // Resource-scoped attributes, respecting visibleWhen conditions.
   const resourceAttributes = useMemo(
     () => (schema?.attributes ?? [])
-      .filter(attribute => isVariantAttributeVisible(attribute, attributeValues))
+      .filter(attribute => isAttributeVisible(attribute, attributeValues))
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder),
     [schema, attributeValues]
@@ -228,7 +228,7 @@ export function ResourceForm({
                 </div>
               )}
               {otherAttributes.length > 0 && (
-                <VariantAttributeBuilder
+                <ResourceAttributeBuilder
                   attributes={otherAttributes}
                   values={attributeValues}
                   errors={Object.fromEntries(otherAttributes.map(attribute => [attribute.key, errors[`attr:${attribute.key}`]]))}
