@@ -38,7 +38,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
+    <div className="space-y-6 p-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">
           Доброе утро, {user?.name.split(' ')[0]}

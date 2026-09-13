@@ -252,7 +252,7 @@ export function OffersPage() {
       )}
 
       {/* Table */}
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto px-6">
         <table className="w-full table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-gray-50">
             <tr className="border-b border-gray-200">

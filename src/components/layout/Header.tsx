@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, HelpCircle, LogOut, Mountain, Settings, UserRound } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, ChevronRight, HelpCircle, LogOut, Mountain, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
@@ -50,8 +51,8 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
   const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex min-h-14 items-center gap-2 px-4 lg:px-6">
+    <header className="sticky top-0 z-30 border-b bg-background">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
         <button
           type="button"
           onClick={() => onNavigate('/')}
@@ -61,12 +62,14 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
             <Mountain size={18} />
           </span>
-          <span className="hidden max-w-[180px] truncate text-sm font-semibold text-foreground lg:block">{providerName}</span>
+          <span className="hidden max-w-[180px] truncate text-sm font-semibold text-foreground sm:block">{providerName}</span>
         </button>
 
-        <span className="mx-1 hidden h-6 w-px shrink-0 bg-border sm:block" />
-
-        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" aria-label="Разделы">
+        {/* Wraps to its own row on narrow screens rather than scrolling, so nothing can clip the menu. */}
+        <nav
+          className="order-last flex w-full flex-wrap items-center justify-center gap-1 pb-1 lg:order-none lg:w-auto lg:flex-1 lg:pb-0"
+          aria-label="Разделы"
+        >
           {navItems.map(item => (
             <button
               key={item.path}
@@ -84,17 +87,10 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
             </button>
           ))}
 
-          <NavDropdown
-            label="Настройки"
-            icon={<Settings size={14} />}
-            active={settingsActive}
-            items={settingsMenuItems}
-            currentPath={currentPath}
-            onNavigate={onNavigate}
-          />
+          <SettingsMenu active={settingsActive} currentPath={currentPath} onNavigate={onNavigate} />
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}
           <Button type="button" variant="secondary" size="icon" title="Помощь">
             <HelpCircle size={15} />
@@ -109,7 +105,7 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
       </div>
 
       {(hasTitle || hasBreadcrumbs) && (
-        <div className="border-t bg-muted/30 px-4 py-2 lg:px-6">
+        <div className="mx-auto w-full max-w-screen-xl px-6 pb-3 pt-1.5">
           {hasBreadcrumbs ? (
             <nav className="flex min-w-0 items-center gap-1.5 text-base font-semibold" aria-label="Хлебные крошки">
               {breadcrumbs!.map((crumb, index) => {
@@ -144,66 +140,57 @@ export function Header({ currentPath, title, subtitle, breadcrumbs, onNavigate, 
   );
 }
 
-function NavDropdown({
-  label,
-  icon,
+function SettingsMenu({
   active,
-  items,
   currentPath,
   onNavigate,
 }: {
-  label: string;
-  icon?: React.ReactNode;
   active: boolean;
-  items: MenuItem[];
   currentPath: string;
   onNavigate: (path: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useCloseOnOutside<HTMLDivElement>(open, () => setOpen(false));
+  const menu = useDropdown();
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <>
       <button
+        ref={menu.triggerRef}
         type="button"
-        onClick={() => setOpen(value => !value)}
-        aria-expanded={open}
+        onClick={menu.toggle}
+        aria-expanded={menu.open}
         aria-haspopup="menu"
         className={cn(
-          'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-          active || open
+          'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+          active || menu.open
             ? 'bg-sidebar-accent text-sidebar-primary'
             : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
         )}
       >
-        {icon}
-        {label}
-        <ChevronDown size={13} className={cn('transition-transform', open && 'rotate-180')} />
+        Настройки
+        <ChevronDown size={13} className={cn('transition-transform', menu.open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-52 overflow-hidden rounded-md border bg-background py-1 shadow-lg">
-          {items.map(item => (
-            <button
-              key={item.path}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onNavigate(item.path);
-              }}
-              className={cn(
-                'flex h-9 w-full items-center px-3 text-left text-sm transition hover:bg-sidebar-accent',
-                item.separated && 'mt-1 border-t',
-                currentPath.startsWith(item.path) ? 'text-sidebar-primary' : 'text-foreground'
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+      {menu.render(
+        settingsMenuItems.map(item => (
+          <button
+            key={item.path}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              menu.close();
+              onNavigate(item.path);
+            }}
+            className={cn(
+              'flex h-9 w-full items-center px-3 text-left text-sm transition hover:bg-sidebar-accent',
+              item.separated && 'mt-1 border-t',
+              currentPath.startsWith(item.path) ? 'text-sidebar-primary' : 'text-foreground'
+            )}
+          >
+            {item.label}
+          </button>
+        ))
       )}
-    </div>
+    </>
   );
 }
 
@@ -218,15 +205,15 @@ function UserMenu({
   onAccount: () => void;
   onSignOut: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useCloseOnOutside<HTMLDivElement>(open, () => setOpen(false));
+  const menu = useDropdown('right');
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={menu.triggerRef}
         type="button"
-        onClick={() => setOpen(value => !value)}
-        aria-expanded={open}
+        onClick={menu.toggle}
+        aria-expanded={menu.open}
         aria-haspopup="menu"
         title={name}
         className="flex h-9 w-9 items-center justify-center rounded-md border bg-background text-xs font-bold text-foreground transition hover:bg-sidebar-accent"
@@ -234,8 +221,8 @@ function UserMenu({
         {name.charAt(0).toUpperCase() || '?'}
       </button>
 
-      {open && (
-        <div role="menu" className="absolute right-0 top-full z-40 mt-1 w-52 overflow-hidden rounded-md border bg-background py-1 shadow-lg">
+      {menu.render(
+        <>
           <div className="border-b px-3 pb-2 pt-1">
             <p className="truncate text-xs font-medium text-foreground">{name}</p>
             <p className="truncate text-[11px] capitalize text-muted-foreground">{role.replace(/_/g, ' ')}</p>
@@ -244,7 +231,7 @@ function UserMenu({
             type="button"
             role="menuitem"
             onClick={() => {
-              setOpen(false);
+              menu.close();
               onAccount();
             }}
             className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-foreground transition hover:bg-sidebar-accent"
@@ -256,7 +243,7 @@ function UserMenu({
             type="button"
             role="menuitem"
             onClick={() => {
-              setOpen(false);
+              menu.close();
               onSignOut();
             }}
             className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-red-600 transition hover:bg-red-50"
@@ -264,38 +251,84 @@ function UserMenu({
             <LogOut size={14} />
             Выйти
           </button>
-        </div>
+        </>
       )}
-    </div>
+    </>
   );
 }
 
-/** Closes a menu on an outside click or Escape, while it is open. */
-function useCloseOnOutside<T extends HTMLElement>(open: boolean, onClose: () => void) {
-  const ref = useRef<T>(null);
-  // Held in a ref so a fresh closure from the caller does not resubscribe the listeners every render.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+const MENU_WIDTH = 208;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/**
+ * Header menus render into document.body: an absolutely positioned menu is at the mercy of every
+ * ancestor's overflow, and the header sits inside a clipped, sticky shell.
+ */
+function useDropdown(align: 'left' | 'right' = 'left') {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const close = () => setOpen(false);
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setRect(triggerRef.current?.getBoundingClientRect() ?? null);
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
 
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onCloseRef.current();
+    const handleMouseDown = (event: MouseEvent) => {
+      if (triggerRef.current?.contains(event.target as Node)) return;
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current();
+      if (event.key === 'Escape') setOpen(false);
     };
+    const dismiss = () => setOpen(false);
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
     };
   }, [open]);
 
-  return ref;
+  const render = (children: React.ReactNode) => {
+    if (!open || !rect) return null;
+
+    // Kept inside the viewport: a trigger near the right edge would otherwise push the menu off-screen.
+    const gutter = 8;
+    const placement = align === 'left'
+      ? { left: clamp(rect.left, gutter, window.innerWidth - MENU_WIDTH - gutter) }
+      : { right: clamp(window.innerWidth - rect.right, gutter, window.innerWidth - MENU_WIDTH - gutter) };
+
+    return createPortal(
+      <div
+        ref={menuRef}
+        role="menu"
+        style={{ position: 'fixed', top: rect.bottom + 6, width: MENU_WIDTH, zIndex: 9999, ...placement }}
+        className="overflow-hidden rounded-md border bg-background py-1 shadow-xl"
+      >
+        {children}
+      </div>,
+      document.body
+    );
+  };
+
+  return { open, close, toggle, triggerRef, render };
 }

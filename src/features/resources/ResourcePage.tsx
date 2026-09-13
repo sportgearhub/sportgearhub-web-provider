@@ -199,7 +199,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-gray-50">
+    <div className="flex h-full min-h-0 flex-col bg-background">
       {/* Compact Navbar */}
       <nav className="border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-6 py-3">
@@ -258,7 +258,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
             <p className="mt-3 text-sm font-medium text-gray-900">Загружаем каталог...</p>
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto px-6">
             <table className="w-full table-fixed border-collapse text-sm">
               <colgroup>
                 <col className="w-16" />
@@ -419,7 +419,7 @@ export function ResourcesPage({ onHeaderContentChange, onNavigate }: ResourcesPa
             </table>
           </div>
         )}
-        <div className="flex shrink-0 flex-col gap-3 border-t border-gray-100 bg-white px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex shrink-0 flex-col gap-3 border-t border-gray-100 bg-white px-6 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-gray-500">
             {loading
               ? 'Загружаем строки...'

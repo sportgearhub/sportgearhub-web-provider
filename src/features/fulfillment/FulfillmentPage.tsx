@@ -113,7 +113,7 @@ export function FulfillmentPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl">
+    <div className="space-y-5 p-6">
       <div>
         <h2 className="text-sm font-semibold text-gray-900">Очередь выдачи</h2>
         <p className="text-xs text-gray-500 mt-0.5">Выдачи, возвраты и работа с обращениями.</p>

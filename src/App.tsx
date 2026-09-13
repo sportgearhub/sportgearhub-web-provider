@@ -114,7 +114,7 @@ function AppShell() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-gray-500">Загрузка...</p>
@@ -177,10 +177,13 @@ function AppShell() {
         breadcrumbs={headerPage.breadcrumbs}
         onNavigate={navigateTo}
       />
-      <main className="relative min-h-0 flex-1 overflow-y-auto bg-muted/30">
-        <Fragment key={`${appPath}:${navigationReloadKey}`}>
-          {renderPage()}
-        </Fragment>
+      <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
+        {/* One centred column for every page, so screens line up with the header above them. */}
+        <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
+          <Fragment key={`${appPath}:${navigationReloadKey}`}>
+            {renderPage()}
+          </Fragment>
+        </div>
       </main>
     </div>
   );
