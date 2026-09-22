@@ -681,7 +681,6 @@ export interface Offer {
   mediaRefs?: MediaRefs;
   pricingSummary?: Record<string, unknown>;
   policySummary?: Record<string, unknown>;
-  canonicalOfferId?: string;
   price?: number | null;
   mediaPreviewUrl?: string | null;
   publishability: OfferPublishability;

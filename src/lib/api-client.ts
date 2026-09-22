@@ -130,7 +130,6 @@ type ApiOffer = {
   price?: number | null;
   currency?: string | null;
   mediaPreviewUrl?: string | null;
-  canonicalOfferId?: string | null;
   publishability?: OfferPublishability | null;
   executionLink?: Record<string, unknown> | null;
   location?: Record<string, unknown> | null;
@@ -542,7 +541,6 @@ function normalizeOffer(offer: ApiOffer): Offer {
     price: offer.price ?? null,
     currency: offer.currency ?? 'RUB',
     mediaPreviewUrl: offer.mediaPreviewUrl ?? null,
-    canonicalOfferId: offer.canonicalOfferId ?? undefined,
     publishability,
     executionLink: offer.executionLink ?? undefined,
     createdAt: offer.createdAt,
