@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmailAttachCard } from './EmailAttachCard';
-import { Building2, CreditCard, Globe2, MapPin, Plus, Save, Trash2, UserRound, UsersRound } from 'lucide-react';
+import { Building2, CreditCard, Globe2, MapPin, Plus, Save, Trash2, UserRound, UsersRound, BadgeCheck, FileText } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,8 +14,12 @@ import type { RuAddressSuggestion } from '../../lib/api-client';
 import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOption, StorefrontEditSession, StorefrontSettings } from '../../types';
 import { LocationsPage } from '../locations/LocationsPage';
 import { PayoutsPage } from '../payouts/PayoutsPage';
+import { SellerProfileSettings } from './SellerProfileSettings';
+import { DocumentsSettings } from './DocumentsSettings';
+import { useProvider } from '../providers/ProviderContext';
+import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 
-type SettingsTab = 'shop' | 'storefront' | 'locations' | 'account' | 'employees' | 'payouts';
+export type SettingsTab = 'shop' | 'seller' | 'storefront' | 'locations' | 'account' | 'employees' | 'payouts' | 'documents';
 type StorefrontTab = 'settings' | 'live';
 
 interface SettingsPageProps {
@@ -24,10 +28,12 @@ interface SettingsPageProps {
 }
 
 const tabs: { id: SettingsTab; label: string; path: string; icon: typeof Building2 }[] = [
-  { id: 'shop', label: 'Магазин', path: '/settings/shop', icon: Building2 },
+  { id: 'shop', label: 'Профиль', path: '/settings/shop', icon: Building2 },
+  { id: 'seller', label: 'Продавец', path: '/settings/seller', icon: BadgeCheck },
   { id: 'locations', label: 'Локации', path: '/settings/locations', icon: MapPin },
   { id: 'employees', label: 'Сотрудники', path: '/settings/employees', icon: UsersRound },
   { id: 'payouts', label: 'Выплаты', path: '/settings/payouts', icon: CreditCard },
+  { id: 'documents', label: 'Документы', path: '/settings/documents', icon: FileText },
   { id: 'account', label: 'Аккаунт', path: '/settings/account', icon: UserRound },
 ];
 
@@ -75,6 +81,8 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
 
       <div className="min-h-0 flex-1 bg-white">
         {tab === 'shop' && <ShopProfileSettings />}
+        {tab === 'seller' && <SellerProfileSettings />}
+        {tab === 'documents' && <DocumentsSettings />}
         {tab === 'storefront' && <StorefrontSettingsPage />}
         {tab === 'locations' && <LocationsPage embedded />}
         {tab === 'employees' && <EmployeesSettings />}
@@ -86,10 +94,9 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
 }
 
 function ShopProfileSettings() {
-  const { activeMembership } = useAuth();
+  const provider = useProvider();
   const [form, setForm] = useState({
-    displayName: activeMembership?.displayName ?? '',
-    legalName: '',
+    displayName: provider.displayName,
     contactEmail: '',
     contactPhone: '',
     address: '',
@@ -114,8 +121,7 @@ function ShopProfileSettings() {
       .then(nextProfile => {
         if (cancelled) return;
         setForm({
-          displayName: nextProfile.displayName ?? activeMembership?.displayName ?? '',
-          legalName: nextProfile.legalName ?? '',
+          displayName: nextProfile.displayName ?? provider.displayName,
           contactEmail: nextProfile.contactEmail ?? '',
           contactPhone: nextProfile.contactPhone ?? '',
           address: nextProfile.address ?? '',
@@ -134,7 +140,7 @@ function ShopProfileSettings() {
     return () => {
       cancelled = true;
     };
-  }, [activeMembership?.displayName]);
+  }, [provider.displayName]);
 
   useEffect(() => {
     const query = form.address.trim();
@@ -180,7 +186,6 @@ function ShopProfileSettings() {
     try {
       await profileApi.patch({
         displayName: form.displayName.trim(),
-        legalName: form.legalName.trim() || undefined,
         contactEmail: form.contactEmail.trim() || undefined,
         contactPhone: form.contactPhone.trim() || undefined,
         address: form.address.trim() || undefined,
@@ -199,7 +204,7 @@ function ShopProfileSettings() {
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Основная информация</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Название, контакты и описание текущего магазина.</p>
+          <p className="mt-0.5 text-xs text-gray-500">Название, контакты и описание кабинета — то, что видят клиенты. Юридические данные — во вкладке «Продавец».</p>
         </div>
         {saved && <Badge variant="green">сохранено</Badge>}
       </div>
@@ -219,11 +224,6 @@ function ShopProfileSettings() {
               label="Название магазина"
               value={form.displayName}
               onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))}
-            />
-            <Input
-              label="Юридическое название"
-              value={form.legalName}
-              onChange={event => setForm(current => ({ ...current, legalName: event.target.value }))}
             />
             <Input
               label="Email"
@@ -622,19 +622,20 @@ function buildStorefrontContacts(form: {
 }
 
 function EmployeesSettings() {
-  const { user, activeMembership } = useAuth();
+  const { user } = useAuth();
+  const provider = useProvider();
   const [view, setView] = useState<'staff' | 'invites'>('staff');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [members, setMembers] = useState<ProviderMember[]>([]);
   const [invitations, setInvitations] = useState<ProviderInvitation[]>([]);
   const [roleOptions, setRoleOptions] = useState<ProviderMemberRoleOption[]>([]);
-  const [form, setForm] = useState({ email: '', role: '' });
+  const [form, setForm] = useState({ phone: '', role: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
   const [pageError, setPageError] = useState('');
   const [inviteError, setInviteError] = useState('');
-  const providerId = activeMembership?.providerId ?? '';
+  const providerId = provider.providerId;
   const isSelfOwner = (member: ProviderMember) => member.userId === user?.id && isOwnerRole(member.role);
 
   const loadMembers = async () => {
@@ -648,9 +649,9 @@ function EmployeesSettings() {
     setPageError('');
     try {
       const [nextOptions, nextMembers, nextInvitations] = await Promise.all([
-        providerMembersApi.options(providerId),
-        providerMembersApi.listMembers(providerId),
-        providerMembersApi.listInvitations(providerId),
+        providerMembersApi.options(),
+        providerMembersApi.listMembers(),
+        providerMembersApi.listInvitations(),
       ]);
       setRoleOptions(nextOptions.roles);
       setMembers(nextMembers);
@@ -668,8 +669,8 @@ function EmployeesSettings() {
   }, [providerId]);
 
   const addMember = async () => {
-    if (!form.email.trim()) {
-      setInviteError('Укажите email сотрудника.');
+    if (form.phone.replace(/\D/g, '').length !== 10) {
+      setInviteError('Укажите номер телефона сотрудника.');
       return;
     }
     if (!form.role) {
@@ -680,13 +681,13 @@ function EmployeesSettings() {
     setSaving(true);
     setInviteError('');
     try {
-      await providerMembersApi.invite(providerId, {
-        email: form.email.trim(),
+      await providerMembersApi.invite({
+        phone: `+7${form.phone.replace(/\D/g, '')}`,
         role: form.role,
       });
-      const nextInvitations = await providerMembersApi.listInvitations(providerId);
+      const nextInvitations = await providerMembersApi.listInvitations();
       setInvitations(nextInvitations);
-      setForm({ email: '', role: roleOptions[0]?.value ?? '' });
+      setForm({ phone: '', role: roleOptions[0]?.value ?? '' });
       setInviteOpen(false);
       setView('invites');
     } catch (err) {
@@ -706,7 +707,7 @@ function EmployeesSettings() {
     setUpdatingMemberId(member.membershipId);
     setPageError('');
     try {
-      const updated = await providerMembersApi.updateRole(providerId, member.membershipId, role);
+      const updated = await providerMembersApi.updateRole(member.membershipId, role);
       setMembers(current => current.map(item => item.membershipId === updated.membershipId ? updated : item));
     } catch (err) {
       setPageError(err instanceof ApiError ? err.message : 'Не удалось изменить роль.');
@@ -721,12 +722,12 @@ function EmployeesSettings() {
       return;
     }
 
-    if (!window.confirm(`Удалить доступ для ${member.email ?? memberName(member)}?`)) return;
+    if (!window.confirm(`Удалить доступ для ${memberName(member)}?`)) return;
 
     setUpdatingMemberId(member.membershipId);
     setPageError('');
     try {
-      await providerMembersApi.remove(providerId, member.membershipId);
+      await providerMembersApi.remove(member.membershipId);
       setMembers(current => current.filter(item => item.membershipId !== member.membershipId));
     } catch (err) {
       setPageError(err instanceof ApiError ? err.message : 'Не удалось удалить доступ.');
@@ -751,7 +752,7 @@ function EmployeesSettings() {
               setInviteError('');
               setInviteOpen(true);
             }}
-            disabled={!providerId || roleOptions.length === 0}
+            disabled={roleOptions.length === 0}
           >
             <Plus size={14} /> Пригласить
           </Button>
@@ -788,7 +789,7 @@ function EmployeesSettings() {
               <thead className="bg-gray-50 text-xs font-medium text-gray-500">
                 <tr>
                   <th className="w-[38%] px-3 py-2">Сотрудник</th>
-                  <th className="w-[34%] px-3 py-2">Email</th>
+                  <th className="w-[34%] px-3 py-2">Телефон</th>
                   <th className="w-[180px] px-3 py-2">Роль</th>
                   <th className="w-14 px-3 py-2 text-right"> </th>
                 </tr>
@@ -804,7 +805,7 @@ function EmployeesSettings() {
                         <p className="truncate font-medium text-gray-900">{memberName(member)}</p>
                       </td>
                       <td className="min-w-0 px-3 py-3">
-                        <p className="truncate text-gray-600">{member.email ?? 'email не указан'}</p>
+                        <p className="truncate text-gray-600">{member.phone ?? member.email ?? '—'}</p>
                       </td>
                       <td className="px-3 py-3">
                         {owner ? (
@@ -848,7 +849,7 @@ function EmployeesSettings() {
             <table className="w-full table-fixed text-left text-sm">
               <thead className="bg-gray-50 text-xs font-medium text-gray-500">
                 <tr>
-                  <th className="w-[30%] px-3 py-2">Email</th>
+                  <th className="w-[30%] px-3 py-2">Телефон</th>
                   <th className="w-[160px] px-3 py-2">Роль</th>
                   <th className="w-[140px] px-3 py-2">Статус</th>
                   <th className="w-[24%] px-3 py-2">Пригласил</th>
@@ -859,7 +860,7 @@ function EmployeesSettings() {
                 {invitations.map(invitation => (
                   <tr key={invitation.invitationId} className="align-middle">
                     <td className="min-w-0 px-3 py-3">
-                      <p className="truncate font-medium text-gray-900">{invitation.email}</p>
+                      <p className="truncate font-medium text-gray-900">{invitation.phone}</p>
                     </td>
                     <td className="px-3 py-3">
                       <Badge variant="gray">{roleLabel(invitation.role, roleOptions)}</Badge>
@@ -870,7 +871,7 @@ function EmployeesSettings() {
                       </Badge>
                     </td>
                     <td className="min-w-0 px-3 py-3">
-                      <p className="truncate text-gray-600">{invitation.invitedByName || invitation.invitedByEmail || '—'}</p>
+                      <p className="truncate text-gray-600">{invitation.invitedByName || invitation.invitedByPhone || '—'}</p>
                       <p className="mt-0.5 text-xs text-gray-500">{formatDate(invitation.sentAt)}</p>
                     </td>
                     <td className="px-3 py-3 text-gray-600">
@@ -897,16 +898,15 @@ function EmployeesSettings() {
         size="sm"
       >
         <div className="space-y-3">
-          <Input
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={event => {
+          <RuPhoneInput
+            label="Телефон сотрудника"
+            value={form.phone}
+            onChange={value => {
               setInviteError('');
-              setForm(current => ({ ...current, email: event.target.value }));
+              setForm(current => ({ ...current, phone: value }));
             }}
-            placeholder="ivan@example.com"
           />
+          <p className="text-xs text-gray-500">Сотрудник войдёт по этому номеру и увидит приглашение на первом экране. Ссылок и писем нет.</p>
           <Select
             label="Роль"
             value={form.role}
@@ -941,7 +941,7 @@ function AccountSettings() {
         <div className="mt-4 space-y-3 text-sm">
           <InfoRow label="Имя" value={user?.name ?? '—'} />
           <InfoRow label="Телефон" value={user?.phone ?? '—'} />
-          <InfoRow label="Роли" value={user?.roles?.join(', ') || user?.role || '—'} />
+          <InfoRow label="Почта" value={user?.email || '—'} />
         </div>
       </Card>
 
@@ -960,7 +960,7 @@ function isOwnerRole(role: string) {
 
 function memberName(member: ProviderMember) {
   const fullName = [member.name, member.surname].filter(Boolean).join(' ').trim();
-  return fullName || member.email || member.userId;
+  return fullName || member.phone || member.email || member.userId;
 }
 
 function invitationStatusLabel(status: string) {

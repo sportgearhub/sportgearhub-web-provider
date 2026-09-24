@@ -1,7 +1,16 @@
 import type {
   Provider,
   AuthUser,
-  ProviderMembership,
+  ProviderSummary,
+  PendingInvitation,
+  Session,
+  ProviderReadiness,
+  Agreement,
+  SellerProfile,
+  SellerProfileInput,
+  LegalIdentityLookup,
+  PayoutDetails,
+  PayoutDetailsInput,
   ProviderMember,
   ProviderMemberInvitationResult,
   ProviderMemberOptions,
@@ -52,14 +61,13 @@ import type {
 } from '../types';
 
 import { keysToCamel, keysToSnake } from './case-convert';
+import { providerUrl } from './active-provider';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const AUTH_APP = import.meta.env.VITE_AUTH_APP || 'crm';
 const AUTH_CLIENT_ID = import.meta.env.VITE_AUTH_CLIENT_ID || 'sportgearhub-provider';
 const PROVIDER_AUTH_SCOPE = import.meta.env.VITE_PROVIDER_AUTH_SCOPE || 'openid profile email roles offline_access provider_api';
 const TOKEN_STORAGE_KEY = 'sportgearhub.provider.oidc';
 const DEVICE_STORAGE_KEY = 'sportgearhub.provider.device';
-const PROVIDER_BASE_URL = '/api/v1/provider';
 const REQUIRED_AUTH_SCOPES = PROVIDER_AUTH_SCOPE.split(/\s+/);
 
 export class ApiError extends Error {
@@ -91,14 +99,10 @@ type ApiUser = {
   email?: string | null;
   name?: string | null;
   surname?: string | null;
-  roles?: string[];
-  role?: string;
+  platformRole?: string | null;
   emailVerified?: boolean;
-};
-
-type RegistrationInvitationContext = {
-  email: string;
-  expiresAt: string;
+  providers?: ProviderSummary[];
+  pendingInvitations?: PendingInvitation[];
 };
 
 type ApiResource = {
@@ -259,120 +263,6 @@ type StoredOidcToken = OidcTokenResponse & {
   scope: string;
 };
 
-export type OnboardingChecklistValue = 'missing' | 'ready';
-export type OnboardingStatus =
-  | 'not_started'
-  | 'draft'
-  | 'changes_requested'
-  | 'submitted'
-  | 'in_review'
-  | 'approved'
-  | 'accepted'
-  | 'rejected'
-  | 'cancelled';
-
-export type ProviderOnboardingDraft = {
-  displayName: string | null;
-  legalName: string | null;
-  legalCountryCode: string | null;
-  legalForm: string | null;
-  taxationSystem: string | null;
-  taxNumber: string | null;
-  registrationNumber: string | null;
-  branchNumber: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  address: string | null;
-  description: string | null;
-  acquiringProvider: string | null;
-  payoutSchedule: string | null;
-  chiefExecutive: ProviderOnboardingChiefExecutive | null;
-  payoutDraft: ProviderOnboardingPayoutDraft | null;
-};
-
-export type ProviderOnboardingChiefExecutive = {
-  firstName: string | null;
-  lastName: string | null;
-  middleName: string | null;
-  position: string | null;
-  citizenship: string | null;
-};
-
-export type ProviderOnboardingChiefExecutivePrefill = ProviderOnboardingChiefExecutive & {
-  source: string | null;
-};
-
-export type ProviderOnboardingPayoutDraft = {
-  mode: string | null;
-  beneficiaryName: string | null;
-  bankName: string | null;
-  bik: string | null;
-  bankAccount: string | null;
-  correspondentAccount: string | null;
-  displayBankName: string | null;
-  phone: string | null;
-  sbpMemberId: string | null;
-};
-
-export type ProviderOnboarding = {
-  applicationId: string | null;
-  providerId: string | null;
-  status: OnboardingStatus;
-  review: {
-    reasonCode: string | null;
-    message: string | null;
-    reviewedAt: string | null;
-  } | null;
-  checklist: {
-    profile: OnboardingChecklistValue;
-    legal: OnboardingChecklistValue;
-    finance: OnboardingChecklistValue;
-  } | null;
-  draft: ProviderOnboardingDraft | null;
-  updatedAt: string;
-};
-
-export type OnboardingLegalFormOption = {
-  value: string;
-  label: string;
-  requiredLegalIdentityFields: Array<keyof ProviderOnboardingDraft>;
-};
-
-export type ProviderOnboardingOptions = {
-  legalCountries: Array<{ value: string; label: string }>;
-  legalForms: OnboardingLegalFormOption[];
-  taxationSystems: Array<{ value: string; label: string; supportedLegalForms?: string[] | null }>;
-  acquiringProviders: Array<{
-    value: string;
-    label: string;
-    description?: string | null;
-    available?: boolean;
-    requiresPayoutSchedule?: boolean;
-    requiresProviderCredentials?: boolean;
-  }>;
-  payoutSchedules: Array<{
-    value: string;
-    label: string;
-    cadence?: string | null;
-    settlementDelayDays?: number | null;
-    payoutDaysOfMonth?: number[] | null;
-    platformTransferFeePercent?: number | null;
-  }>;
-  payoutModes?: Array<{
-    value: string;
-    label: string;
-    description?: string | null;
-    supportedLegalForms?: string[] | null;
-    requiredFields?: string[] | null;
-    bankPayoutFee?: {
-      percent: number | null;
-      minimumAmount: number | null;
-      currency: string | null;
-    } | null;
-    available?: boolean;
-  }>;
-};
-
 export type SbpMemberReference = {
   sbpMemberId: string;
   displayBankName: string;
@@ -436,20 +326,8 @@ export type RuBankLookupResponse = {
   stateStatus: string | null;
 };
 
-export type RuLegalIdentityLookupResponse = {
-  source: string;
-  legalCountryCode: string;
-  legalForm: string | null;
-  legalName: string | null;
-  taxNumber: string | null;
-  registrationNumber: string | null;
-  branchNumber: string | null;
-  registeredAddress: string | null;
-  chiefExecutivePrefill: ProviderOnboardingChiefExecutivePrefill | null;
-};
-
 function normalizeUser(user: ApiUser): AuthUser {
-  const roles = user.roles ?? (user.role ? [user.role] : ['User']);
+  const role = user.platformRole ?? 'user';
   const email = user.email ?? '';
   const name = user.name && user.surname ? `${user.name} ${user.surname}` : user.name ?? email;
 
@@ -457,13 +335,24 @@ function normalizeUser(user: ApiUser): AuthUser {
     id: user.userId ?? user.id ?? email,
     email,
     name,
-    role: roles[0] ?? 'User',
-    roles,
+    role,
+    roles: [role],
     emailVerified: user.emailVerified,
     phone: user.phone ?? null,
     phoneVerified: user.phoneVerified,
   };
 }
+
+// One call answers who is signed in, which providers they belong to and what awaits their phone.
+function normalizeSession(raw: ApiUser): Session {
+  return {
+    user: normalizeUser(raw),
+    providers: raw.providers ?? [],
+    pendingInvitations: raw.pendingInvitations ?? [],
+  };
+}
+
+const loadSession = async () => normalizeSession(await request<ApiUser>('/api/v1/auth/me'));
 
 function normalizeResource(resource: ApiResource): Resource {
   const resourceId = resource.resourceId ?? '';
@@ -842,8 +731,9 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
   return promise;
 }
 
+// Console calls are scoped by the provider in the URL: /api/v1/providers/{providerId}/…
 function providerRequest<T>(path: string, options: RequestInit = {}) {
-  return request<T>(`${PROVIDER_BASE_URL}${path}`, options);
+  return request<T>(providerUrl(path), options);
 }
 
 const lookupRuBankByBic = (bic: string) =>
@@ -854,23 +744,6 @@ const lookupRuBankByBic = (bic: string) =>
   });
 
 export const authApi = {
-  startEmailFlow: (email: string) =>
-    request<void>('/api/v1/auth/email/start', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email, app: AUTH_APP }),
-    }),
-  registrationInvitation: (token: string) =>
-    request<RegistrationInvitationContext>(`/api/v1/auth/registration-invitations/${encodeURIComponent(token)}`, {
-      auth: false,
-    }),
-  magicSignIn: async (token: string) => {
-    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/magic-sign-in', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ token }),
-    }));
-  },
   // --- phone sign-in (primary) ---
   // Step 1: send a one-time code to the number.
   requestPhoneCode: (phone: string) =>
@@ -893,7 +766,7 @@ export const authApi = {
     }
 
     storeSimpleToken(result);
-    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
+    return { status: 'authenticated' as const, session: await loadSession() };
   },
   // Where an out-of-band attempt has got to. Polled while the stage is `pending`.
   verificationStage: (verificationId: string) =>
@@ -914,7 +787,7 @@ export const authApi = {
     }
 
     storeSimpleToken(result);
-    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
+    return { status: 'authenticated' as const, session: await loadSession() };
   },
   completePhoneRegistration: async (data: { token: string; name: string; surname: string }) => {
     storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/phone/complete-registration', {
@@ -922,7 +795,7 @@ export const authApi = {
       auth: false,
       body: JSON.stringify(data),
     }));
-    return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
+    return loadSession();
   },
 
   // --- email as an optional, verified attribute ---
@@ -936,73 +809,14 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, code }),
     }),
-
-  // Sign-in step 1: ask for a one-time code by email.
-  requestCode: (email: string) =>
-    request<void>('/api/v1/auth/email/start', {
+  me: loadSession,
+  // Invitations are addressed to a phone, not delivered to it: the signed-in account that proved
+  // the number accepts by id.
+  acceptProviderInvitation: (invitationId: string) =>
+    request<void>('/api/v1/provider-invitations/accept', {
       method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email, app: AUTH_APP, deliveryMode: 'code' }),
+      body: JSON.stringify({ invitationId }),
     }),
-  // Sign-in step 2: exchange the code for a session. An unknown email comes back as
-  // registration_required with a short-lived token instead of a session.
-  verifyCode: async (email: string, code: string) => {
-    const result = await request<SimpleTokenResponse>('/api/v1/auth/email/verify-code', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email, code }),
-    });
-
-    if (result.status === 'registration_required') {
-      return { status: 'registration_required' as const, registrationToken: result.registrationToken! };
-    }
-
-    storeSimpleToken(result);
-    return { status: 'authenticated' as const, user: normalizeUser(await request<ApiUser>('/api/v1/auth/me')) };
-  },
-  completeRegistration: async (data: {
-    token: string;
-    name: string;
-    surname: string;
-    phone: string;
-    // ISO yyyy-MM-dd; the API binds it to DateOnly and rejects a missing value.
-    birthday: string;
-  }) => {
-    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/complete-registration', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify(data),
-    }));
-    return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
-  },
-  me: async () => normalizeUser(await request<ApiUser>('/api/v1/auth/me')),
-  register: async (data: { token?: string; name: string; surname: string; email?: string; phone: string }) => {
-    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/register', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ ...data, app: AUTH_APP }),
-    }));
-  },
-  verifyEmail: async (token: string) => {
-    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/verify', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ token }),
-    }));
-  },
-  resendVerification: (email: string) =>
-    request<void>('/api/v1/auth/email/verification', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email, app: AUTH_APP }),
-    }),
-  acceptProviderInvitation: async (data: { token: string; name: string; surname: string }) => {
-    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/provider-invitations/accept', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify(data),
-    }));
-  },
   // --- trusted device / passcode ---
   passcodePolicy: () =>
     request<PasscodePolicy>('/api/v1/auth/passcode/policy', { auth: false }),
@@ -1040,7 +854,7 @@ export const authApi = {
       throw error;
     }
 
-    return normalizeUser(await request<ApiUser>('/api/v1/auth/me'));
+    return loadSession();
   },
   listDevices: () => request<{ devices: TrustedDeviceSummary[] }>('/api/v1/auth/devices').then(r => r.devices),
   changePasscode: (currentPasscode: string, newPasscode: string) => {
@@ -1071,41 +885,6 @@ export const authApi = {
       clearStoredToken();
     }
   },
-  providerMemberships: async () =>
-    (await request<{ memberships: ProviderMembership[] }>('/api/v1/auth/provider-memberships')).memberships,
-  googleStart: () => `${API_BASE_URL}/api/v1/auth/oauth/google/start`,
-  yandexStart: () => `${API_BASE_URL}/api/v1/auth/oauth/yandex/start`,
-  devEmails: () => `${API_BASE_URL}/api/v1/development/emails`,
-};
-
-export const providerOnboardingApi = {
-  options: () => request<ProviderOnboardingOptions>('/api/v1/provider-onboarding/options'),
-  current: () => request<ProviderOnboarding>('/api/v1/provider-onboarding/current'),
-  create: (data: Partial<ProviderOnboardingDraft> = {}) =>
-    request<ProviderOnboarding>('/api/v1/provider-onboarding/current', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-  updateProfile: (data: Partial<ProviderOnboardingDraft>) =>
-    request<ProviderOnboarding>('/api/v1/provider-onboarding/current/profile', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-  submit: () =>
-    request<ProviderOnboarding>('/api/v1/provider-onboarding/current/submit', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    }),
-  lookupRuLegalIdentity: (taxNumber: string, branchNumber?: string) => {
-    const params = new URLSearchParams({ taxNumber });
-
-    if (branchNumber) {
-      params.set('branchNumber', branchNumber);
-    }
-
-    return request<RuLegalIdentityLookupResponse>(`/api/v1/provider-onboarding/legal-identity/ru/lookup?${params.toString()}`);
-  },
-  lookupRuBank: lookupRuBankByBic,
 };
 
 export const addressesApi = {
@@ -1148,15 +927,35 @@ export const profileApi = {
   patch: (data: {
     displayName?: string;
     slug?: string;
-    legalName?: string;
     contactEmail?: string;
     contactPhone?: string;
     address?: string;
     description?: string;
   }) => providerRequest<Provider>('/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+};
 
-  getOperatingState: () => providerRequest<Provider['operatingState']>('/operating-state'),
+// "Start selling": a draft provider with its legal party and accepted agreement, in one request.
+export const providersApi = {
+  create: (data: { seller: SellerProfileInput; displayName?: string; description?: string }) =>
+    request<Provider>('/api/v1/providers', { method: 'POST', body: JSON.stringify(data) }),
+  // Registry preview for the creation flow, before a provider exists.
+  lookupSeller: (inn: string) =>
+    request<LegalIdentityLookup>(`/api/v1/providers/seller-lookup?inn=${encodeURIComponent(inn)}`),
+};
 
+// The provider's own lifecycle, scoped by the provider in the URL.
+export const providerApi = {
+  readiness: () => providerRequest<ProviderReadiness>('/readiness'),
+  submitForReview: () => providerRequest<ProviderReadiness>('/submit-for-review', { method: 'POST' }),
+  agreement: () => providerRequest<Agreement>('/agreement'),
+  sellerProfile: () => providerRequest<SellerProfile>('/seller-profile'),
+  updateSellerProfile: (data: SellerProfileInput) =>
+    providerRequest<SellerProfile>('/seller-profile', { method: 'PUT', body: JSON.stringify(data) }),
+  lookupSeller: (inn: string) =>
+    providerRequest<LegalIdentityLookup>(`/seller-profile/lookup?inn=${encodeURIComponent(inn)}`),
+  payout: () => providerRequest<PayoutDetails>('/payout'),
+  updatePayout: (data: PayoutDetailsInput) =>
+    providerRequest<PayoutDetails>('/payout', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 export const payoutContractsApi = {
@@ -1224,37 +1023,21 @@ export const locationsApi = {
 };
 
 export const providerMembersApi = {
-  options: (providerId: string) =>
-    providerRequest<ProviderMemberOptions>(`/providers/${encodeURIComponent(providerId)}/members/options`),
-
-  listMembers: (providerId: string) =>
-    providerRequest<ProviderMember[]>(`/providers/${encodeURIComponent(providerId)}/members`),
-
-  invite: (providerId: string, data: { email: string; role: string }) =>
-    providerRequest<ProviderMemberInvitationResult>(`/providers/${encodeURIComponent(providerId)}/members/invitations`, {
+  options: () => providerRequest<ProviderMemberOptions>('/members/options'),
+  listMembers: () => providerRequest<ProviderMember[]>('/members'),
+  invite: (data: { phone: string; role: string }) =>
+    providerRequest<ProviderMemberInvitationResult>('/members/invitations', {
       method: 'POST',
-      body: JSON.stringify({
-        email: data.email,
-        role: data.role,
-      }),
+      body: JSON.stringify(data),
     }),
-
-  listInvitations: (providerId: string) =>
-    providerRequest<ProviderInvitation[]>(`/providers/${encodeURIComponent(providerId)}/members/invitations`),
-
-  updateRole: (providerId: string, membershipId: string, role: string) =>
-    providerRequest<ProviderMember>(
-      `/providers/${encodeURIComponent(providerId)}/members/${encodeURIComponent(membershipId)}/role`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ role }),
-      }
-    ),
-
-  remove: (providerId: string, membershipId: string) =>
-    providerRequest<void>(`/providers/${encodeURIComponent(providerId)}/members/${encodeURIComponent(membershipId)}`, {
-      method: 'DELETE',
+  listInvitations: () => providerRequest<ProviderInvitation[]>('/members/invitations'),
+  updateRole: (membershipId: string, role: string) =>
+    providerRequest<ProviderMember>(`/members/${encodeURIComponent(membershipId)}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
     }),
+  remove: (membershipId: string) =>
+    providerRequest<void>(`/members/${encodeURIComponent(membershipId)}`, { method: 'DELETE' }),
 };
 
 // ─── Resources ────────────────────────────────────────────────────────────────
@@ -1723,7 +1506,7 @@ export const stockBalanceApi = {
     const headers = new Headers();
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
     const res = await fetch(
-      `${API_BASE_URL}${PROVIDER_BASE_URL}/stock-balance`,
+      `${API_BASE_URL}${providerUrl('/stock-balance')}`,
       { credentials: accessToken ? 'omit' : 'include', headers }
     );
     if (!res.ok) throw new ApiError(res.status, `Не удалось скачать шаблон`, undefined);

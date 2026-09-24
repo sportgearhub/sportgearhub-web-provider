@@ -1,71 +1,69 @@
 import { createContext, useCallback, useState, useEffect, ReactNode } from 'react';
-import type { AuthUser, ProviderMembership } from '../types';
+import type { AuthUser, PendingInvitation, ProviderSummary, Session } from '../types';
 import { ApiError, authApi } from '../lib/api-client';
 
 interface AuthContextType {
   user: AuthUser | null;
-  memberships: ProviderMembership[];
-  activeMembership: ProviderMembership | null;
+  /** Providers the user belongs to, with kind, status and role — the picker's input. */
+  providers: ProviderSummary[];
+  /** Invitations addressed to the user's verified phone. */
+  pendingInvitations: PendingInvitation[];
   loading: boolean;
   // Sign-in is phone-first: send a code to the number, then exchange it. An unknown number comes
   // back as a registration token rather than an error.
   requestPhoneCode: (phone: string) => Promise<void>;
-  verifyPhoneCode: (phone: string, code: string) => Promise<SessionSnapshot | { registrationToken: string }>;
-  completePhoneRegistration: (data: {
-    token: string;
-    name: string;
-    surname: string;
-  }) => Promise<SessionSnapshot>;
-  passcodeSignIn: (passcode: string) => Promise<SessionSnapshot>;
-
+  verifyPhoneCode: (phone: string, code: string) => Promise<Session | { registrationToken: string }>;
+  completePhoneRegistration: (data: { token: string; name: string; surname: string }) => Promise<Session>;
+  passcodeSignIn: (passcode: string) => Promise<Session>;
+  acceptInvitation: (invitationId: string) => Promise<Session>;
   signOut: () => Promise<void>;
-  reloadUser: () => Promise<{ user: AuthUser; memberships: ProviderMembership[] } | null>;
+  reloadSession: () => Promise<Session | null>;
   sessionExpired: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-type SessionSnapshot = { user: AuthUser; memberships: ProviderMembership[] };
-
-let sessionLoadPromise: Promise<SessionSnapshot | null> | null = null;
+let sessionLoadPromise: Promise<Session | null> | null = null;
 
 function isPublicAuthEntry() {
   return window.location.pathname.startsWith('/auth');
 }
 
-async function loadSessionSnapshot() {
+// One bootstrap call: the token carries only the subject, and /auth/me answers who is signed in,
+// which providers they are in and what is waiting for their phone.
+async function loadSession() {
   if (!sessionLoadPromise) {
-    sessionLoadPromise = authApi.me()
-      .then(async currentUser => {
-        const currentMemberships = await authApi.providerMemberships();
-        return { user: currentUser, memberships: currentMemberships };
-      })
-      .finally(() => {
-        sessionLoadPromise = null;
-      });
+    sessionLoadPromise = authApi.me().finally(() => {
+      sessionLoadPromise = null;
+    });
   }
-
   return sessionLoadPromise;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [memberships, setMemberships] = useState<ProviderMembership[]>([]);
+  const [providers, setProviders] = useState<ProviderSummary[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  const reloadUser = useCallback(async () => {
+  const adopt = (session: Session) => {
+    setUser(session.user);
+    setProviders(session.providers);
+    setPendingInvitations(session.pendingInvitations);
+    setSessionExpired(false);
+    return session;
+  };
+
+  const reloadSession = useCallback(async () => {
     setLoading(true);
     try {
-      const session = await loadSessionSnapshot();
-      if (!session) return null;
-      setUser(session.user);
-      setMemberships(session.memberships);
-      setSessionExpired(false);
-      return session;
+      const session = await loadSession();
+      return session ? adopt(session) : null;
     } catch (error) {
       setUser(null);
-      setMemberships([]);
+      setProviders([]);
+      setPendingInvitations([]);
       if (error instanceof ApiError && error.status === 401) {
         setSessionExpired(true);
       }
@@ -80,17 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-
-    void reloadUser();
-  }, [reloadUser]);
-
-  const adoptSession = async (nextUser: AuthUser) => {
-    const currentMemberships = await authApi.providerMemberships();
-    setUser(nextUser);
-    setMemberships(currentMemberships);
-    setSessionExpired(false);
-    return { user: nextUser, memberships: currentMemberships };
-  };
+    void reloadSession();
+  }, [reloadSession]);
 
   const requestPhoneCode = async (phone: string) => {
     await authApi.requestPhoneCode(phone);
@@ -100,39 +89,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.verifyPhoneCode(phone, code);
     return result.status === 'registration_required'
       ? { registrationToken: result.registrationToken }
-      : adoptSession(result.user);
+      : adopt(result.session);
   };
 
   const completePhoneRegistration = async (data: { token: string; name: string; surname: string }) =>
-    adoptSession(await authApi.completePhoneRegistration(data));
+    adopt(await authApi.completePhoneRegistration(data));
 
-  const passcodeSignIn = async (passcode: string) => adoptSession(await authApi.passcodeSignIn(passcode));
+  const passcodeSignIn = async (passcode: string) => adopt(await authApi.passcodeSignIn(passcode));
 
-
+  const acceptInvitation = async (invitationId: string) => {
+    await authApi.acceptProviderInvitation(invitationId);
+    return adopt(await authApi.me());
+  };
 
   const signOut = async () => {
     await authApi.signout().catch(() => undefined);
     setUser(null);
-    setMemberships([]);
+    setProviders([]);
+    setPendingInvitations([]);
     setSessionExpired(false);
   };
 
-  const activeMembership = memberships[0] ?? null;
-
   return (
-    <AuthContext.Provider value={{
-      user,
-      memberships,
-      activeMembership,
-      loading,
-      requestPhoneCode,
-      verifyPhoneCode,
-      completePhoneRegistration,
-      passcodeSignIn,
-      signOut,
-      reloadUser,
-      sessionExpired,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        providers,
+        pendingInvitations,
+        loading,
+        requestPhoneCode,
+        verifyPhoneCode,
+        completePhoneRegistration,
+        passcodeSignIn,
+        acceptInvitation,
+        signOut,
+        reloadSession,
+        sessionExpired,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

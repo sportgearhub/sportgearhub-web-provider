@@ -14,7 +14,7 @@ import { ApiError, authApi } from '../../lib/api-client';
  * whatever verified address it already had.
  */
 export function EmailAttachCard() {
-  const { user, reloadUser } = useAuth();
+  const { user, reloadSession } = useAuth();
   const [step, setStep] = useState<'idle' | 'code'>('idle');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -61,7 +61,7 @@ export function EmailAttachCard() {
     setLoading(true);
     try {
       await authApi.confirmEmailAttach(email.trim(), code);
-      await reloadUser();
+      await reloadSession();
       setStep('idle');
       setEmail('');
       setCode('');

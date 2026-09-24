@@ -1,106 +1,109 @@
 # Provider API
 
-Provider console API surface. All routes under `/api/v1/provider/`. Requires `Authorization: Bearer <token>` scoped to `provider_api`.
+Provider console API surface. Console routes live under **`/api/v1/providers/{providerId}/`** — the
+provider is named in the path, the gate checks the caller's membership in it (or the platform
+admin role), and a person may belong to several. Requires `Authorization: Bearer <token>` scoped to
+`provider_api`. Everything is `snake_case` on the wire.
 
 ---
 
-## Onboarding
+## Bootstrap and cabinets
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/provider-onboarding/current` | Start onboarding |
-| `GET` | `/provider-onboarding/current` | Get onboarding state |
-| `PATCH` | `/provider-onboarding/current/profile` | Update onboarding profile |
-| `POST` | `/provider-onboarding/current/submit` | Submit for review |
-| `GET` | `/provider-onboarding/legal-identity/ru/lookup` | INN/KPP lookup (Dadata) |
+| `GET` | `/api/v1/auth/me` | Who is signed in, `providers[]` (kind, status, role) and `pending_invitations[]` — the console's one bootstrap call |
+| `POST` | `/api/v1/provider-invitations/accept` | Accept an invitation addressed to the caller's verified phone (`{invitation_id}`) |
+| `POST` | `/api/v1/providers` | Create a draft provider with its seller profile and accepted agreement (`{seller, display_name?, description?}`) |
+| `GET` | `/api/v1/providers/seller-lookup?inn=` | Registry preview for the creation flow |
 
 ---
 
-## Profile & Members
+## Lifecycle (`/api/v1/providers/{providerId}/…`)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/profile` | Provider profile |
-| `PATCH` | `/provider/profile` | Update profile |
-| `GET` | `/provider/operating-state` | Operating state |
-| `GET` | `/provider/dashboard` | Dashboard summary |
-| `GET` | `/provider/members` | Member list |
-| `POST` | `/provider/members/invitations` | Invite member |
-| `PUT` | `/provider/members/{membershipId}/role` | Update member role |
-| `DELETE` | `/provider/members/{membershipId}` | Remove member |
+| `GET` | `…/profile` | Profile with `status` and `latest_review` |
+| `PATCH` | `…/profile` | Name, description, address, slug, contacts |
+| `GET` | `…/seller-profile` | The legal party: `kind`, `inn`, `person` / `business` / `company` sections |
+| `PUT` | `…/seller-profile` | Taxation system, VAT rate, or a самозанятый's name — kind and ИНН are immutable |
+| `GET` | `…/seller-profile/lookup?inn=` | Registry preview |
+| `GET` | `…/payout` | Payout method (dictated by the kind), requisites, whether the bank registered them |
+| `PUT` | `…/payout` | `{method: "sbp", phone, sbp_member_id, bank_name}` or `{method: "bank_account", account, bik, bank_name, correspondent_account?}` |
+| `GET` | `…/readiness` | The checklist: `can_submit`, `is_public`, `can_be_paid`, items |
+| `POST` | `…/submit-for-review` | `draft`/`changes_requested` → `pending_review`; `409` when not ready |
+| `GET` | `…/agreement` | «Договор № … от …» |
+| `GET` | `…/dashboard` | Readiness plus counts |
+
+Statuses: `draft · pending_review · changes_requested · rejected · active · suspended · archived`.
+Only `active` providers are public.
 
 ---
+
+## Members
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `…/members` | Member list |
+| `GET` | `…/members/options` | Role options |
+| `POST` | `…/members/invitations` | Invite by phone (`{phone, role}`) |
+| `GET` | `…/members/invitations` | Invitation list |
+| `PUT` | `…/members/{membershipId}/role` | Update member role |
+| `DELETE` | `…/members/{membershipId}` | Remove member |
+
+---
+
 
 ## Resources
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/resource-categories` | Category list |
-| `GET` | `/provider/activity-options` | Activity options |
-| `GET` | `/provider/resources` | Resource list |
-| `POST` | `/provider/resources` | Create resource |
-| `GET` | `/provider/resources/{resourceId}` | Resource detail |
-| `PATCH` | `/provider/resources/{resourceId}` | Update resource |
-| `DELETE` | `/provider/resources/{resourceId}` | Delete resource |
-| `GET` | `/provider/resources/{resourceId}/images` | Resource images |
-| `POST` | `/provider/resources/{resourceId}/images` | Upload image |
+| `GET` | `…/resource-categories` | Category list |
+| `GET` | `…/activity-options` | Activity options |
+| `GET` | `…/resources` | Resource list |
+| `POST` | `…/resources` | Create resource |
+| `GET` | `…/resources/{resourceId}` | Resource detail |
+| `PATCH` | `…/resources/{resourceId}` | Update resource |
+| `DELETE` | `…/resources/{resourceId}` | Delete resource |
+| `GET` | `…/resources/{resourceId}/images` | Resource images |
+| `POST` | `…/resources/{resourceId}/images` | Upload image |
 
 ### Resource diagnostics (read-only, aggregate offer-level truth)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/resources/{resourceId}/availability-diagnostics` | Availability readiness |
-| `GET` | `/provider/resources/{resourceId}/pricing-diagnostics` | Pricing readiness |
-| `GET` | `/provider/resources/{resourceId}/variant-diagnostics` | Variant readiness |
-| `GET` | `/provider/resources/{resourceId}/policy-diagnostics` | Policy readiness |
+| `GET` | `…/resources/{resourceId}/availability-diagnostics` | Availability readiness |
+| `GET` | `…/resources/{resourceId}/pricing-diagnostics` | Pricing readiness |
+| `GET` | `…/resources/{resourceId}/policy-diagnostics` | Policy readiness |
 
 ---
 
-## Variants
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/provider/resources/{resourceId}/variants` | Variant list |
-| `POST` | `/provider/resources/{resourceId}/variants` | Create variant |
-| `GET` | `/provider/resources/{resourceId}/variants/{variantId}` | Variant detail |
-| `PATCH` | `/provider/resources/{resourceId}/variants/{variantId}` | Update variant |
-| `POST` | `/provider/resources/{resourceId}/variants/{variantId}/archive` | Archive variant |
-| `GET` | `/provider/resources/{resourceId}/variants/{variantId}/allocation` | Variant allocation |
-| `PUT` | `/provider/resources/{resourceId}/variants/{variantId}/allocation` | Upsert allocation |
-
----
 
 ## Offers
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/offers` | Offer list |
-| `POST` | `/provider/offers` | Create offer |
-| `GET` | `/provider/offers/{offerId}` | Offer detail |
-| `PATCH` | `/provider/offers/{offerId}` | Update offer |
-| `POST` | `/provider/offers/{offerId}/activate` | Activate |
-| `POST` | `/provider/offers/{offerId}/deactivate` | Deactivate |
-| `POST` | `/provider/offers/{offerId}/archive` | Archive |
-| `GET` | `/provider/offers/{offerId}/readiness` | Publishability readiness |
-| `GET` | `/provider/offers/{offerId}/visibility` | Visibility settings |
-| `PUT` | `/provider/offers/{offerId}/visibility` | Update visibility |
+| `GET` | `…/offers` | Offer list |
+| `POST` | `…/offers` | Create offer |
+| `GET` | `…/offers/{offerId}` | Offer detail |
+| `PATCH` | `…/offers/{offerId}` | Update offer |
+| `POST` | `…/offers/{offerId}/activate` | Activate |
+| `POST` | `…/offers/{offerId}/deactivate` | Deactivate |
+| `POST` | `…/offers/{offerId}/archive` | Archive |
+| `GET` | `…/offers/{offerId}/readiness` | Publishability readiness |
 
-### Offer-level configuration (availability, pricing, policy, variants)
+### Offer-level configuration (availability, pricing, policy)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/offers/{offerId}/availability` | Availability settings (`status: not_configured` if unset) |
-| `PUT` | `/provider/offers/{offerId}/availability` | Upsert availability settings |
-| `GET` | `/provider/offers/{offerId}/pricing-policy` | Pricing policy |
-| `PUT` | `/provider/offers/{offerId}/pricing-policy` | Upsert pricing policy |
-| `POST` | `/provider/offers/{offerId}/pricing-summary-preview` | Preview pricing summary |
-| `GET` | `/provider/offers/{offerId}/policy` | Policy override |
-| `PUT` | `/provider/offers/{offerId}/policy` | Upsert policy override |
-| `POST` | `/provider/offers/{offerId}/policy-summary-preview` | Preview policy summary |
-| `GET` | `/provider/offers/{offerId}/variant-exposure` | Variant exposure settings |
-| `PUT` | `/provider/offers/{offerId}/variant-exposure-mode` | Update exposure mode |
-| `PUT` | `/provider/offers/{offerId}/variants/{variantId}/exposure` | Update variant exposure |
-| `GET` | `/provider/offers/{offerId}/routability` | Offer routability status |
+| `GET` | `…/offers/{offerId}/availability` | Availability settings (`status: not_configured` if unset) |
+| `PUT` | `…/offers/{offerId}/availability` | Upsert availability settings |
+| `GET` | `…/offers/{offerId}/pricing-policy` | Pricing policy |
+| `PUT` | `…/offers/{offerId}/pricing-policy` | Upsert pricing policy |
+| `POST` | `…/offers/{offerId}/pricing-summary-preview` | Preview pricing summary |
+| `GET` | `…/offers/{offerId}/policy` | Policy override |
+| `PUT` | `…/offers/{offerId}/policy` | Upsert policy override |
+| `POST` | `…/offers/{offerId}/policy-summary-preview` | Preview policy summary |
+| `GET` | `…/offers/{offerId}/routability` | Offer routability status |
 
 ---
 
@@ -108,11 +111,11 @@ Provider console API surface. All routes under `/api/v1/provider/`. Requires `Au
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/policy-profile` | Provider default policy |
-| `PUT` | `/provider/policy-profile` | Upsert provider policy |
-| `GET` | `/provider/resources/{resourceId}/policy` | Resource policy override |
-| `PUT` | `/provider/resources/{resourceId}/policy` | Upsert resource policy override |
-| `POST` | `/provider/policy/effective-preview` | Effective policy chain preview |
+| `GET` | `…/policy-profile` | Provider default policy |
+| `PUT` | `…/policy-profile` | Upsert provider policy |
+| `GET` | `…/resources/{resourceId}/policy` | Resource policy override |
+| `PUT` | `…/resources/{resourceId}/policy` | Upsert resource policy override |
+| `POST` | `…/policy/effective-preview` | Effective policy chain preview |
 
 ---
 
@@ -120,14 +123,14 @@ Provider console API surface. All routes under `/api/v1/provider/`. Requires `Au
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/bookings` | Booking list |
-| `GET` | `/provider/bookings/{bookingId}` | Booking detail |
-| `GET` | `/provider/bookings/{bookingId}/fulfillment` | Fulfillment detail |
-| `GET` | `/provider/fulfillment` | Fulfillment queue |
-| `POST` | `/provider/bookings/{bookingId}/handover` | Confirm handover to customer |
-| `POST` | `/provider/bookings/{bookingId}/return` | Confirm return from customer |
-| `POST` | `/provider/bookings/{bookingId}/complete` | Complete fulfillment |
-| `POST` | `/provider/bookings/{bookingId}/report-issue` | Report fulfillment issue |
+| `GET` | `…/bookings` | Booking list |
+| `GET` | `…/bookings/{bookingId}` | Booking detail |
+| `GET` | `…/bookings/{bookingId}/fulfillment` | Fulfillment detail |
+| `GET` | `…/fulfillment` | Fulfillment queue |
+| `POST` | `…/bookings/{bookingId}/handover` | Confirm handover to customer |
+| `POST` | `…/bookings/{bookingId}/return` | Confirm return from customer |
+| `POST` | `…/bookings/{bookingId}/complete` | Complete fulfillment |
+| `POST` | `…/bookings/{bookingId}/report-issue` | Report fulfillment issue |
 
 ---
 
@@ -135,12 +138,12 @@ Provider console API surface. All routes under `/api/v1/provider/`. Requires `Au
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/acquiring-connections` | Acquiring connection list |
-| `POST` | `/provider/acquiring-connections` | Create acquiring connection |
-| `GET` | `/provider/acquiring-connections/{connectionId}` | Connection detail |
-| `GET` | `/provider/acquiring-connections/routability` | Payout routability |
-| `GET` | `/provider/payout-contracts` | Payout contracts |
-| `GET` | `/provider/recipient-routes` | Recipient routes |
+| `GET` | `…/acquiring-connections` | Acquiring connection list |
+| `POST` | `…/acquiring-connections` | Create acquiring connection |
+| `GET` | `…/acquiring-connections/{connectionId}` | Connection detail |
+| `GET` | `…/acquiring-connections/routability` | Payout routability |
+| `GET` | `…/payout-contracts` | Payout contracts |
+| `GET` | `…/recipient-routes` | Recipient routes |
 
 ---
 
@@ -148,8 +151,8 @@ Provider console API surface. All routes under `/api/v1/provider/`. Requires `Au
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/provider/storefront` | Storefront config |
-| `PATCH` | `/provider/storefront` | Update storefront |
+| `GET` | `…/storefront` | Storefront config |
+| `PATCH` | `…/storefront` | Update storefront |
 
 ---
 
@@ -158,4 +161,4 @@ Provider console API surface. All routes under `/api/v1/provider/`. Requires `Au
 - Availability, pricing, and policy are configured at **offer level** — not resource level
 - Resource diagnostics are **read-only aggregations** — they summarize offer-level configuration for readiness views
 - Provider APIs must never expose internal booking workflow, ledger truth, or payment internals
-- Provider scope is enforced on all queries — a provider can only access their own resources/offers/bookings
+- Provider scope is the path: `/providers/{providerId}` is checked against the caller's memberships on every request

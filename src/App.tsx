@@ -1,20 +1,11 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
-import {
-  CheckEmailPage,
-  CompleteRegistrationPage,
-  MagicSignInPage,
-  PasscodeSetupPage,
-  PasscodeSignInPage,
-  RegisterPage,
-  SignInPage,
-  VerifyEmailPage,
-} from './features/auth/AuthPages';
-import { OnboardingPage } from './features/onboarding/OnboardingPage';
-import { Header } from './components/layout/Header';
-import { PageHeading } from './components/layout/PageHeading';
-import type { PageBreadcrumb } from './components/layout/PageHeading';
+import { lastProviderId } from './lib/active-provider';
+import { CompleteRegistrationPage, PasscodeSetupPage, PasscodeSignInPage, SignInPage } from './features/auth/AuthPages';
+import { ProviderPickerPage } from './features/providers/ProviderPickerPage';
+import { CreateProviderPage } from './features/providers/CreateProviderPage';
+import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/ConsoleLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { FulfillmentPage } from './features/fulfillment/FulfillmentPage';
 import { ResourcesPage } from './features/resources/ResourcePage';
@@ -23,177 +14,149 @@ import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
 import { ResourceEditPage } from './features/resources/ResourceEditPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
-import { SettingsPage } from './features/settings/SettingsPage';
+import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 
-type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageBreadcrumb[] };
-
-const pageConfig: Record<string, PageConfig> = {
-  '/': { title: '' },
-  '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
-  '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
-  '/resources/create': { title: 'Добавить позицию', subtitle: 'Добавьте позицию в каталог.' },
-  '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
-  // The settings section draws its own tab bar, so it asks the header for no title row.
-  '/settings/shop': { title: '' },
-  '/settings/locations': { title: '' },
-  '/settings/employees': { title: '' },
-  '/settings/payouts': { title: '' },
-  '/settings/account': { title: '' },
-};
-
-// Paths that moved when navigation became header-based.
-const legacyRedirects: Record<string, string> = {
-  '/payouts': '/settings/payouts',
-  '/locations': '/settings/locations',
-  '/settings': '/settings/account',
-  '/settings/profile': '/settings/shop',
-};
-
-type HeaderContent = PageConfig | null;
-
-function AppShell() {
-  const { user, memberships, loading } = useAuth();
-  const knownPaths = useMemo(() => new Set(Object.keys(pageConfig)), []);
-  const [currentPath, setCurrentPath] = useState(() => window.location.pathname || '/');
-  const [navigationReloadKey, setNavigationReloadKey] = useState(0);
-  const [headerContent, setHeaderContent] = useState<HeaderContent>(null);
-  const params = new URLSearchParams(window.location.search);
-
-  useEffect(() => {
-    const handlePopState = () => setCurrentPath(window.location.pathname || '/');
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const navigate = (path: string, replace = false) => {
-    if (replace) {
-      window.history.replaceState(null, '', path);
-    } else {
-      window.history.pushState(null, '', path);
-    }
-    setCurrentPath(window.location.pathname || '/');
-  };
-
-  const navigateTo = (nextPath: string) => {
-    const redirected = legacyRedirects[nextPath] ?? nextPath;
-    const safePath = knownPaths.has(redirected) || redirected.startsWith('/resources/') ? redirected : '/';
-    if (window.location.pathname !== safePath || window.location.search !== '') {
-      window.history.pushState({}, '', safePath);
-    }
-    setCurrentPath(safePath);
-    setNavigationReloadKey(key => key + 1);
-  };
-
-  // A bookmark on a path that moved should land on the new one, address bar included.
-  useEffect(() => {
-    const canonical = legacyRedirects[currentPath];
-    if (canonical) navigate(canonical, true);
-  }, [currentPath]);
-
-  useEffect(() => {
-    if (!loading && user && memberships.length === 0 && currentPath !== '/onboarding') {
-      navigate('/onboarding', true);
-    }
-  }, [currentPath, loading, memberships.length, user]);
-
-  useEffect(() => {
-    if (!loading && user && memberships.length > 0 && currentPath === '/onboarding') {
-      navigate('/', true);
-    }
-  }, [currentPath, loading, memberships.length, user]);
-
-  const renderAuthPage = () => {
-    if (currentPath === '/auth/register') return <RegisterPage token={params.get('token')} onNavigate={navigate} />;
-    if (currentPath === '/auth/passcode') return <PasscodeSignInPage onNavigate={navigate} />;
-    if (currentPath === '/auth/passcode-setup') return <PasscodeSetupPage onNavigate={navigate} />;
-    if (currentPath === '/auth/complete-registration') return <CompleteRegistrationPage token={params.get('token')} onNavigate={navigate} />;
-    if (currentPath === '/auth/magic-sign-in') return <MagicSignInPage token={params.get('token')} onNavigate={navigate} />;
-    if (currentPath === '/auth/check-email') return <CheckEmailPage email={params.get('email') ?? user?.email ?? ''} onNavigate={navigate} />;
-    if (currentPath === '/auth/verify-email' || currentPath === '/auth/verify-mail') return <VerifyEmailPage token={params.get('token')} onNavigate={navigate} />;
-    return <SignInPage onNavigate={navigate} />;
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-gray-500">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentPath.startsWith('/auth')) {
-    return renderAuthPage();
-  }
-
-  if (!user) {
-    return <SignInPage onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/onboarding') {
-    return <OnboardingPage />;
-  }
-
-  if (memberships.length === 0) {
-    return <OnboardingPage />;
-  }
-
-  const pathnameOnly = legacyRedirects[currentPath.split('?')[0]] ?? currentPath.split('?')[0];
-  const offerCreateMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/offers\/new$/);
-  const resourceDetailMatch = pathnameOnly.match(/^\/resources\/([^/]+)$/);
-  const resourceEditMatch = pathnameOnly.match(/^\/resources\/([^/]+)\/edit$/);
-  const appPath = knownPaths.has(pathnameOnly) || offerCreateMatch || resourceDetailMatch || resourceEditMatch ? pathnameOnly : '/';
-  const page =
-    offerCreateMatch ? { title: 'Создать предложение' } :
-    resourceEditMatch ? { title: 'Редактировать позицию', subtitle: 'Изменение позиции инвентаря' } :
-    resourceDetailMatch ? { title: 'Позиция' } :
-    pageConfig[appPath] || { title: 'Кабинет партнера' };
-  const headerPage = headerContent ?? page;
-
-  const renderPage = () => {
-    if (appPath === '/') return <DashboardPage onNavigate={navigateTo} />;
-    if (appPath === '/fulfillment') return <FulfillmentPage />;
-    if (appPath === '/resources') return <ResourcesPage onHeaderContentChange={setHeaderContent} onNavigate={navigateTo} />;
-    if (appPath === '/resources/create') return <ResourceCreatePage onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-    if (offerCreateMatch) return <OfferCreatePage resourceId={offerCreateMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-    if (resourceEditMatch) return <ResourceEditPage resourceId={resourceEditMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-    if (resourceDetailMatch) return <ResourceDetailPage resourceId={resourceDetailMatch[1]} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-    if (appPath === '/offers') return <OffersPage />;
-    if (appPath === '/settings/account') return <SettingsPage tab="account" onNavigate={navigateTo} />;
-    if (appPath === '/settings/shop') return <SettingsPage tab="shop" onNavigate={navigateTo} />;
-    if (appPath === '/settings/locations') return <SettingsPage tab="locations" onNavigate={navigateTo} />;
-    if (appPath === '/settings/employees') return <SettingsPage tab="employees" onNavigate={navigateTo} />;
-    if (appPath === '/settings/payouts') return <SettingsPage tab="payouts" onNavigate={navigateTo} />;
-    return <DashboardPage onNavigate={navigateTo} />;
-  };
-
+function Loading() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <Header currentPath={appPath} onNavigate={navigateTo} />
-      <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
-        {/* One centred column for every page, so screens line up with the header above them. */}
-        <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
-          <PageHeading
-            title={headerPage.title}
-            subtitle={headerPage.subtitle}
-            breadcrumbs={headerPage.breadcrumbs}
-            onNavigate={navigateTo}
-          />
-          <Fragment key={`${appPath}:${navigationReloadKey}`}>
-            {renderPage()}
-          </Fragment>
-        </div>
-      </main>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+        <p className="text-xs text-gray-500">Загрузка...</p>
+      </div>
     </div>
   );
 }
 
+// The auth pages predate the router and navigate through a callback; this is the one adapter.
+function useLegacyNavigate() {
+  const navigate = useNavigate();
+  return (path: string, replace?: boolean) => navigate(path, { replace });
+}
+
+function AuthRoute({ page }: { page: 'sign-in' | 'passcode' | 'passcode-setup' | 'complete-registration' }) {
+  const onNavigate = useLegacyNavigate();
+  const params = new URLSearchParams(useLocation().search);
+  switch (page) {
+    case 'passcode':
+      return <PasscodeSignInPage onNavigate={onNavigate} />;
+    case 'passcode-setup':
+      return <PasscodeSetupPage onNavigate={onNavigate} />;
+    case 'complete-registration':
+      return <CompleteRegistrationPage token={params.get('token')} onNavigate={onNavigate} />;
+    default:
+      return <SignInPage onNavigate={onNavigate} />;
+  }
+}
+
+/** Everything outside /auth needs a session; without one, the sign-in page. */
+function RequireSession() {
+  const { user, loading } = useAuth();
+  const onNavigate = useLegacyNavigate();
+  if (loading) return <Loading />;
+  if (!user) return <SignInPage onNavigate={onNavigate} />;
+  return <Outlet />;
+}
+
+/** Bookmarks from before the console was scoped: send them to the same page in the last cabinet. */
+function LegacyRedirect() {
+  const location = useLocation();
+  const last = lastProviderId();
+  const target = last ? `/providers/${last}${location.pathname}${location.search}` : '/';
+  return <Navigate to={target} replace />;
+}
+
+// Console pages still take their navigation and header hooks as props.
+function useConsole() {
+  return useOutletContext<ConsoleOutletContext>();
+}
+
+function DashboardRoute() {
+  const { navigateTo } = useConsole();
+  return <DashboardPage onNavigate={navigateTo} />;
+}
+
+function ResourcesRoute() {
+  const { navigateTo, setHeaderContent } = useConsole();
+  return <ResourcesPage onHeaderContentChange={setHeaderContent} onNavigate={navigateTo} />;
+}
+
+function ResourceCreateRoute() {
+  const { navigateTo, setHeaderContent } = useConsole();
+  return <ResourceCreatePage onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
+}
+
+function ResourceDetailRoute() {
+  const { navigateTo, setHeaderContent } = useConsole();
+  const { resourceId = '' } = useParams();
+  return <ResourceDetailPage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
+}
+
+function ResourceEditRoute() {
+  const { navigateTo, setHeaderContent } = useConsole();
+  const { resourceId = '' } = useParams();
+  return <ResourceEditPage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
+}
+
+function OfferCreateRoute() {
+  const { navigateTo, setHeaderContent } = useConsole();
+  const { resourceId = '' } = useParams();
+  return <OfferCreatePage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
+}
+
+function SettingsRoute({ tab }: { tab: SettingsTab }) {
+  const { navigateTo } = useConsole();
+  return <SettingsPage tab={tab} onNavigate={navigateTo} />;
+}
+
+const router = createBrowserRouter([
+  { path: '/auth/passcode', element: <AuthRoute page="passcode" /> },
+  { path: '/auth/passcode-setup', element: <AuthRoute page="passcode-setup" /> },
+  { path: '/auth/complete-registration', element: <AuthRoute page="complete-registration" /> },
+  { path: '/auth/*', element: <AuthRoute page="sign-in" /> },
+  {
+    element: <RequireSession />,
+    children: [
+      { path: '/', element: <ProviderPickerPage /> },
+      { path: '/new', element: <CreateProviderPage /> },
+      {
+        path: '/providers/:providerId',
+        element: <ConsoleLayout />,
+        children: [
+          { index: true, element: <DashboardRoute /> },
+          { path: 'fulfillment', element: <FulfillmentPage /> },
+          { path: 'resources', element: <ResourcesRoute /> },
+          { path: 'resources/create', element: <ResourceCreateRoute /> },
+          { path: 'resources/:resourceId', element: <ResourceDetailRoute /> },
+          { path: 'resources/:resourceId/edit', element: <ResourceEditRoute /> },
+          { path: 'resources/:resourceId/offers/new', element: <OfferCreateRoute /> },
+          { path: 'offers', element: <OffersPage /> },
+          { path: 'settings', element: <Navigate to="shop" replace /> },
+          { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
+          { path: 'settings/seller', element: <SettingsRoute tab="seller" /> },
+          { path: 'settings/locations', element: <SettingsRoute tab="locations" /> },
+          { path: 'settings/employees', element: <SettingsRoute tab="employees" /> },
+          { path: 'settings/payouts', element: <SettingsRoute tab="payouts" /> },
+          { path: 'settings/documents', element: <SettingsRoute tab="documents" /> },
+          { path: 'settings/account', element: <SettingsRoute tab="account" /> },
+          { path: '*', element: <Navigate to="." replace /> },
+        ],
+      },
+      { path: '/onboarding', element: <Navigate to="/" replace /> },
+      { path: '/fulfillment', element: <LegacyRedirect /> },
+      { path: '/resources/*', element: <LegacyRedirect /> },
+      { path: '/offers', element: <LegacyRedirect /> },
+      { path: '/settings/*', element: <LegacyRedirect /> },
+      { path: '/payouts', element: <LegacyRedirect /> },
+      { path: '/locations', element: <LegacyRedirect /> },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+]);
+
 export default function App() {
   return (
     <AuthProvider>
-      <AppShell />
+      <RouterProvider router={router} />
     </AuthProvider>
   );
 }

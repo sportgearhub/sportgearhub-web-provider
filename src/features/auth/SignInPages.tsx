@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthShell, LoadingNotice, Notice } from './authShared';
+import { AuthShell, Notice } from './authShared';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
 import { authPath, type Navigate } from './authUtils';
@@ -371,69 +371,6 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
           Пропустить
         </button>
       </div>
-    </AuthShell>
-  );
-}
-
-export function MagicSignInPage({ token, onNavigate }: { token: string | null; onNavigate: Navigate }) {
-  const { reloadUser } = useAuth();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error');
-  const magicTokenRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!token || magicTokenRef.current === token) return;
-    magicTokenRef.current = token;
-
-    const startedAt = Date.now();
-    const minLoaderMs = 900;
-    let cancelled = false;
-
-    const finish = (nextStatus: 'success' | 'error') => {
-      const elapsed = Date.now() - startedAt;
-      window.setTimeout(() => {
-        if (!cancelled) {
-          setStatus(nextStatus);
-        }
-      }, Math.max(0, minLoaderMs - elapsed));
-    };
-
-    const signInWithToken = async () => {
-      try {
-        await authApi.magicSignIn(token);
-        const session = await reloadUser();
-        if (!session) {
-          finish('error');
-          return;
-        }
-        finish('success');
-        window.setTimeout(() => {
-          if (!cancelled) {
-            onNavigate('/');
-          }
-        }, Math.max(700, minLoaderMs - (Date.now() - startedAt)));
-      } catch {
-        finish('error');
-      }
-    };
-
-    void signInWithToken();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [onNavigate, reloadUser, token]);
-
-  return (
-    <AuthShell title="Вход по ссылке">
-      {status === 'loading' && <LoadingNotice>Входим в кабинет...</LoadingNotice>}
-      {status === 'success' && <Notice kind="success">Готово. Открываем кабинет.</Notice>}
-      {status === 'error' && <Notice kind="error">Ссылка недействительна или истекла.</Notice>}
-
-      {status === 'error' && (
-        <Button onClick={() => onNavigate('/auth/sign-in')} variant="primary" className="w-full justify-center">
-          Войти
-        </Button>
-      )}
     </AuthShell>
   );
 }

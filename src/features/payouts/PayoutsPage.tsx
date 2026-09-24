@@ -1,211 +1,171 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { AlertCircle, Building2, CreditCard, RefreshCw, Smartphone } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, Save, Smartphone } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { ApiError, payoutContractsApi } from '../../lib/api-client';
-import type { PayoutContract, PayoutContractStatus, PayoutMode } from '../../types';
+import { Input } from '../../components/ui/Input';
+import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
+import { Select } from '../../components/ui/Select';
+import { ApiError, paymentReferenceApi, providerApi, publicSuggestionsApi, type SbpMemberReference } from '../../lib/api-client';
+import type { PayoutDetails } from '../../types';
 
-const statusMeta: Record<string, { label: string; variant: 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'orange' }> = {
-  review: { label: 'На проверке', variant: 'yellow' },
-  setting_up: { label: 'Настраивается', variant: 'blue' },
-  active: { label: 'Активен', variant: 'green' },
-  rejected: { label: 'Отклонен', variant: 'red' },
-  blocked: { label: 'Заблокирован', variant: 'orange' },
-};
-
-const statusDescriptions: Record<string, string> = {
-  review: 'Администратор проверяет или дополняет данные.',
-  setting_up: 'Администратор регистрирует выплату в T-Bank.',
-  active: 'Выплаты зарегистрированы и готовы к маршрутизации.',
-  rejected: 'Текущую настройку выплат нельзя принять.',
-  blocked: 'Настройка выплат заблокирована административно.',
-};
-
+/**
+ * «Выплаты» — the method is never chosen, the seller kind dictates it: СБП to a phone for a
+ * самозанятый, a bank account for ИП and organisations. The seller types the requisites; an admin
+ * registers them with the bank after review.
+ */
 export function PayoutsPage() {
-  const [contracts, setContracts] = useState<PayoutContract[]>([]);
+  const [details, setDetails] = useState<PayoutDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [phone, setPhone] = useState('');
+  const [sbpMemberId, setSbpMemberId] = useState('');
+  const [banks, setBanks] = useState<SbpMemberReference[]>([]);
+  const [account, setAccount] = useState('');
+  const [bik, setBik] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [correspondentAccount, setCorrespondentAccount] = useState('');
+  const [bikLookup, setBikLookup] = useState<'idle' | 'loading' | 'missing'>('idle');
 
-  const loadContracts = async (quiet = false) => {
-    if (quiet) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError('');
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    providerApi.payout()
+      .then(async next => {
+        if (cancelled) return;
+        setDetails(next);
+        setPhone((next.phone ?? '').replace(/^\+7/, ''));
+        setSbpMemberId(next.sbpMemberId ?? '');
+        setAccount(next.account ?? '');
+        setBik(next.bik ?? '');
+        setBankName(next.bankName ?? '');
+        setCorrespondentAccount(next.correspondentAccount ?? '');
+        if (next.method === 'sbp') {
+          const reference = await paymentReferenceApi.sbpMembers().catch(() => null);
+          if (!cancelled && reference) setBanks(reference.items);
+        }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setError(err instanceof ApiError && err.status === 404
+          ? 'Сначала заполните данные продавца — способ выплаты зависит от формы бизнеса.'
+          : err instanceof ApiError ? err.message : 'Не удалось загрузить выплаты.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
+  const lookupBank = async () => {
+    const digits = bik.replace(/\D/g, '');
+    if (digits.length !== 9) return;
+    setBikLookup('loading');
     try {
-      setContracts(await payoutContractsApi.list());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить выплаты.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      const bank = await publicSuggestionsApi.lookupRuBank(digits);
+      setBankName(bank.paymentName ?? bank.value);
+      if (bank.correspondentAccount) setCorrespondentAccount(bank.correspondentAccount);
+      setBikLookup('idle');
+    } catch {
+      setBikLookup('missing');
     }
   };
 
-  useEffect(() => {
-    void loadContracts();
-  }, []);
+  const save = async () => {
+    if (!details) return;
+    setSaving(true);
+    setSaved(false);
+    setError('');
+    try {
+      const next = await providerApi.updatePayout(details.method === 'sbp'
+        ? { method: 'sbp', phone: `+7${phone.replace(/\D/g, '')}`, sbpMemberId, bankName: banks.find(item => item.sbpMemberId === sbpMemberId)?.displayBankName }
+        : { method: 'bank_account', account: account.replace(/\D/g, ''), bik: bik.replace(/\D/g, ''), bankName, correspondentAccount: correspondentAccount.replace(/\D/g, '') || undefined });
+      setDetails(next);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить реквизиты.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isSbp = details?.method === 'sbp';
 
   return (
     <div className="space-y-5 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Выплаты</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Договоры и статус настройки выплат. Изменения выполняет администратор.</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {isSbp ? 'Самозанятым платформа переводит деньги по СБП на номер телефона.' : 'ИП и организациям платформа переводит деньги на расчётный счёт.'}
+          </p>
         </div>
-        <Button type="button" variant="secondary" size="sm" onClick={() => void loadContracts(true)} loading={refreshing}>
-          <RefreshCw size={13} />
-          Обновить
-        </Button>
+        {details && (
+          details.registered
+            ? <Badge variant="green">банк подключён</Badge>
+            : details.hasDetails
+              ? <Badge variant="yellow">ждёт подключения банка</Badge>
+              : <Badge variant="gray">реквизиты не заполнены</Badge>
+        )}
       </div>
-
       {error && (
-        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
-
       {loading ? (
-        <Card>
-          <div className="py-8 text-center text-sm text-gray-500">Загружаем выплаты...</div>
-        </Card>
-      ) : contracts.length === 0 ? (
-        <Card>
-          <div className="py-8 text-center">
-            <p className="text-sm font-medium text-gray-900">Договоры выплат еще не созданы.</p>
-            <p className="mt-1 text-xs text-gray-500">После проверки анкеты администратор создаст настройку выплат.</p>
+        <Card><div className="py-8 text-center text-sm text-gray-500">Загружаем выплаты...</div></Card>
+      ) : details && (
+        <Card className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+            {isSbp ? <Smartphone size={16} className="text-blue-600" /> : <Building2 size={16} className="text-blue-600" />}
+            {isSbp ? 'СБП по номеру телефона' : 'Расчётный счёт'}
+            {details.beneficiaryName && <span className="text-xs font-normal text-gray-500">· получатель {details.beneficiaryName}</span>}
           </div>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {contracts.map(contract => (
-            <PayoutContractCard key={contract.contractId} contract={contract} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PayoutContractCard({ contract }: { contract: PayoutContract }) {
-  const isSbp = contract.payoutMode === 't_bank_sbp_individual';
-  const Icon = isSbp ? Smartphone : Building2;
-  const status = statusMeta[contract.status] ?? { label: contract.status, variant: 'gray' as const };
-
-  return (
-    <Card className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700">
-            <Icon size={17} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-gray-900">{modeLabel(contract.payoutMode)}</h3>
-              <Badge variant={status.variant}>{status.label}</Badge>
+          {isSbp ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <RuPhoneInput label="Телефон, привязанный к СБП" value={phone} onChange={setPhone} />
+              <Select
+                label="Банк получателя"
+                value={sbpMemberId}
+                options={[{ value: '', label: 'Выберите банк' }, ...banks.map(item => ({ value: item.sbpMemberId, label: item.displayBankName }))]}
+                onChange={event => setSbpMemberId(event.target.value)}
+              />
             </div>
-            <p className="mt-1 text-xs text-gray-500">
-              {contract.contractNumber ? `Договор #${contract.contractNumber}` : 'Договор без номера'}
-              {contract.startsOn ? ` · c ${formatDate(contract.startsOn)}` : ''}
-              {contract.currency ? ` · ${contract.currency}` : ''}
-            </p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input label="Расчётный счёт (20 цифр)" inputMode="numeric" value={account} onChange={event => setAccount(event.target.value.replace(/[^\d\s]/g, ''))} />
+              <Input
+                label="БИК"
+                inputMode="numeric"
+                value={bik}
+                onChange={event => {
+                  setBik(event.target.value.replace(/\D/g, ''));
+                  setBikLookup('idle');
+                }}
+                onBlur={() => void lookupBank()}
+              />
+              <Input label="Банк" value={bankName} onChange={event => setBankName(event.target.value)} />
+              <Input label="Корреспондентский счёт" inputMode="numeric" value={correspondentAccount} onChange={event => setCorrespondentAccount(event.target.value.replace(/\D/g, ''))} />
+              {bikLookup === 'missing' && <p className="text-xs text-amber-700 md:col-span-2">Банк по этому БИК не найден — укажите название вручную.</p>}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="primary" onClick={() => void save()} loading={saving}>
+              <Save size={14} /> Сохранить реквизиты
+            </Button>
+            {saved && <span className="flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 size={13} /> сохранено</span>}
           </div>
-        </div>
-        <p className="max-w-md text-xs leading-5 text-gray-500">{statusDescription(contract.status)}</p>
-      </div>
-
-      <div className="space-y-4 px-4 py-4">
-        {isSbp ? (
-          <SbpDetails contract={contract} />
-        ) : (
-          <BankDetails contract={contract} />
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function BankDetails({ contract }: { contract: PayoutContract }) {
-  const bank = contract.bankRequisites;
-
-  return (
-    <section>
-      <SectionTitle icon={<CreditCard size={14} />} title="Банковские реквизиты" />
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <InfoItem label="Банк" value={bank?.bankName} />
-        <InfoItem label="БИК" value={bank?.bik} mono />
-        <InfoItem label="Расчетный счет" value={bank?.account} mono />
-        <InfoItem label="Корреспондентский счет" value={bank?.correspondentAccount} mono />
-      </div>
-    </section>
-  );
-}
-
-function SbpDetails({ contract }: { contract: PayoutContract }) {
-  const source = contract.sbpPayout;
-
-  return (
-    <section>
-      <SectionTitle icon={<Smartphone size={14} />} title="СБП выплаты" />
-      {source ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <InfoItem label="Телефон" value={readValue(source, 'phone')} mono />
-          <InfoItem label="Банк" value={readValue(source, 'displayBankName') || readValue(source, 'bankName')} />
-          <InfoItem label="Участник СБП" value={readValue(source, 'sbpMemberId')} mono />
-          <InfoItem label="Получатель" value={readValue(source, 'recipientId') || readValue(source, 'paymentRecipientId')} mono />
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-gray-500">СБП реквизиты пока не указаны.</p>
+          <p className="text-xs text-gray-500">
+            После проверки кабинета администратор подключает выплаты в банке. До этого деньги за оказанные услуги накапливаются.
+          </p>
+        </Card>
       )}
-    </section>
-  );
-}
-
-function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
-  return (
-    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500">
-      {icon}
-      <span>{title}</span>
     </div>
   );
 }
-
-function InfoItem({ label, value, mono = false }: { label: string; value?: string | number | null; mono?: boolean }) {
-  const displayValue = value === null || value === undefined || value === '' ? '—' : String(value);
-
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium text-gray-500">{label}</p>
-      <p className={`mt-1 break-words text-xs font-medium text-gray-900 ${mono ? 'font-mono' : ''}`}>{displayValue}</p>
-    </div>
-  );
-}
-
-function modeLabel(mode: PayoutMode) {
-  if (mode === 't_bank_bank_account') return 'Банковский счет';
-  if (mode === 't_bank_sbp_individual') return 'СБП';
-  return mode;
-}
-
-function statusDescription(status: PayoutContractStatus) {
-  return statusDescriptions[status] ?? 'Статус настройки выплат обновляется администратором.';
-}
-
-function readValue(source: Record<string, unknown>, key: string) {
-  const value = source[key];
-  return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString('ru-RU');
-}
-

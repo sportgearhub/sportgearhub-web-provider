@@ -11,11 +11,40 @@ export interface AuthUser {
   phoneVerified?: boolean;
 }
 
-export interface ProviderMembership {
+export type ProviderStatus =
+  | 'draft'
+  | 'pending_review'
+  | 'changes_requested'
+  | 'rejected'
+  | 'active'
+  | 'suspended'
+  | 'archived'
+  | string;
+
+export type SellerKind = 'self_employed' | 'sole_proprietor' | 'company' | string;
+
+/** One row of the cabinet picker: a provider the user belongs to, as /auth/me lists it. */
+export interface ProviderSummary {
   providerId: string;
   displayName: string;
+  kind: SellerKind | null;
+  status: ProviderStatus;
   role: string;
-  operatingState: string;
+}
+
+export interface PendingInvitation {
+  invitationId: string;
+  providerId: string;
+  providerDisplayName: string;
+  role: string;
+  expiresAt: string;
+}
+
+/** Everything the console needs to decide where to land, from the one bootstrap call. */
+export interface Session {
+  user: AuthUser;
+  providers: ProviderSummary[];
+  pendingInvitations: PendingInvitation[];
 }
 
 export interface ProviderMemberRoleOption {
@@ -34,6 +63,7 @@ export interface ProviderMember {
   providerId: string;
   name: string;
   surname: string;
+  phone: string | null;
   email: string | null;
   role: string;
   createdAt: string;
@@ -45,12 +75,12 @@ export type ProviderInvitationStatus = 'pending' | 'accepted' | 'expired' | stri
 export interface ProviderInvitation {
   invitationId: string;
   providerId: string;
-  email: string;
+  phone: string;
   role: string;
   status: ProviderInvitationStatus;
   invitedByUserId: string;
   invitedByName: string;
-  invitedByEmail: string | null;
+  invitedByPhone: string | null;
   sentAt: string;
   expiresAt: string;
   acceptedByUserId: string | null;
@@ -90,32 +120,129 @@ export interface ProviderLocation {
 
 // ─── Provider / Profile ──────────────────────────────────────────────────────
 
-export interface OperatingState {
-  overallStatus: string;
-  onboardingStatus: string;
-  lifecycleState?: string;
-  moderationStatus?: string;
-  capabilityStatus: string;
-  settlementStatus: string;
-  resourceReadiness: string;
-  commercialReadiness: string;
-  diagnostics: Record<string, unknown>;
+
+export interface ProviderReviewSummary {
+  reviewId: string;
+  openedAt: string;
+  decidedAt: string | null;
+  verdict: 'approved' | 'changes_requested' | 'rejected' | string | null;
+  message: string | null;
 }
 
 export interface Provider {
   providerId: string;
   displayName: string;
-  slug?: string | null;
-  legalName?: string;
-  contactEmail: string;
-  contactPhone?: string;
-  address?: string;
-  description?: string;
-  operatingState: OperatingState;
-  onboardingStatus?: string;
-  lifecycleState?: string;
-  moderationStatus?: string;
+  description: string | null;
+  address: string | null;
+  slug: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  status: ProviderStatus;
+  latestReview: ProviderReviewSummary | null;
+  createdAt: string;
   updatedAt: string;
+}
+
+export type ReadinessItemStatus = 'ready' | 'missing' | 'awaiting_registration' | string;
+
+export interface ProviderReadinessItem {
+  key: 'profile' | 'seller_profile' | 'payout' | string;
+  status: ReadinessItemStatus;
+  hint: string | null;
+}
+
+export interface ProviderReadiness {
+  providerId: string;
+  status: ProviderStatus;
+  canSubmit: boolean;
+  isPublic: boolean;
+  canBePaid: boolean;
+  items: ProviderReadinessItem[];
+  latestReview: ProviderReviewSummary | null;
+}
+
+export interface SellerPerson {
+  lastName: string;
+  firstName: string;
+  middleName: string | null;
+}
+
+export interface SellerDirector extends SellerPerson {
+  position: string;
+}
+
+export interface SellerBusinessDetails {
+  legalName: string;
+  registrationNumber: string;
+  legalAddress: string;
+  taxationSystem: string;
+  vatRate: string;
+  director: SellerDirector;
+}
+
+/** One shape switched on `kind`: `person` for a самозанятый, `business` for ИП and organisations, `company` on top for organisations. */
+export interface SellerProfile {
+  sellerProfileId: string;
+  kind: SellerKind;
+  inn: string;
+  person: SellerPerson | null;
+  business: SellerBusinessDetails | null;
+  company: { kpp: string } | null;
+  updatedAt: string;
+}
+
+export interface SellerProfileInput {
+  kind: SellerKind;
+  inn: string;
+  taxationSystem?: string;
+  vatRate?: string;
+  person?: { lastName: string; firstName: string; middleName?: string | null };
+}
+
+export interface LegalIdentityLookup {
+  legalCountryCode: string;
+  legalForm: string | null;
+  legalName: string | null;
+  taxNumber: string | null;
+  registrationNumber: string | null;
+  branchNumber: string | null;
+  address: string | null;
+  chiefExecutivePrefill: { firstName: string | null; lastName: string | null; middleName: string | null; position: string | null } | null;
+}
+
+export interface Agreement {
+  number: number;
+  acceptedAt: string;
+  status: 'accepted' | 'active' | 'terminated' | string;
+  activatedAt: string | null;
+  terminatedAt: string | null;
+}
+
+export type PayoutMethod = 'sbp' | 'bank_account' | string;
+
+export interface PayoutDetails {
+  method: PayoutMethod;
+  hasDetails: boolean;
+  status: string | null;
+  registered: boolean;
+  beneficiaryName: string | null;
+  phone: string | null;
+  sbpMemberId: string | null;
+  bankName: string | null;
+  account: string | null;
+  bik: string | null;
+  correspondentAccount: string | null;
+  updatedAt: string | null;
+}
+
+export interface PayoutDetailsInput {
+  method: PayoutMethod;
+  phone?: string;
+  sbpMemberId?: string;
+  bankName?: string;
+  account?: string;
+  bik?: string;
+  correspondentAccount?: string;
 }
 
 export type PayoutMode = 't_bank_bank_account' | 't_bank_sbp_individual' | string;
@@ -227,29 +354,14 @@ export interface DashboardAlert {
 export interface DashboardResponse {
   providerId: string;
   displayName: string;
-  operatingState: OperatingState;
+  readiness: ProviderReadiness;
   counts: DashboardCounts;
   workQueue: DashboardWorkQueue;
   alerts: DashboardAlert[];
   updatedAt: string;
 }
 
-export interface OnboardingChecklistItem {
-  key: string;
-  status: string;
-  label: string;
-  details?: string;
-}
 
-export interface OnboardingResponse {
-  providerId: string;
-  status: string;
-  lifecycleState: string;
-  moderationStatus: string;
-  checklist: OnboardingChecklistItem[];
-  nextActions: string[];
-  updatedAt: string;
-}
 
 // ─── Legacy shape kept for mock data / existing UI components ─────────────────
 

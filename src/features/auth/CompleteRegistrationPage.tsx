@@ -45,12 +45,12 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
     setError('');
     setLoading(true);
     try {
-      const session = await completePhoneRegistration({
+      await completePhoneRegistration({
         token,
         name: form.name.trim(),
         surname: form.surname.trim(),
       });
-      onNavigate(session.memberships.length > 0 ? '/auth/passcode-setup' : '/onboarding');
+      onNavigate('/auth/passcode-setup');
     } catch (err) {
       if (err instanceof ApiError) {
         const mapped: FieldErrors = {
