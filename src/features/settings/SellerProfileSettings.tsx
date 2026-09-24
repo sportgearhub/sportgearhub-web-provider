@@ -5,7 +5,9 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ApiError, providerApi } from '../../lib/api-client';
 import type { PayoutDetails, SellerProfile } from '../../types';
+import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
+import { SellerDetailsFields, SellerKindChoice, emptySellerDraft, sellerDraftError, sellerDraftToInput, type SellerDraft } from '../providers/SellerDetailsFields';
 import { kindLabel, taxationSystemOptions, vatRateOptions } from '../providers/providerStatus';
 
 const taxationLabels: Record<string, string> = {
@@ -31,7 +33,11 @@ const vatLabels: Record<string, string> = {
  */
 export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: string) => void }) {
   const provider = useProvider();
+  const { user, reloadSession } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
+  // Cabinets from before onboarding have no legal party yet; they enter it right here.
+  const [missing, setMissing] = useState(false);
+  const [draft, setDraft] = useState<SellerDraft>(() => emptySellerDraft(user?.name));
   const [payout, setPayout] = useState<PayoutDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -58,7 +64,9 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
         }
       })
       .catch(err => {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Не удалось загрузить данные продавца.');
+        if (cancelled) return;
+        if (err instanceof ApiError && err.code === 'provider.seller_profile_required') setMissing(true);
+        else setError(err instanceof ApiError ? err.message : 'Не удалось загрузить данные продавца.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -67,6 +75,32 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
       cancelled = true;
     };
   }, [provider.providerId]);
+
+  const createProfile = async () => {
+    const problem = sellerDraftError(draft);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const next = await providerApi.updateSellerProfile(sellerDraftToInput(draft));
+      setProfile(next);
+      setMissing(false);
+      setPayout(await providerApi.payout().catch(() => null));
+      if (next.business) {
+        setTaxationSystem(next.business.taxationSystem);
+        setVatRate(next.business.vatRate);
+      }
+      if (next.person) setPerson({ lastName: next.person.lastName, firstName: next.person.firstName, middleName: next.person.middleName ?? '' });
+      await reloadSession();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить данные продавца.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     if (!profile) return;
@@ -109,8 +143,30 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
       {error && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
       {loading ? (
         <p className="mt-6 text-sm text-gray-500">Загружаем...</p>
-      ) : !profile ? (
-        <p className="mt-6 text-sm text-gray-500">Данные продавца не заданы.</p>
+      ) : missing || !profile ? (
+        <div className="mt-6 max-w-xl space-y-5">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
+            <p className="font-semibold">Данные продавца ещё не заполнены.</p>
+            <p className="mt-1">Кабинет создан до того, как они стали обязательными. Без формы собственности и ИНН нельзя принять договор и получать выплаты. Заполните их один раз — изменить потом можно будет только через новый кабинет.</p>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-950">Форма собственности</h2>
+            <div className="mt-3">
+              <SellerKindChoice value={draft.kind} onChange={kind => setDraft(current => ({ ...current, kind, inn: '' }))} />
+            </div>
+          </div>
+          {draft.kind && (
+            <div>
+              <h2 className="text-base font-semibold text-gray-950">Данные продавца</h2>
+              <div className="mt-3">
+                <SellerDetailsFields draft={draft} onChange={setDraft} onLookupError={setError} />
+              </div>
+            </div>
+          )}
+          <Button variant="primary" disabled={!draft.kind} loading={saving} onClick={() => void createProfile()}>
+            <Save size={14} /> Сохранить данные продавца
+          </Button>
+        </div>
       ) : (
         <>
           <h2 className="mt-8 text-base font-semibold text-gray-950">Общая информация</h2>
