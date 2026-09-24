@@ -101,6 +101,7 @@ export interface CatalogCity {
   timezone?: string | null;
 }
 
+/** A пункт проката: an address (from the registry) or a pin; the city is derived by the API. */
 export interface ProviderLocation {
   fulfillmentLocationId: string;
   locationId: string;
@@ -109,12 +110,9 @@ export interface ProviderLocation {
   cityName?: string;
   name: string;
   address: string;
-  type: 'pickup' | 'service_area' | string;
   status: string;
-  isDefaultPickup: boolean;
   latitude?: number | null;
   longitude?: number | null;
-  description?: string | null;
   updatedAt?: string;
 }
 

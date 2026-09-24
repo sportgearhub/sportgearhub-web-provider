@@ -162,7 +162,7 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       .then(nextLocations => {
         if (cancelled) return;
         setLocations(nextLocations);
-        setLocationId(current => current || nextLocations.find(location => location.isDefaultPickup)?.locationId || '');
+        setLocationId(current => current || nextLocations[0]?.locationId || '');
       })
       .catch(err => {
         if (!cancelled) setLocationsError(err instanceof ApiError ? err.message : 'Не удалось загрузить пункты выдачи.');

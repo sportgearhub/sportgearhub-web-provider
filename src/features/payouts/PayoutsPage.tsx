@@ -161,9 +161,7 @@ export function PayoutsPage() {
             </Button>
             {saved && <span className="flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 size={13} /> сохранено</span>}
           </div>
-          <p className="text-xs text-gray-500">
-            После проверки кабинета администратор подключает выплаты в банке. До этого деньги за оказанные услуги накапливаются.
-          </p>
+          <p className="text-xs text-gray-500">Подключение в банке выполняет платформа после проверки кабинета.</p>
         </Card>
       )}
     </div>

@@ -148,7 +148,7 @@ function SetupGuide({
         {readiness.items.map(item => (
           <ChecklistRow key={item.key} item={item} onNavigate={onNavigate} />
         ))}
-        <ChecklistRow item={{ key: 'locations', status: 'optional', hint: null }} onNavigate={onNavigate} title="Точка выдачи" path="/settings/locations" note="нужна для публикации предложений, но не для проверки" />
+        <ChecklistRow item={{ key: 'locations', status: 'optional', hint: null }} onNavigate={onNavigate} title="Пункт проката" path="/settings/locations" note="адрес, где вы выдаёте снаряжение — нужен предложениям, но не проверке" />
         <ChecklistRow item={{ key: 'offers', status: 'optional', hint: null }} onNavigate={onNavigate} title="Первое предложение" path="/resources" note="можно создать до проверки — станет видно после" />
       </ul>
     </Card>

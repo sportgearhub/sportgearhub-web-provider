@@ -136,7 +136,7 @@ const router = createBrowserRouter([
           { path: 'settings/locations', element: <SettingsRoute tab="locations" /> },
           { path: 'settings/employees', element: <SettingsRoute tab="employees" /> },
           { path: 'settings/payouts', element: <SettingsRoute tab="payouts" /> },
-          { path: 'settings/documents', element: <SettingsRoute tab="documents" /> },
+          { path: 'settings/contracts', element: <SettingsRoute tab="contracts" /> },
           { path: 'settings/account', element: <SettingsRoute tab="account" /> },
           { path: '*', element: <Navigate to="." replace /> },
         ],

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmailAttachCard } from './EmailAttachCard';
-import { Building2, CreditCard, Globe2, MapPin, Plus, Save, Trash2, UserRound, UsersRound, BadgeCheck, FileText } from 'lucide-react';
+import { Globe2, Plus, Save, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -15,11 +15,11 @@ import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOp
 import { LocationsPage } from '../locations/LocationsPage';
 import { PayoutsPage } from '../payouts/PayoutsPage';
 import { SellerProfileSettings } from './SellerProfileSettings';
-import { DocumentsSettings } from './DocumentsSettings';
+import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 
-export type SettingsTab = 'shop' | 'seller' | 'storefront' | 'locations' | 'account' | 'employees' | 'payouts' | 'documents';
+export type SettingsTab = 'shop' | 'seller' | 'storefront' | 'locations' | 'account' | 'employees' | 'payouts' | 'contracts';
 type StorefrontTab = 'settings' | 'live';
 
 interface SettingsPageProps {
@@ -27,16 +27,30 @@ interface SettingsPageProps {
   onNavigate: (path: string) => void;
 }
 
-const tabs: { id: SettingsTab; label: string; path: string; icon: typeof Building2 }[] = [
-  { id: 'shop', label: 'Профиль', path: '/settings/shop', icon: Building2 },
-  { id: 'seller', label: 'Продавец', path: '/settings/seller', icon: BadgeCheck },
-  { id: 'locations', label: 'Локации', path: '/settings/locations', icon: MapPin },
-  { id: 'employees', label: 'Сотрудники', path: '/settings/employees', icon: UsersRound },
-  { id: 'payouts', label: 'Выплаты', path: '/settings/payouts', icon: CreditCard },
-  { id: 'documents', label: 'Документы', path: '/settings/documents', icon: FileText },
-  { id: 'account', label: 'Аккаунт', path: '/settings/account', icon: UserRound },
+// The settings sidebar, grouped the way a seller thinks about it: the cabinet, the money and
+// paperwork, the account.
+const sidebarGroups: { title: string; items: { id: SettingsTab; label: string; path: string }[] }[] = [
+  {
+    title: 'Управление кабинетом',
+    items: [
+      { id: 'shop', label: 'Профиль проката', path: '/settings/shop' },
+      { id: 'locations', label: 'Пункты проката', path: '/settings/locations' },
+      { id: 'employees', label: 'Сотрудники', path: '/settings/employees' },
+    ],
+  },
+  {
+    title: 'Реквизиты и договор',
+    items: [
+      { id: 'seller', label: 'Информация о продавце', path: '/settings/seller' },
+      { id: 'payouts', label: 'Реквизиты', path: '/settings/payouts' },
+      { id: 'contracts', label: 'Договоры', path: '/settings/contracts' },
+    ],
+  },
+  {
+    title: 'Учётная запись',
+    items: [{ id: 'account', label: 'Аккаунт', path: '/settings/account' }],
+  },
 ];
-
 const reservedProviderSlugs = new Set([
   'www',
   'api',
@@ -48,41 +62,51 @@ const reservedProviderSlugs = new Set([
 ]);
 
 export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
-  const showSettingsTabs = tab !== 'storefront';
-
+  const showSidebar = tab !== 'storefront';
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white">
-      {showSettingsTabs && (
-        <div className="shrink-0 border-b border-gray-200 bg-white px-6">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map(item => {
-              const Icon = item.icon;
-              const active = item.id === tab;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onNavigate(item.path)}
-                  className={`flex h-10 items-center gap-2 border-b-2 px-3 text-sm font-medium transition ${
-                    active
-                      ? 'border-blue-600 text-blue-700'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon size={15} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+    <div className="flex min-h-0 flex-1 bg-white">
+      {showSidebar && (
+        <aside className="hidden w-64 shrink-0 border-r border-gray-200 px-4 py-5 md:block" aria-label="Разделы настроек">
+          {sidebarGroups.map(group => (
+            <div key={group.title} className="mb-6">
+              <p className="mb-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
+              {group.items.map(item => {
+                const active = item.id === tab;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onNavigate(item.path)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex w-full items-center rounded-md border-l-2 px-2 py-1.5 text-left text-sm transition ${
+                      active ? 'border-blue-600 bg-blue-50 font-medium text-blue-700' : 'border-transparent text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </aside>
       )}
-
-      <div className="min-h-0 flex-1 bg-white">
+      <div className="min-h-0 min-w-0 flex-1 bg-white">
+        {showSidebar && (
+          <div className="border-b border-gray-200 px-4 py-2 md:hidden">
+            <Select
+              aria-label="Раздел настроек"
+              value={tab}
+              options={sidebarGroups.flatMap(group => group.items.map(item => ({ value: item.id, label: item.label })))}
+              onChange={event => {
+                const target = sidebarGroups.flatMap(group => group.items).find(item => item.id === event.target.value);
+                if (target) onNavigate(target.path);
+              }}
+            />
+          </div>
+        )}
         {tab === 'shop' && <ShopProfileSettings />}
-        {tab === 'seller' && <SellerProfileSettings />}
-        {tab === 'documents' && <DocumentsSettings />}
+        {tab === 'seller' && <SellerProfileSettings onNavigate={onNavigate} />}
+        {tab === 'contracts' && <ContractsSettings />}
         {tab === 'storefront' && <StorefrontSettingsPage />}
         {tab === 'locations' && <LocationsPage embedded />}
         {tab === 'employees' && <EmployeesSettings />}

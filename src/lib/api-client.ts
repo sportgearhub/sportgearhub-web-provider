@@ -990,17 +990,7 @@ export const locationsApi = {
       ...location,
       locationId: location.locationId ?? location.fulfillmentLocationId,
     })),
-
-  create: (data: {
-    cityId: string;
-    name: string;
-    address: string;
-    type: string;
-    isDefaultPickup: boolean;
-    latitude?: number | null;
-    longitude?: number | null;
-    description?: string | null;
-  }) =>
+  create: (data: { address: string; name?: string; latitude?: number | null; longitude?: number | null }) =>
     providerRequest<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>('/fulfillment-locations', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -1008,10 +998,9 @@ export const locationsApi = {
       ...location,
       locationId: location.locationId ?? location.fulfillmentLocationId,
     })),
-
   patch: (
     fulfillmentLocationId: string,
-    data: Partial<Pick<ProviderLocation, 'cityId' | 'name' | 'address' | 'type' | 'isDefaultPickup' | 'description' | 'latitude' | 'longitude'>>
+    data: { address?: string; name?: string; latitude?: number | null; longitude?: number | null }
   ) =>
     providerRequest<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>(`/fulfillment-locations/${fulfillmentLocationId}`, {
       method: 'PATCH',

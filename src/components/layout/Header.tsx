@@ -9,28 +9,12 @@ import { cn } from '../../lib/utils';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 
-type MenuItem = {
-  label: string;
-  path: string;
-  /** Draws a divider above the item, to separate money and documents from shop setup. */
-  separated?: boolean;
-};
-
 const navItems: { label: string; path: string }[] = [
   { label: 'Дашборд', path: '/' },
   { label: 'Выдача', path: '/fulfillment' },
   { label: 'Каталог', path: '/resources' },
   { label: 'Предложения', path: '/offers' },
-];
-
-const settingsMenuItems: MenuItem[] = [
-  { label: 'Профиль', path: '/settings/shop' },
-  { label: 'Продавец', path: '/settings/seller' },
-  { label: 'Локации', path: '/settings/locations' },
-  { label: 'Сотрудники', path: '/settings/employees' },
-  { label: 'Выплаты', path: '/settings/payouts', separated: true },
-  { label: 'Документы', path: '/settings/documents' },
-  { label: 'Аккаунт', path: '/settings/account', separated: true },
+  { label: 'Настройки', path: '/settings' },
 ];
 
 interface HeaderProps {
@@ -43,7 +27,6 @@ interface HeaderProps {
 export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
   const { user, signOut } = useAuth();
   const provider = useProvider();
-  const settingsActive = currentPath.startsWith('/settings');
   const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
 
   return (
@@ -72,7 +55,6 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
               {item.label}
             </button>
           ))}
-          <SettingsMenu active={settingsActive} currentPath={currentPath} onNavigate={onNavigate} />
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}
@@ -153,58 +135,6 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
             Добавить кабинет
           </button>
         </>
-      )}
-    </>
-  );
-}
-
-function SettingsMenu({
-  active,
-  currentPath,
-  onNavigate,
-}: {
-  active: boolean;
-  currentPath: string;
-  onNavigate: (path: string) => void;
-}) {
-  const menu = useDropdown();
-  return (
-    <>
-      <button
-        ref={menu.triggerRef}
-        type="button"
-        onClick={menu.toggle}
-        aria-expanded={menu.open}
-        aria-haspopup="menu"
-        className={cn(
-          'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors',
-          active || menu.open
-            ? 'bg-sidebar-accent text-sidebar-primary'
-            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-        )}
-      >
-        Настройки
-        <ChevronDown size={13} className={cn('transition-transform', menu.open && 'rotate-180')} />
-      </button>
-      {menu.render(
-        settingsMenuItems.map(item => (
-          <button
-            key={item.path}
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              menu.close();
-              onNavigate(item.path);
-            }}
-            className={cn(
-              'flex h-9 w-full items-center px-3 text-left text-sm transition hover:bg-sidebar-accent',
-              item.separated && 'mt-1 border-t',
-              currentPath.startsWith(item.path) ? 'text-sidebar-primary' : 'text-foreground'
-            )}
-          >
-            {item.label}
-          </button>
-        ))
       )}
     </>
   );

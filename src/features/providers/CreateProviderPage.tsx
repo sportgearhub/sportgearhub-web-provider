@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, ExternalLink, Search } from 'lucide-react';
+import { ArrowLeft, Building2, Check, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -53,20 +53,33 @@ export function CreateProviderPage() {
   const expectedInnLength = kind === 'company' ? 10 : 12;
   const innOk = innDigits.length === expectedInnLength && isValidInn(innDigits);
 
-  const findInRegistry = async () => {
-    setLookupState('loading');
-    setError('');
-    try {
-      const found = await providersApi.lookupSeller(innDigits);
-      setLookup(found);
-      setLookupState('idle');
-      if (!displayName && found.legalName) setDisplayName(shortName(found.legalName));
-    } catch (err) {
+  // The registry is asked as soon as the ИНН is complete and passes its checksum — no button.
+  useEffect(() => {
+    if (!isBusiness || !innOk) {
       setLookup(null);
-      setLookupState('missing');
-      if (err instanceof ApiError && err.status !== 404) setError(err.message);
+      setLookupState('idle');
+      return;
     }
-  };
+    let cancelled = false;
+    setLookupState('loading');
+    const timer = window.setTimeout(async () => {
+      try {
+        const found = await providersApi.lookupSeller(innDigits);
+        if (cancelled) return;
+        setLookup(found);
+        setLookupState('idle');
+      } catch (err) {
+        if (cancelled) return;
+        setLookup(null);
+        setLookupState('missing');
+        if (err instanceof ApiError && err.status !== 404) setError(err.message);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [innDigits, innOk, isBusiness]);
 
   const goToAbout = () => {
     setError('');
@@ -77,11 +90,6 @@ export function CreateProviderPage() {
     if (kind === 'self_employed' && (!person.lastName.trim() || !person.firstName.trim())) {
       setError('Укажите фамилию и имя как в налоговом учёте.');
       return;
-    }
-    if (!displayName) {
-      setDisplayName(kind === 'self_employed'
-        ? `${person.firstName} ${person.lastName}`.trim()
-        : lookup?.legalName ? shortName(lookup.legalName) : '');
     }
     setStep('about');
   };
@@ -193,12 +201,8 @@ export function CreateProviderPage() {
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="secondary" size="sm" disabled={!innOk} loading={lookupState === 'loading'} onClick={() => void findInRegistry()}>
-                    <Search size={13} /> Найти в реестре
-                  </Button>
-                  {lookupState === 'missing' && <span className="text-xs text-amber-700">В реестре не нашли — проверьте ИНН.</span>}
-                </div>
+                {lookupState === 'loading' && <p className="text-xs text-gray-500">Ищем в реестре…</p>}
+                {lookupState === 'missing' && <p className="text-xs text-amber-700">В реестре не нашли — проверьте ИНН.</p>}
                 {lookup && (
                   <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-950">
                     <p className="flex items-center gap-1.5 text-sm font-semibold"><Building2 size={14} /> {lookup.legalName}</p>
@@ -231,7 +235,7 @@ export function CreateProviderPage() {
 
         {step === 'about' && (
           <div className="space-y-3">
-            <Input label="Название кабинета" value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder="Прокат Петрова" />
+            <Input label="Название кабинета" value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder={kind === 'self_employed' ? 'Прокат Петрова' : 'Название, которое увидят клиенты'} />
             <Textarea label="Коротко о вас" rows={3} value={description} onChange={event => setDescription(event.target.value)} placeholder="Велосипеды и самокаты в Уфе, выдача у парка." />
             <label className="flex items-start gap-2 text-xs leading-5 text-gray-700">
               <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-gray-300" />
@@ -258,8 +262,3 @@ export function CreateProviderPage() {
   );
 }
 
-/** «ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ПРИМЕР"» → «Пример» is a lawyer's job; we only trim the ОПФ. */
-function shortName(legalName: string) {
-  const quoted = legalName.match(/[«"“]([^»"”]+)[»"”]/);
-  return quoted ? quoted[1] : legalName;
-}

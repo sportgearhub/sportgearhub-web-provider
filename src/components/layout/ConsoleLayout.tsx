@@ -22,7 +22,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/settings/locations': { title: '' },
   '/settings/employees': { title: '' },
   '/settings/payouts': { title: '' },
-  '/settings/documents': { title: '' },
+  '/settings/contracts': { title: '' },
   '/settings/account': { title: '' },
 };
 
