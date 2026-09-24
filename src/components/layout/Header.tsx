@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, HelpCircle, LogOut, Mountain, Plus, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
+import { selectProvider } from '../../lib/active-provider';
 import { statusMeta } from '../../features/providers/providerStatus';
 import { cn } from '../../lib/utils';
 import { Badge } from '../ui/Badge';
@@ -109,7 +110,10 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
                 role="menuitem"
                 onClick={() => {
                   menu.close();
-                  if (!active) navigate(`/providers/${item.providerId}`);
+                  if (!active) {
+                    selectProvider(item.providerId);
+                    navigate('/');
+                  }
                 }}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-sidebar-accent',
@@ -127,7 +131,7 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
             role="menuitem"
             onClick={() => {
               menu.close();
-              navigate('/new');
+              navigate('/providers/new');
             }}
             className="mt-1 flex h-9 w-full items-center gap-2 border-t px-3 text-left text-sm text-foreground transition hover:bg-sidebar-accent"
           >

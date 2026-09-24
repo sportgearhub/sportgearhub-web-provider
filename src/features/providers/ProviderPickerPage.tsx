@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { FocusFrame } from '../../components/layout/FocusFrame';
 import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
-import { lastProviderId, rememberProvider } from '../../lib/active-provider';
+import { selectProvider, selectedProviderId } from '../../lib/active-provider';
 import { kindLabel, roleLabel, statusMeta } from './providerStatus';
 
 /**
@@ -22,7 +22,7 @@ export function ProviderPickerPage() {
   const deniedProviderId = (location.state as { deniedProviderId?: string } | null)?.deniedProviderId;
   const [accepting, setAccepting] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const remembered = lastProviderId();
+  const remembered = selectedProviderId();
   const [selected, setSelected] = useState<string>(() =>
     providers.some(item => item.providerId === remembered) ? remembered! : providers[0]?.providerId ?? '');
 
@@ -30,14 +30,15 @@ export function ProviderPickerPage() {
     if (!providers.some(item => item.providerId === selected)) setSelected(providers[0]?.providerId ?? '');
   }, [providers, selected]);
 
-  if (providers.length === 0 && pendingInvitations.length === 0) return <Navigate to="/new" replace />;
+  if (providers.length === 0 && pendingInvitations.length === 0) return <Navigate to="/providers/new" replace />;
   if (providers.length === 1 && pendingInvitations.length === 0 && !deniedProviderId) {
-    return <Navigate to={`/providers/${providers[0].providerId}`} replace />;
+    selectProvider(providers[0].providerId);
+    return <Navigate to="/" replace />;
   }
 
   const enter = (providerId: string) => {
-    rememberProvider(providerId);
-    navigate(`/providers/${providerId}`);
+    selectProvider(providerId);
+    navigate('/');
   };
 
   const accept = async (invitationId: string, providerId: string) => {
@@ -135,7 +136,7 @@ export function ProviderPickerPage() {
         )}
         <button
           type="button"
-          onClick={() => navigate('/new')}
+          onClick={() => navigate('/providers/new')}
           className="flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
         >
           <Plus size={14} /> Добавить кабинет

@@ -1,7 +1,7 @@
 import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
-import { lastProviderId } from './lib/active-provider';
+import { selectProvider } from './lib/active-provider';
 import { CompleteRegistrationPage, PasscodeSetupPage, PasscodeSignInPage, SignInPage } from './features/auth/AuthPages';
 import { ProviderPickerPage } from './features/providers/ProviderPickerPage';
 import { CreateProviderPage } from './features/providers/CreateProviderPage';
@@ -57,12 +57,17 @@ function RequireSession() {
   return <Outlet />;
 }
 
-/** Bookmarks from before the console was scoped: send them to the same page in the last cabinet. */
-function LegacyRedirect() {
+/** Links from when the cabinet lived in the URL: select that cabinet, then open the same page. */
+function ScopedLinkRedirect() {
+  const { providerId = '' } = useParams();
+  const { providers } = useAuth();
   const location = useLocation();
-  const last = lastProviderId();
-  const target = last ? `/providers/${last}${location.pathname}${location.search}` : '/';
-  return <Navigate to={target} replace />;
+  const rest = location.pathname.replace(/^\/providers\/[^/]+/, '') || '/';
+  if (!providers.some(item => item.providerId === providerId)) {
+    return <Navigate to="/providers" replace state={{ deniedProviderId: providerId }} />;
+  }
+  selectProvider(providerId);
+  return <Navigate to={`${rest}${location.search}`} replace />;
 }
 
 // Console pages still take their navigation and header hooks as props.
@@ -116,10 +121,11 @@ const router = createBrowserRouter([
   {
     element: <RequireSession />,
     children: [
-      { path: '/', element: <ProviderPickerPage /> },
-      { path: '/new', element: <CreateProviderPage /> },
+      { path: '/providers', element: <ProviderPickerPage /> },
+      { path: '/providers/new', element: <CreateProviderPage /> },
+      { path: '/providers/:providerId/*', element: <ScopedLinkRedirect /> },
       {
-        path: '/providers/:providerId',
+        path: '/',
         element: <ConsoleLayout />,
         children: [
           { index: true, element: <DashboardRoute /> },
@@ -138,17 +144,13 @@ const router = createBrowserRouter([
           { path: 'settings/payouts', element: <SettingsRoute tab="payouts" /> },
           { path: 'settings/contracts', element: <SettingsRoute tab="contracts" /> },
           { path: 'settings/account', element: <SettingsRoute tab="account" /> },
-          { path: '*', element: <Navigate to="." replace /> },
+          { path: 'onboarding', element: <Navigate to="/" replace /> },
+          { path: 'new', element: <Navigate to="/providers/new" replace /> },
+          { path: 'payouts', element: <Navigate to="/settings/payouts" replace /> },
+          { path: 'locations', element: <Navigate to="/settings/locations" replace /> },
+          { path: '*', element: <Navigate to="/" replace /> },
         ],
       },
-      { path: '/onboarding', element: <Navigate to="/" replace /> },
-      { path: '/fulfillment', element: <LegacyRedirect /> },
-      { path: '/resources/*', element: <LegacyRedirect /> },
-      { path: '/offers', element: <LegacyRedirect /> },
-      { path: '/settings/*', element: <LegacyRedirect /> },
-      { path: '/payouts', element: <LegacyRedirect /> },
-      { path: '/locations', element: <LegacyRedirect /> },
-      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
 ]);

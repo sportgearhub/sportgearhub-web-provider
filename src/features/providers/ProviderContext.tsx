@@ -10,6 +10,6 @@ export function ProviderContextProvider({ provider, children }: { provider: Prov
 
 export function useProvider(): ProviderSummary {
   const provider = useContext(ProviderContext);
-  if (!provider) throw new Error('useProvider must be used inside a /providers/:providerId route.');
+  if (!provider) throw new Error('useProvider must be used inside the console layout.');
   return provider;
 }

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
-import { setActiveProviderId } from '../../lib/active-provider';
+import { selectProvider, useSelectedProviderId } from '../../lib/active-provider';
 import { ProviderContextProvider } from '../../features/providers/ProviderContext';
 import { statusMeta } from '../../features/providers/providerStatus';
 import { Header } from './Header';
@@ -34,26 +34,26 @@ function pageFor(relativePath: string): PageConfig {
 }
 
 /**
- * Everything under /providers/:providerId. Resolves the provider from the session, publishes it
- * to the API client and to pages, and translates the pages' console-relative navigation
- * ("/resources/…") into the scoped URL.
+ * The console. The cabinet is whichever one this device selected (see active-provider.ts); a
+ * selection the session does not know, or none at all, sends the person to the picker. A person
+ * with exactly one cabinet never sees the picker: it is selected for them.
  */
 export function ConsoleLayout() {
-  const { providerId = '' } = useParams();
+  const selectedId = useSelectedProviderId();
   const { providers, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [headerContent, setHeaderContent] = useState<PageConfig | null>(null);
 
-  const provider = useMemo(() => providers.find(item => item.providerId === providerId) ?? null, [providers, providerId]);
-  const base = `/providers/${providerId}`;
-  const relativePath = location.pathname.startsWith(base) ? location.pathname.slice(base.length) || '/' : '/';
+  const provider = useMemo(() => {
+    const chosen = providers.find(item => item.providerId === selectedId);
+    return chosen ?? (providers.length === 1 ? providers[0] : null);
+  }, [providers, selectedId]);
+  const relativePath = location.pathname || '/';
 
-  // Publish the route's provider to the API client before any page issues a request.
-  useEffect(() => {
-    setActiveProviderId(provider ? provider.providerId : null);
-    return () => setActiveProviderId(null);
-  }, [provider]);
+  // The selection must be in place before a page's first render, not after it: pages load their
+  // data in effects, and children's effects run before this layout's would.
+  if (provider && provider.providerId !== selectedId) selectProvider(provider.providerId);
 
   useEffect(() => {
     setHeaderContent(null);
@@ -61,14 +61,10 @@ export function ConsoleLayout() {
 
   if (loading) return null;
   if (!provider) {
-    // Not a member (or a stale link): back to the picker, which knows what to offer.
-    return <Navigate to="/" replace state={{ deniedProviderId: providerId }} />;
+    return <Navigate to="/providers" replace />;
   }
 
-  const navigateTo = (path: string) => {
-    const target = path === '/' ? base : path.startsWith('/') ? `${base}${path}` : path;
-    navigate(target);
-  };
+  const navigateTo = (path: string) => navigate(path);
 
   const page = headerContent ?? pageFor(relativePath);
   const status = statusMeta(provider.status);

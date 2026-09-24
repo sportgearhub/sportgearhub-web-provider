@@ -1,3 +1,4 @@
+import { clearSelectedProvider } from '../lib/active-provider';
 import { createContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import type { AuthUser, PendingInvitation, ProviderSummary, Session } from '../types';
 import { ApiError, authApi } from '../lib/api-client';
@@ -103,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    clearSelectedProvider();
     await authApi.signout().catch(() => undefined);
     setUser(null);
     setProviders([]);

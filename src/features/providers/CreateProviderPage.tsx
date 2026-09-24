@@ -10,7 +10,7 @@ import { Textarea } from '../../components/ui/Textarea';
 import { FocusFrame } from '../../components/layout/FocusFrame';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, providersApi } from '../../lib/api-client';
-import { rememberProvider } from '../../lib/active-provider';
+import { selectProvider } from '../../lib/active-provider';
 import type { LegalIdentityLookup, SellerKind } from '../../types';
 import { AGREEMENT_URL, isValidInn, taxationSystemOptions, vatRateOptions } from './providerStatus';
 
@@ -112,8 +112,8 @@ export function CreateProviderPage() {
         description: description.trim() || undefined,
       });
       await reloadSession();
-      rememberProvider(provider.providerId);
-      navigate(`/providers/${provider.providerId}`, { replace: true });
+      selectProvider(provider.providerId);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось создать кабинет.');
       // The registry refused the ИНН or the kind: that is screen two's problem.
@@ -166,7 +166,7 @@ export function CreateProviderPage() {
               </div>
             )}
             <div className="flex justify-between pt-2">
-              <Button type="button" variant="secondary" onClick={() => navigate(providers.length > 0 ? '/' : '/auth/sign-in')}>
+              <Button type="button" variant="secondary" onClick={() => navigate(providers.length > 0 ? '/providers' : '/auth/sign-in')}>
                 <ArrowLeft size={14} /> Назад
               </Button>
               <Button type="button" variant="primary" disabled={!kind || noBusinessYet} onClick={() => setStep('seller')}>
