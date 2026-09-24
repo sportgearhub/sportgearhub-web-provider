@@ -12,11 +12,13 @@ type LocationForm = {
   locationId?: string;
   name: string;
   address: string;
+  /** Registry id of the picked suggestion; cleared the moment the seller edits the text. */
+  addressFiasId: string | null;
   latitude: number | null;
   longitude: number | null;
 };
 
-const emptyForm: LocationForm = { name: '', address: '', latitude: null, longitude: null };
+const emptyForm: LocationForm = { name: '', address: '', addressFiasId: null, latitude: null, longitude: null };
 
 /**
  * «Пункты проката» — where a provider hands gear over. An address picked from the registry, or a
@@ -58,6 +60,7 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
       locationId: location.locationId,
       name: location.name,
       address: location.address,
+      addressFiasId: location.addressFiasId ?? null,
       latitude: location.latitude ?? null,
       longitude: location.longitude ?? null,
     });
@@ -65,16 +68,19 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
     setEditing(true);
   };
 
+  const hasPin = form.latitude !== null && form.longitude !== null;
+
   const save = async () => {
-    if (!form.address.trim()) {
-      setError('Укажите адрес — выберите его из подсказок или на карте.');
+    if (!form.addressFiasId && !hasPin) {
+      setError('Выберите адрес из подсказок или укажите точку на карте.');
       return;
     }
     setSaving(true);
     setError('');
     try {
       const payload = {
-        address: form.address.trim(),
+        addressFiasId: form.addressFiasId,
+        address: form.address.trim() || undefined,
         name: form.name.trim() || undefined,
         latitude: form.latitude,
         longitude: form.longitude,
@@ -120,10 +126,11 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
                   <AddressAutocomplete
                     label="Адрес"
                     value={form.address}
-                    onChange={address => setForm(current => ({ ...current, address }))}
+                    onChange={address => setForm(current => ({ ...current, address, addressFiasId: null }))}
                     onSelect={suggestion => setForm(current => ({
                       ...current,
                       address: suggestion.value,
+                      addressFiasId: suggestion.fiasId,
                       latitude: suggestion.geoLat ? Number(suggestion.geoLat) : current.latitude,
                       longitude: suggestion.geoLon ? Number(suggestion.geoLon) : current.longitude,
                     }))}
@@ -140,17 +147,19 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
                 onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
                 placeholder="Пункт на Ленина, 1"
               />
-              {coordinates && (
+              {coordinates ? (
                 <p className="text-[11px] text-gray-500">
                   Точка на карте: {coordinates.latitude.toFixed(5)}, {coordinates.longitude.toFixed(5)}
                 </p>
-              )}
+              ) : form.address.trim() && !form.addressFiasId ? (
+                <p className="text-[11px] text-amber-700">Выберите адрес из списка подсказок — иначе мы не сможем найти его в справочнике.</p>
+              ) : null}
             </div>
             <OpenStreetMapPicker
               open={mapOpen}
               value={coordinates}
               onClose={() => setMapOpen(false)}
-              onAddressSelect={address => setForm(current => ({ ...current, address }))}
+              onAddressSelect={(address, suggestion) => setForm(current => ({ ...current, address, addressFiasId: suggestion?.fiasId ?? null }))}
               onSave={next => setForm(current => ({ ...current, latitude: next.latitude, longitude: next.longitude }))}
             />
             <div className="mt-4 flex gap-2">

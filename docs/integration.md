@@ -348,62 +348,58 @@ Address helper rules:
 - call reverse geocoding from explicit map actions, not every map movement
 - empty success is `{ "source": "dadata", "suggestions": [] }`
 - store provider-confirmed coordinates from `geoLat` and `geoLon` as numeric `latitude` and `longitude`
-- do not treat DaData `city` text as platform city truth; use `cityId` from `/api/v1/catalog/cities`
+- the city is never chosen by the seller: the API derives it from the address's FIAS id
 
-Provider fulfillment locations are reusable operational centers: shops, warehouses, rental issue centers, pickup points, return/check-in points, and staffed counters. They are not offer meetup/activity-start places.
+«Пункты проката» are where a provider hands gear over and takes it back. Each offer is tied to one
+of them. The console sends what the seller **selected** — the registry id of a suggestion, or a pin
+— never free text; the API resolves the id once, checks precision, and finds or creates the city.
 
 ```http
-GET   /api/v1/provider/fulfillment-locations
-POST  /api/v1/provider/fulfillment-locations
-PATCH /api/v1/provider/fulfillment-locations/{fulfillmentLocationId}
+GET   /api/v1/providers/{providerId}/fulfillment-locations
+POST  /api/v1/providers/{providerId}/fulfillment-locations
+PATCH /api/v1/providers/{providerId}/fulfillment-locations/{fulfillmentLocationId}
 ```
 
-Create:
+Create / patch (all fields optional on patch):
 
 ```json
 {
-  "cityId": "00000000-0000-0000-0000-000000000100",
-  "name": "Пункт выдачи на Ленина",
-  "address": "ул. Ленина, 1",
-  "type": "pickup",
-  "isDefaultPickup": true,
-  "latitude": 56.838011,
-  "longitude": 60.597465,
-  "description": null
+  "address_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b5",
+  "address": "г Уфа, ул Ленина, д 1",
+  "name": "Склад у причала",
+  "latitude": 54.7261,
+  "longitude": 55.9475
 }
 ```
+
+- `address_fias_id` comes from the suggestion's `fias_id` (`AddressAutocomplete.onSelect`) or from
+  the reverse-geocoded record behind a map pin; clear it the moment the seller edits the text.
+- a pin alone is accepted — the API reverse-geocodes it.
+- a street-level id (`fias_level < 8`) is accepted only together with a pin.
+- `address` is a label only; the response carries the registry's full spelling.
+- `name` is optional; the API defaults it to «улица, дом».
 
 Response:
 
 ```json
 {
-  "fulfillmentLocationId": "00000000-0000-0000-0000-000000000101",
-  "providerId": "00000000-0000-0000-0000-000000000010",
-  "cityId": "00000000-0000-0000-0000-000000000100",
-  "cityName": "Екатеринбург",
-  "name": "Пункт выдачи на Ленина",
-  "address": "ул. Ленина, 1",
-  "type": "pickup",
+  "fulfillment_location_id": "…",
+  "provider_id": "…",
+  "city_id": "…",
+  "city_name": "Уфа",
+  "name": "Склад у причала",
+  "address": "450000, Респ Башкортостан, г Уфа, ул Ленина, д 1",
+  "address_fias_id": "0c5b2444-70a0-4932-980c-b4dc0d3f02b5",
   "status": "active",
-  "isDefaultPickup": true,
-  "latitude": 56.838011,
-  "longitude": 60.597465,
-  "description": null,
-  "updatedAt": "2026-05-18T10:00:00Z"
+  "latitude": 54.7261,
+  "longitude": 55.9475,
+  "updated_at": "2026-09-24T12:00:00+00:00"
 }
 ```
 
-Current type values:
-
-- `pickup`
-- `service_area`
-
-Frontend display rules:
-
-- show fulfillment locations in provider setup and rental equipment offer forms
-- use them for pickup/return or issue-center selection
-- do not ask for working days yet; working hours and holiday policy are not implemented in this API contract
-- use offer meetup locations for beaches, piers, parks, route starts, or SUP board meeting points
+Errors (`422`, shown to the seller as returned): `location.address_not_selected`,
+`location.address_not_found`, `location.address_imprecise`, `location.city_unresolved`,
+`location.city_not_supported`.
 
 ## Rental Readiness Flow
 

@@ -110,6 +110,7 @@ export interface ProviderLocation {
   cityName?: string;
   name: string;
   address: string;
+  addressFiasId?: string | null;
   status: string;
   latitude?: number | null;
   longitude?: number | null;

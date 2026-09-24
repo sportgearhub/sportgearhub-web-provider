@@ -17,7 +17,8 @@ interface OpenStreetMapPickerProps {
   open: boolean;
   value: Coordinates | null;
   onSave: (coordinates: Coordinates) => void;
-  onAddressSelect?: (address: string) => void;
+  /** The registry record for the pin, when it knows the spot; the label alone otherwise. */
+  onAddressSelect?: (address: string, suggestion: RuAddressSuggestion | null) => void;
   onClose: () => void;
 }
 
@@ -71,6 +72,7 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
   const lastAppliedValueRef = useRef('');
   const suppressNextValueSyncRef = useRef(false);
   const selectedAddressRef = useRef<string | null>(null);
+  const selectedSuggestionRef = useRef<RuAddressSuggestion | null>(null);
   const wheelDeltaRef = useRef(0);
   const lastWheelZoomRef = useRef(0);
   const reverseGeocodeRequestRef = useRef(0);
@@ -138,14 +140,17 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
       });
       if (reverseGeocodeRequestRef.current !== requestId) return;
 
-      const address = response.suggestions[0]?.value ?? '';
+      const suggestion = response.suggestions[0] ?? null;
+      const address = suggestion?.value ?? '';
       setDetectedAddress(address);
       selectedAddressRef.current = address || null;
+      selectedSuggestionRef.current = suggestion;
       setMapDrivenQuery(address);
     } catch {
       if (reverseGeocodeRequestRef.current !== requestId) return;
       setDetectedAddress('');
       setMapDrivenQuery('');
+      selectedSuggestionRef.current = null;
     }
   };
 
@@ -304,6 +309,7 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
     setMapDrivenQuery(suggestion.value);
     setSuggestionsOpen(false);
     selectedAddressRef.current = suggestion.value;
+    selectedSuggestionRef.current = suggestion;
     const coordinates = extractSuggestionCoordinates(suggestion);
     if (!coordinates) {
       setSuggestError('У этого адреса нет координат.');
@@ -357,7 +363,7 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
   const saveSelection = () => {
     const coordinates = draftCoordinates ?? center;
     onSave(coordinates);
-    if (selectedAddressRef.current || detectedAddress) onAddressSelect?.(selectedAddressRef.current ?? detectedAddress);
+    if (selectedAddressRef.current || detectedAddress) onAddressSelect?.(selectedAddressRef.current ?? detectedAddress, selectedSuggestionRef.current);
     onClose();
   };
 

@@ -291,6 +291,12 @@ export type RuAddressSuggestion = {
   kladrId: string | null;
   geoLat: string | null;
   geoLon: string | null;
+  cityFiasId?: string | null;
+  settlementFiasId?: string | null;
+  /** FIAS level: 4 city · 6 settlement · 7 street · 8 house. */
+  fiasLevel?: number | null;
+  qcGeo?: number | null;
+  regionIsoCode?: string | null;
 };
 
 export type RuAddressSuggestionsResponse = {
@@ -984,13 +990,22 @@ export const catalogApi = {
   cities: () => request<CatalogCity[]>('/api/v1/catalog/cities'),
 };
 
+// What the seller selected — a registry id or a pin — never free text; the API resolves the rest.
+export type LocationPayload = {
+  addressFiasId?: string | null;
+  address?: string;
+  name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 export const locationsApi = {
   list: async () => (await providerRequest<Array<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>>('/fulfillment-locations'))
     .map(location => ({
       ...location,
       locationId: location.locationId ?? location.fulfillmentLocationId,
     })),
-  create: (data: { address: string; name?: string; latitude?: number | null; longitude?: number | null }) =>
+  create: (data: LocationPayload) =>
     providerRequest<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>('/fulfillment-locations', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -998,10 +1013,7 @@ export const locationsApi = {
       ...location,
       locationId: location.locationId ?? location.fulfillmentLocationId,
     })),
-  patch: (
-    fulfillmentLocationId: string,
-    data: { address?: string; name?: string; latitude?: number | null; longitude?: number | null }
-  ) =>
+  patch: (fulfillmentLocationId: string, data: LocationPayload) =>
     providerRequest<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>(`/fulfillment-locations/${fulfillmentLocationId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
