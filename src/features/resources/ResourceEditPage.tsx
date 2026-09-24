@@ -21,8 +21,8 @@ export function ResourceEditPage({ resourceId, onNavigate, onHeaderContentChange
 
   useEffect(() => {
     onHeaderContentChange?.({
-      title: 'Редактирование',
-      subtitle: resource ? resource.title : 'Изменение позиции каталога',
+      title: 'Редактирование позиции',
+      subtitle: resource?.title,
       breadcrumbs: [
         { label: 'Каталог', path: '/resources' },
         ...(resource ? [{ label: resource.title, path: `/resources/${resource.resourceId}` }] : []),
@@ -109,25 +109,23 @@ export function ResourceEditPage({ resourceId, onNavigate, onHeaderContentChange
   };
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          {error && <ResourceError message={error} />}
-          {categoriesError && <ResourceError message={categoriesError} />}
-          {loading ? (
-            <div className="py-12 text-center text-sm text-gray-500">Загружаем позицию...</div>
-          ) : resource ? (
-            <ResourceForm
-              resource={resource}
-              categories={categories}
-              loadingCategories={categoriesLoading}
-              onSubmit={handleUpdate}
-              onCancel={() => onNavigate(`/resources/${resource.resourceId}`)}
-              submitting={saving}
-            />
-          ) : null}
-        </div>
-      </div>
+    <div>
+      {(categoriesError || (error && !resource)) && (
+        <div className="mx-auto max-w-xl px-6"><ResourceError message={categoriesError || error} /></div>
+      )}
+      {loading ? (
+        <div className="py-12 text-center text-sm text-gray-500">Загружаем позицию...</div>
+      ) : resource ? (
+        <ResourceForm
+          resource={resource}
+          categories={categories}
+          loadingCategories={categoriesLoading}
+          onSubmit={handleUpdate}
+          onCancel={() => onNavigate(`/resources/${resource.resourceId}`)}
+          submitting={saving}
+          submitError={error}
+        />
+      ) : null}
     </div>
   );
 }

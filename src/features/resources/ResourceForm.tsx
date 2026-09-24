@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
-import { Card, CardHeader } from '../../components/ui/Card';
+import { Check, ImageIcon, Search } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { ActionBar, FieldNote, FieldRow, FloatingInput, FormPage, FormSection, FormStepper, PickerRow, RequiredMark } from '../../components/form';
 import { ResourceImageDraftSection, ResourceImagesSection } from './ResourceImagesSection';
-import { isAttributeVisible, ResourceAttributeBuilder } from './ResourceAttributeFields';
+import { attributeLabel, isAttributeRequired, isAttributeVisible, ResourceAttributeBuilder } from './ResourceAttributeFields';
 import type { Resource } from '../../types';
 import { ApiError, equipmentApi, resourcesApi, type EquipmentAttribute, type EquipmentAttributeSchema, type EquipmentBrandSuggestion, type ResourceCategory } from '../../lib/api-client';
 
@@ -33,12 +32,21 @@ interface ResourceFormProps {
   onCancel: () => void;
   submitting?: boolean;
   loadingCategories?: boolean;
+  /** Error from the save itself, shown next to the primary action. */
+  submitError?: string;
 }
 
 function textValue(value: unknown) {
   return String(value ?? '').trim();
 }
 
+const CREATE_STEPS = ['Информация о позиции', 'Предварительный просмотр'];
+
+/**
+ * «Создание позиции» / «Редактирование позиции». One column of sections — information,
+ * characteristics, images — and, on creation, a second step that shows the card the way the
+ * catalogue will, before the position exists.
+ */
 export function ResourceForm({
   resource,
   categories,
@@ -46,8 +54,10 @@ export function ResourceForm({
   onCancel,
   submitting = false,
   loadingCategories = false,
+  submitError,
 }: ResourceFormProps) {
   const isEdit = Boolean(resource);
+  const [step, setStep] = useState(0);
   const [title, setTitle] = useState(resource?.title || '');
   const [categorySlug, setCategorySlug] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -62,7 +72,6 @@ export function ResourceForm({
   const [attributeLabels, setAttributeLabels] = useState<Record<string, string>>({});
 
   const selectedCategory = categories.find(category => category.slug === categorySlug);
-  const categoryOptions = categories.map(category => ({ value: category.slug, label: category.title }));
 
   // Preselect the category for an existing resource once categories load.
   useEffect(() => {
@@ -127,25 +136,24 @@ export function ResourceForm({
     setErrors(current => ({ ...current, [`attr:${key}`]: '' }));
   };
 
-  const handleSubmit = async () => {
-    if (submitting || submitInFlightRef.current) return;
-    submitInFlightRef.current = true;
-
+  const validate = () => {
     const nextErrors: Record<string, string> = {};
     if (!selectedCategory) nextErrors.category = 'Выберите категорию.';
     if (!textValue(title)) nextErrors.title = 'Укажите название.';
-    resourceAttributes
-      .filter(attribute => (attribute.requiredOn ?? []).some(scope => scope === 'resource' || scope === 'create'))
-      .forEach(attribute => {
-        if (!textValue(attributeValues[attribute.key] ?? '')) {
-          nextErrors[`attr:${attribute.key}`] = 'Заполните поле.';
-        }
-      });
-    if (Object.keys(nextErrors).length > 0 || !selectedCategory) {
-      setErrors(nextErrors);
-      submitInFlightRef.current = false;
-      return;
+    resourceAttributes.filter(isAttributeRequired).forEach(attribute => {
+      if (!textValue(attributeValues[attribute.key] ?? '')) nextErrors[`attr:${attribute.key}`] = 'Заполните поле.';
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      window.setTimeout(() => document.querySelector('[aria-invalid="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0);
+      return false;
     }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (submitting || submitInFlightRef.current || !selectedCategory) return;
+    submitInFlightRef.current = true;
 
     const attributes = Object.fromEntries(
       resourceAttributes
@@ -169,178 +177,185 @@ export function ResourceForm({
     }
   };
 
-  return (
-    <div className="max-w-2xl space-y-3">
-      <Card className="p-3">
-        <CardHeader title="Позиция" className="mb-3" />
-        <div className="grid gap-3 md:grid-cols-2">
-          <FancySelect
-            label="Категория"
-            options={categoryOptions}
-            value={categorySlug}
-            onChange={slug => {
-              setCategorySlug(slug);
-              setErrors(current => ({ ...current, category: '' }));
-            }}
-            error={errors.category}
-            disabled={loadingCategories || categories.length === 0}
-          />
-          <Input
-            label="Название"
-            value={title}
-            onChange={event => {
-              setTitle(event.target.value);
-              setErrors(current => ({ ...current, title: '' }));
-            }}
-            error={errors.title}
-            placeholder="Например: Горный велосипед Olympia Blade 29"
-          />
-        </div>
-      </Card>
+  const goToPreview = () => {
+    if (!validate()) return;
+    setStep(1);
+    window.scrollTo({ top: 0 });
+  };
 
-      {selectedCategory && (schemaLoading || resourceAttributes.length > 0) && (
-        <Card className="p-3">
-          <CardHeader title="Характеристики" className="mb-3" />
-          {schemaLoading ? (
-            <p className="text-xs text-gray-500">Загружаем поля категории...</p>
-          ) : (
-            <div className="space-y-3">
+  const attributeSummary = resourceAttributes
+    .filter(attribute => textValue(attributeValues[attribute.key] ?? '') !== '')
+    .map(attribute => {
+      const raw = attributeValues[attribute.key];
+      const option = attribute.allowedValues?.find(item => item.valueKey === raw);
+      return { label: attributeLabel(attribute), value: attributeLabels[attribute.key] ?? option?.label ?? raw };
+    });
+
+  if (!isEdit && step === 1) {
+    return (
+      <FormPage>
+        <FormStepper steps={CREATE_STEPS} current={1} onSelect={setStep} />
+        <FormSection title="Так позицию увидят в каталоге" description="Проверьте карточку. Изменить что-то можно, вернувшись на шаг назад.">
+          <ResourcePreviewCard
+            title={title.trim()}
+            category={selectedCategory?.title ?? ''}
+            imageFile={imageFiles[0]}
+            imageCount={imageFiles.length}
+            attributes={attributeSummary}
+          />
+        </FormSection>
+        <ActionBar
+          error={submitError}
+          left={
+            <>
+              <Button variant="secondary" onClick={() => setStep(0)} disabled={submitting}>Назад</Button>
+              <Button variant="ghost" onClick={onCancel} disabled={submitting}>Отмена</Button>
+            </>
+          }
+          right={<Button variant="primary" onClick={() => void handleSubmit()} loading={submitting}>Завершить создание</Button>}
+        />
+      </FormPage>
+    );
+  }
+
+  return (
+    <FormPage>
+      {!isEdit && <FormStepper steps={CREATE_STEPS} current={0} />}
+
+      <FormSection title="Информация о позиции">
+        <PickerRow
+          label="Категория"
+          required
+          items={categories.map(category => ({ value: category.slug, label: category.title }))}
+          value={categorySlug}
+          loading={loadingCategories}
+          disabled={categories.length === 0}
+          onChange={slug => {
+            setCategorySlug(slug);
+            setErrors(current => ({ ...current, category: '' }));
+          }}
+          error={errors.category}
+          hint={isEdit ? 'Смена категории меняет набор характеристик.' : undefined}
+          emptyText="Категории не загрузились."
+        />
+        <FloatingInput
+          label="Название"
+          required
+          value={title}
+          onChange={event => {
+            setTitle(event.target.value);
+            setErrors(current => ({ ...current, title: '' }));
+          }}
+          error={errors.title}
+          hint="Так позицию увидят клиенты. Например: Горный велосипед Olympia Blade 29"
+          maxLength={160}
+        />
+      </FormSection>
+
+      {selectedCategory && (
+        <FormSection title="Характеристики" description={schemaLoading ? 'Загружаем поля категории…' : undefined}>
+          {!schemaLoading && (
+            <>
               {(brandAttribute || modelAttribute) && (
-                <div className="grid gap-3 md:grid-cols-2">
+                <FieldRow>
                   {brandAttribute && (
                     <BrandCombobox
                       label={brandAttribute.label}
+                      required={isAttributeRequired(brandAttribute)}
                       value={attributeValues[brandAttribute.key] ?? ''}
                       initialLabel={attributeLabels[brandAttribute.key]}
-                      categorySlug={selectedCategory?.slug}
+                      categorySlug={selectedCategory.slug}
                       error={errors[`attr:${brandAttribute.key}`]}
                       onChange={brandId => setAttribute(brandAttribute.key, brandId)}
                     />
                   )}
                   {modelAttribute && (
-                    <Input
+                    <FloatingInput
                       label={modelAttribute.label}
+                      required={isAttributeRequired(modelAttribute)}
                       value={attributeValues[modelAttribute.key] ?? ''}
                       error={errors[`attr:${modelAttribute.key}`]}
                       onChange={event => setAttribute(modelAttribute.key, event.target.value)}
                     />
                   )}
-                </div>
+                </FieldRow>
               )}
-              {otherAttributes.length > 0 && (
-                <ResourceAttributeBuilder
-                  attributes={otherAttributes}
-                  values={attributeValues}
-                  errors={Object.fromEntries(otherAttributes.map(attribute => [attribute.key, errors[`attr:${attribute.key}`]]))}
-                  onChange={setAttribute}
-                />
-              )}
-            </div>
+              <ResourceAttributeBuilder
+                attributes={otherAttributes}
+                values={attributeValues}
+                errors={Object.fromEntries(otherAttributes.map(attribute => [attribute.key, errors[`attr:${attribute.key}`]]))}
+                onChange={setAttribute}
+              />
+            </>
           )}
-        </Card>
+        </FormSection>
       )}
 
-      {isEdit
-        ? resource?.resourceId && <ResourceImagesSection resourceId={resource.resourceId} compact />
-        : <ResourceImageDraftSection files={imageFiles} onChange={setImageFiles} disabled={submitting} />}
+      <FormSection title="Изображения" description="Первое фото — главное, оно показывается в каталоге. До 10 фото: JPEG, PNG или WebP.">
+        {isEdit
+          ? resource?.resourceId && <ResourceImagesSection resourceId={resource.resourceId} compact />
+          : <ResourceImageDraftSection files={imageFiles} onChange={setImageFiles} disabled={submitting} />}
+      </FormSection>
 
-      <div className="flex gap-2">
-        <Button variant="primary" onClick={handleSubmit} loading={submitting}>
-          {isEdit ? 'Сохранить изменения' : 'Создать позицию'}
-        </Button>
-        <Button variant="secondary" onClick={onCancel}>Отмена</Button>
-      </div>
-    </div>
+      <ActionBar
+        error={isEdit ? submitError : undefined}
+        left={<Button variant="secondary" onClick={onCancel} disabled={submitting}>Отмена</Button>}
+        right={
+          isEdit
+            ? <Button variant="primary" onClick={() => { if (validate()) void handleSubmit(); }} loading={submitting}>Сохранить</Button>
+            : <Button variant="primary" onClick={goToPreview}>Далее</Button>
+        }
+      />
+    </FormPage>
   );
 }
 
-function FancySelect({
-  label,
-  value,
-  options,
-  error,
-  disabled = false,
-  onChange,
+function ResourcePreviewCard({
+  title,
+  category,
+  imageFile,
+  imageCount,
+  attributes,
 }: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  error?: string;
-  disabled?: boolean;
-  onChange: (value: string) => void;
+  title: string;
+  category: string;
+  imageFile?: File;
+  imageCount: number;
+  attributes: Array<{ label: string; value: string }>;
 }) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const selected = options.find(option => option.value === value);
-  const filtered = options.filter(option => option.label.toLowerCase().includes(search.toLowerCase()));
-
+  const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!open) return;
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setSearch('');
-      }
-    };
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [open]);
+    if (!imageFile) { setUrl(null); return; }
+    const next = URL.createObjectURL(imageFile);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [imageFile]);
 
   return (
-    <div ref={rootRef} className="relative">
-      <label className="mb-1 block text-xs font-medium text-gray-700">{label}</label>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen(current => !current)}
-        className={`flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#9ec5fe] disabled:bg-[#f8fafc] disabled:text-[#94a3b8] ${
-          error ? 'border-[#dc3545]' : open ? 'border-[#86b7fe]' : 'border-[#cbd5e1]'
-        } ${selected?.value ? 'text-[#1f2d3d]' : 'text-[#8a97a8]'}`}
-      >
-        <span className="truncate">{selected?.label ?? 'Выберите значение'}</span>
-        <ChevronDown size={15} className={`ml-2 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && !disabled && (
-        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-hidden rounded-md border border-[#d7e0ea] bg-white shadow-lg">
-          {options.length > 7 && (
-            <div className="border-b border-gray-100 p-2">
-              <input
-                value={search}
-                onChange={event => setSearch(event.target.value)}
-                autoFocus
-                placeholder="Поиск..."
-                className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-blue-400"
-              />
-            </div>
-          )}
-          <div className="max-h-52 overflow-y-auto py-1">
-            {filtered.map(option => {
-              const isSelected = option.value === value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onMouseDown={event => event.preventDefault()}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                    setSearch('');
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    isSelected ? 'bg-blue-50 text-blue-800' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="truncate">{option.label}</span>
-                  {isSelected && <Check size={14} className="shrink-0 text-blue-700" />}
-                </button>
-              );
-            })}
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="flex aspect-[4/3] items-center justify-center bg-gray-100">
+        {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : (
+          <div className="flex flex-col items-center gap-1 text-gray-400">
+            <ImageIcon size={28} />
+            <span className="text-xs">Без фото</span>
           </div>
-        </div>
-      )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-xs uppercase tracking-wide text-gray-500">{category}</p>
+        <h3 className="mt-1 text-lg font-semibold text-gray-950">{title || 'Без названия'}</h3>
+        {imageCount > 1 && <p className="mt-1 text-xs text-gray-500">Фото: {imageCount}</p>}
+        {attributes.length > 0 && (
+          <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+            {attributes.map(item => (
+              <div key={item.label} className="flex justify-between gap-3 border-b border-gray-100 py-1">
+                <dt className="text-gray-500">{item.label}</dt>
+                <dd className="text-right font-medium text-gray-900">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
     </div>
   );
 }
@@ -351,6 +366,7 @@ function FancySelect({
  */
 function BrandCombobox({
   label,
+  required,
   value,
   initialLabel,
   categorySlug,
@@ -358,6 +374,7 @@ function BrandCombobox({
   onChange,
 }: {
   label: string;
+  required?: boolean;
   value: string;
   initialLabel?: string;
   categorySlug?: string;
@@ -431,26 +448,22 @@ function BrandCombobox({
 
   return (
     <div ref={rootRef} className="relative">
-      <label className="mb-1 block text-xs font-medium text-gray-700">{label}</label>
-      <div className="relative">
-        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={query}
-          onFocus={() => setOpen(true)}
-          onChange={event => {
-            setQuery(event.target.value);
-            setOpen(true);
-            if (value) onChange(''); // typing invalidates the previously resolved brand
-          }}
-          placeholder="Начните вводить бренд..."
-          className={`w-full rounded-md border bg-white px-9 py-2 text-sm text-gray-900 outline-none transition focus:border-[#86b7fe] focus:ring-2 focus:ring-[#9ec5fe] ${error ? 'border-[#dc3545]' : 'border-[#cbd5e1]'}`}
-        />
-      </div>
-      {value && !open && <p className="mt-1 text-xs text-emerald-700">Бренд выбран.</p>}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-
+      <FloatingInput
+        label={label}
+        required={required}
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={event => {
+          setQuery(event.target.value);
+          setOpen(true);
+          if (value) onChange(''); // typing invalidates the previously resolved brand
+        }}
+        error={error}
+        suffix={value ? <Check size={16} className="text-emerald-600" /> : <Search size={15} />}
+        autoComplete="off"
+      />
       {open && trimmed.length >= 2 && (
-        <div className="absolute z-40 mt-1 max-h-64 w-full overflow-auto rounded-md border border-[#d7e0ea] bg-white py-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-[58px] z-40 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
           {loading && <div className="px-3 py-2 text-xs text-gray-500">Ищем бренды...</div>}
           {!loading && suggestions.map(brand => (
             <button
@@ -475,6 +488,9 @@ function BrandCombobox({
             </button>
           )}
         </div>
+      )}
+      {!error && !value && trimmed.length >= 2 && !open && (
+        <FieldNote hint={<>Выберите бренд из списка или создайте новый.<RequiredMark /></>} />
       )}
     </div>
   );

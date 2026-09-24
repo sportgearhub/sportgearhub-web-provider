@@ -549,20 +549,17 @@ export function ResourceImageDraftSection({ files, onChange, disabled = false }:
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div>
-          <span className="text-xs font-medium text-gray-700">Фото</span>
-          <span className="ml-2 text-xs text-gray-400">{files.length}/{MAX_IMAGES}</span>
-        </div>
+        <span className="text-xs text-gray-500">{files.length} из {MAX_IMAGES}</span>
         <Button type="button" size="sm" variant="secondary" onClick={() => setUploadOpen(true)} disabled={!canAdd}>
-          <Plus size={13} /> Добавить
+          <Plus size={13} /> Добавить фото
         </Button>
       </div>
 
       {files.length === 0 ? (
         <DropZonePlaceholder onFiles={f => { onChange(f); }} />
       ) : (
-        <div className="grid grid-cols-5 gap-2" style={{ height: '100px' }}>
-          {Array.from({ length: MAX_IMAGES }).map((_, i) => {
+        <div className="grid grid-cols-5 grid-rows-2 gap-2">
+          {Array.from({ length: MAX_IMAGES - 3 }).map((_, i) => {
             const preview = previews[i];
             if (preview) {
               return (
@@ -582,10 +579,10 @@ export function ResourceImageDraftSection({ files, onChange, disabled = false }:
                     const from = Number(event.dataTransfer.getData('text/plain'));
                     if (!Number.isNaN(from) && from !== i) reorderFile(from, i);
                   }}
-                  className="group relative h-full cursor-grab overflow-hidden rounded-lg border border-gray-200 bg-gray-100 active:cursor-grabbing"
+                  className={`group relative cursor-grab overflow-hidden rounded-lg border border-gray-200 bg-gray-100 active:cursor-grabbing ${i === 0 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'}`}
                 >
                   <img src={preview.url} alt={preview.file.name} className="h-full w-full object-cover" />
-                  {i === 0 && <span className="absolute left-1 top-1 rounded bg-white/90 px-1 text-[10px] font-semibold text-gray-700">Главное</span>}
+                  {i === 0 && <span className="absolute left-1.5 top-1.5 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-gray-700">Главное</span>}
                   <button type="button" onClick={() => removeFile(i)}
                     className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-600 transition">
                     <X size={10} />
@@ -599,12 +596,12 @@ export function ResourceImageDraftSection({ files, onChange, disabled = false }:
             if (i === files.length && canAdd) {
               return (
                 <button key={`add-${i}`} type="button" onClick={() => setUploadOpen(true)}
-                  className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 hover:border-blue-300 hover:text-blue-500 transition">
+                  className="flex aspect-square flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 transition hover:border-blue-300 hover:text-blue-500">
                   <Plus size={16} />
                 </button>
               );
             }
-            return <div key={`empty-${i}`} className="rounded-lg border border-dashed border-gray-100 bg-gray-50/30" />;
+            return <div key={`empty-${i}`} className="aspect-square rounded-lg bg-gray-100/70" />;
           })}
         </div>
       )}

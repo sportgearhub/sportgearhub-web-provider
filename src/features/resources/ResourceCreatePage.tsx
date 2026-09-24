@@ -18,11 +18,11 @@ export function ResourceCreatePage({ onNavigate, onHeaderContentChange }: Resour
 
   useEffect(() => {
     onHeaderContentChange?.({
-      title: 'Создание',
-      subtitle: 'Добавьте позицию в каталог.',
+      title: 'Создание позиции',
       breadcrumbs: [
         { label: 'Каталог', path: '/resources' },
-        { label: 'Создание' },
+        { label: 'Работа с позициями', path: '/resources' },
+        { label: 'Создание позиции' },
       ],
     });
 
@@ -95,20 +95,16 @@ export function ResourceCreatePage({ onNavigate, onHeaderContentChange }: Resour
   };
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          {error && <ResourceCreateError message={error} />}
-          {categoriesError && <ResourceCreateError message={categoriesError} />}
-          <ResourceForm
-            categories={categories}
-            loadingCategories={categoriesLoading}
-            onSubmit={handleCreate}
-            onCancel={() => onNavigate('/resources')}
-            submitting={saving}
-          />
-        </div>
-      </div>
+    <div>
+      {categoriesError && <div className="mx-auto max-w-xl px-6"><ResourceCreateError message={categoriesError} /></div>}
+      <ResourceForm
+        categories={categories}
+        loadingCategories={categoriesLoading}
+        onSubmit={handleCreate}
+        onCancel={() => onNavigate('/resources')}
+        submitting={saving}
+        submitError={error}
+      />
     </div>
   );
 }

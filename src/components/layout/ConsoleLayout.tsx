@@ -14,7 +14,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/': { title: '' },
   '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
   '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
-  '/resources/create': { title: 'Добавить позицию', subtitle: 'Добавьте позицию в каталог.' },
+  '/resources/create': { title: 'Создание позиции' },
   '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
@@ -27,8 +27,8 @@ const pageConfig: Record<string, PageConfig> = {
 };
 
 function pageFor(relativePath: string): PageConfig {
-  if (/^\/resources\/[^/]+\/offers\/new$/.test(relativePath)) return { title: 'Создать предложение' };
-  if (/^\/resources\/[^/]+\/edit$/.test(relativePath)) return { title: 'Редактировать позицию', subtitle: 'Изменение позиции инвентаря' };
+  if (/^\/resources\/[^/]+\/offers\/new$/.test(relativePath)) return { title: 'Создание предложения' };
+  if (/^\/resources\/[^/]+\/edit$/.test(relativePath)) return { title: 'Редактирование позиции' };
   if (/^\/resources\/[^/]+$/.test(relativePath)) return { title: 'Позиция' };
   return pageConfig[relativePath] ?? { title: '' };
 }

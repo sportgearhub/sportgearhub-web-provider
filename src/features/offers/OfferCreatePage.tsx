@@ -22,11 +22,11 @@ export function OfferCreatePage({ resourceId, onNavigate, onHeaderContentChange 
 
   useEffect(() => {
     onHeaderContentChange?.({
-      title: 'Создать предложение',
+      title: 'Создание предложения',
       breadcrumbs: [
         { label: 'Каталог', path: '/resources' },
         { label: resource?.title ?? 'Позиция', path: backToOffers },
-        { label: 'Новое предложение' },
+        { label: 'Создание предложения' },
       ],
     });
     return () => onHeaderContentChange?.(null);
@@ -65,9 +65,9 @@ export function OfferCreatePage({ resourceId, onNavigate, onHeaderContentChange 
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-      {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+    <div>
+      {error && !saving && (
+        <div className="mx-auto flex max-w-xl items-center gap-2 px-6 pt-4">
           <AlertTriangle size={14} className="shrink-0 text-red-600" />
           <p className="text-xs text-red-700">{error}</p>
         </div>
@@ -82,6 +82,7 @@ export function OfferCreatePage({ resourceId, onNavigate, onHeaderContentChange 
           onSubmit={handleCreate}
           onCancel={() => onNavigate(backToOffers)}
           submitting={saving}
+          submitError={error}
         />
       )}
     </div>

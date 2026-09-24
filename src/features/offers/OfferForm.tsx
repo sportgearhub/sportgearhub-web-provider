@@ -1,30 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { CalendarRange, Check, ChevronDown, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
-import { Card } from '../../components/ui/Card';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { DateRangePicker } from '../../components/ui/DateRangePicker';
-import { Input } from '../../components/ui/Input';
+import { DateRangePicker, formatRuDate } from '../../components/ui/DateRangePicker';
 import { StringListEditor } from '../../components/ui/StringListEditor';
-import { INFO_SECTION_KINDS } from './infoSections';
 import { TimeSelect } from '../../components/ui/TimeSelect';
-import { Textarea } from '../../components/ui/Textarea';
+import { ActionBar, ChoiceCards, FieldNote, FieldRow, FloatingInput, FloatingSelect, FloatingTextarea, FormPage, FormSection, FormStepper, PickerRow } from '../../components/form';
+import { INFO_SECTION_KINDS } from './infoSections';
 import { ApiError, locationsApi, offersApi, pricingApi } from '../../lib/api-client';
 import type { Offer, OfferAuthoringOption, OfferAuthoringOptions, OfferAvailabilityBlockedPeriod, OfferAvailabilityWindow, OfferInfoSection, ProviderLocation, RentalTier, Resource } from '../../types';
-
-type SimpleOption = {
-  value: string;
-  label: string;
-};
 
 function isAuthoringOptionActive(option: OfferAuthoringOption | undefined) {
   return option?.isActive !== false;
 }
 
-function nextAuthoringValue(
-  current: string,
-  fallback: string,
-  options: OfferAuthoringOption[]
-) {
+function nextAuthoringValue(current: string, fallback: string, options: OfferAuthoringOption[]) {
   const currentOption = options.find(option => option.value === current);
   if (currentOption && isAuthoringOptionActive(currentOption)) return current;
 
@@ -43,13 +33,13 @@ export type OfferFormData = Partial<Offer> & {
   multiDayRate?: number | null;
   fulfillmentLocationId?: string | null;
   durationHours?: number | null;
-  // Availability (wizard step 3)
+  // Availability
   timezone?: string;
   availabilityWindows?: OfferAvailabilityWindow[];
   blockedPeriods?: OfferAvailabilityBlockedPeriod[];
   slotIntervalMinutes?: number | null;
   availabilityStatus?: string;
-  // Visibility (wizard step 4)
+  // Visibility
   visibilityMode?: string;
   visibleFrom?: string | null;
   visibleUntil?: string | null;
@@ -60,10 +50,12 @@ export type OfferFormData = Partial<Offer> & {
 const DEFAULT_TIMEZONE = 'Asia/Yekaterinburg';
 
 const VISIBILITY_MODES = [
-  { value: 'always_visible', label: 'Всегда видно', description: 'Предложение постоянно показывается клиентам в каталоге.', icon: Eye },
-  { value: 'seasonal', label: 'По расписанию', description: 'Показывается клиентам только в выбранный период дат.', icon: CalendarRange },
-  { value: 'hidden', label: 'Скрыто', description: 'Не показывается клиентам и недоступно по прямой ссылке.', icon: EyeOff },
+  { value: 'always_visible', title: 'Всегда видно', description: 'Предложение постоянно показывается клиентам в каталоге.' },
+  { value: 'seasonal', title: 'По расписанию', description: 'Показывается клиентам только в выбранный период дат.' },
+  { value: 'hidden', title: 'Скрыто', description: 'Не показывается клиентам и недоступно по прямой ссылке.' },
 ] as const;
+
+const CREATE_STEPS = ['Информация о предложении', 'Предварительный просмотр'];
 
 function emptyWindow(): OfferAvailabilityWindow {
   return { startsOn: '', endsOn: '', dailyOpensAt: '09:00', dailyClosesAt: '21:00' };
@@ -78,13 +70,21 @@ function toMinutes(time: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-const WIZARD_STEPS = ['Основное', 'Цена', 'Доступность', 'Видимость'] as const;
-
 const STANDARD_TIERS: RentalTier[] = [
   { upToHours: 1, price: 0, label: '1 час' },
   { upToHours: 4, price: 0, label: 'Полдня' },
   { upToHours: 24, price: 0, label: 'Сутки' },
 ];
+
+function currencySymbol(code: string) {
+  return code === 'RUB' || code === '' ? '₽' : code;
+}
+
+function formatMoney(value: number | string, currency: string) {
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return '—';
+  return `${amount.toLocaleString('ru-RU')} ${currencySymbol(currency)}`;
+}
 
 interface OfferFormProps {
   offer?: Offer;
@@ -95,9 +95,21 @@ interface OfferFormProps {
   submitting?: boolean;
   /** Hide the offer-type picker (e.g. creating from a resource, where it's always "rental"). */
   hideOfferType?: boolean;
+  /** Error from the save itself, shown next to the primary action. */
+  submitError?: string;
 }
 
-export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourceId, submitting = false, hideOfferType = false }: OfferFormProps) {
+/**
+ * «Создание предложения» / «Редактирование предложения». One page of sections: what it is and
+ * where it is handed over, the price, and — behind «Заполнить больше» — what the client should
+ * know, when it can be booked and when it is shown. Creation ends with a preview of the card.
+ */
+export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourceId, submitting = false, hideOfferType = false, submitError }: OfferFormProps) {
+  const isEdit = Boolean(offer);
+  const [step, setStep] = useState(0);
+  const [showMore, setShowMore] = useState(isEdit);
+  const moreRef = useRef<HTMLDivElement | null>(null);
+
   const [title, setTitle] = useState(offer?.title || '');
   const [resourceId, setResourceId] = useState(offer?.primaryResourceId || offer?.resourceId || initialResourceId || '');
   const [offerType, setOfferType] = useState(offer?.offerType || '');
@@ -119,11 +131,7 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [locationsError, setLocationsError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Wizard (creation only)
-  const isWizard = !offer;
-  const [step, setStep] = useState(0);
-
-  // Availability (wizard step 3)
+  // Availability (creation only; edited later on the offer itself)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [availabilityStatus, setAvailabilityStatus] = useState('active');
   const [durationHours, setDurationHours] = useState('');
@@ -131,32 +139,23 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [windows, setWindows] = useState<OfferAvailabilityWindow[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<OfferAvailabilityBlockedPeriod[]>([]);
 
-  // Visibility (wizard step 4)
-  const [visibilityMode, setVisibilityMode] = useState('always_visible');
+  // Visibility (creation only)
+  const [visibilityMode, setVisibilityMode] = useState<(typeof VISIBILITY_MODES)[number]['value']>('always_visible');
   const [visibleFrom, setVisibleFrom] = useState<string | null>(null);
   const [visibleUntil, setVisibleUntil] = useState<string | null>(null);
 
   const pricingModeOptions = authoringOptions?.pricingModes ?? [];
+  const fixedResource = resources.length === 1 && Boolean(initialResourceId) ? resources[0] : null;
+  const selectedResource = resources.find(item => item.resourceId === resourceId);
+  const selectedLocation = locations.find(item => item.locationId === locationId);
 
   const patchWindow = (index: number, patch: Partial<OfferAvailabilityWindow>) =>
     setWindows(ws => ws.map((w, i) => (i === index ? { ...w, ...patch } : w)));
   const patchBlocked = (index: number, patch: Partial<OfferAvailabilityBlockedPeriod>) =>
     setBlockedPeriods(bs => bs.map((b, i) => (i === index ? { ...b, ...patch } : b)));
 
-  const resourceOptions = [
-    { value: '', label: 'Выберите позицию' },
-    ...resources.map(r => ({ value: r.resourceId, label: r.title })),
-  ];
-  const locationOptions = [
-    { value: '', label: 'Выберите пункт выдачи' },
-    ...locations
-      .filter(location => location.status !== 'inactive')
-      .map(location => ({ value: location.locationId, label: `${location.name} · ${location.cityName ?? location.address}` })),
-  ];
-
   useEffect(() => {
     let cancelled = false;
-
     setLocationsError('');
     locationsApi.list()
       .then(nextLocations => {
@@ -165,23 +164,18 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
         setLocationId(current => current || nextLocations[0]?.locationId || '');
       })
       .catch(err => {
-        if (!cancelled) setLocationsError(err instanceof ApiError ? err.message : 'Не удалось загрузить пункты выдачи.');
+        if (!cancelled) setLocationsError(err instanceof ApiError ? err.message : 'Не удалось загрузить пункты проката.');
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-
     setOptionsLoading(true);
     setOptionsError('');
     offersApi.authoringOptions(resourceId || undefined)
       .then(options => {
         if (cancelled) return;
-
         setAuthoringOptions(options);
         setOfferType(current => nextAuthoringValue(current, options.defaults.offerType, options.offerTypes));
         setBookingFlowType(current => nextAuthoringValue(current, options.defaults.bookingFlowType, options.bookingFlowTypes));
@@ -190,34 +184,22 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
         }
       })
       .catch(err => {
-        if (!cancelled) {
-          setOptionsError(err instanceof ApiError ? err.message : 'Не удалось загрузить параметры предложения.');
-        }
+        if (!cancelled) setOptionsError(err instanceof ApiError ? err.message : 'Не удалось загрузить параметры предложения.');
       })
-      .finally(() => {
-        if (!cancelled) setOptionsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .finally(() => { if (!cancelled) setOptionsLoading(false); });
+    return () => { cancelled = true; };
   }, [resourceId]);
 
   useEffect(() => {
     if (!offer?.offerId) return;
     let cancelled = false;
-
     setPricingLoading(true);
     setPricingError('');
     pricingApi.getOfferPolicy(offer.offerId)
       .then(policy => {
         if (cancelled) return;
         setPricingMode(policy.pricingMode || 'per_unit_time');
-        setPricingBaseAmount(
-          policy.pricingMode === 'rental_tiers'
-            ? ''
-            : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? '')
-        );
+        setPricingBaseAmount(policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''));
         setPricingCurrency(policy.currency || 'RUB');
         setRentalTiers(policy.rentalTiers ?? []);
         setMultiDayRate(policy.multiDayRate != null ? String(policy.multiDayRate) : '');
@@ -227,13 +209,8 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
           setPricingError(err instanceof ApiError ? err.message : 'Не удалось загрузить цену предложения.');
         }
       })
-      .finally(() => {
-        if (!cancelled) setPricingLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .finally(() => { if (!cancelled) setPricingLoading(false); });
+    return () => { cancelled = true; };
   }, [offer?.offerId]);
 
   useEffect(() => {
@@ -250,655 +227,432 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
     return () => { cancelled = true; };
   }, [offer?.offerId]);
 
-  const validateBasics = () => {
+  const validate = () => {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = 'Укажите название.';
     if (!resourceId) e.resourceId = 'Выберите позицию инвентаря.';
     if (!offerType) e.offerType = 'Выберите тип предложения.';
-    if (offerType && !isAuthoringOptionActive(authoringOptions?.offerTypes.find(option => option.value === offerType))) {
-      e.offerType = 'Этот тип предложения недоступен.';
-    }
+    else if (!isAuthoringOptionActive(authoringOptions?.offerTypes.find(option => option.value === offerType))) e.offerType = 'Этот тип предложения недоступен.';
     if (!bookingFlowType) e.bookingFlowType = 'Выберите сценарий бронирования.';
-    if (bookingFlowType && !isAuthoringOptionActive(authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType))) {
-      e.bookingFlowType = 'Этот сценарий бронирования недоступен.';
-    }
-    if (!locationId) e.locationId = 'Выберите пункт выдачи.';
-    return e;
-  };
+    else if (!isAuthoringOptionActive(authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType))) e.bookingFlowType = 'Этот сценарий бронирования недоступен.';
+    if (!locationId) e.locationId = 'Выберите пункт проката.';
 
-  const validatePricing = () => {
-    const e: Record<string, string> = {};
-    if (!pricingMode) e.pricingMode = 'Выберите способ расчета цены.';
-    if (!pricingCurrency.trim()) e.pricingCurrency = 'Укажите валюту.';
+    if (!pricingMode) e.pricingMode = 'Выберите способ расчёта цены.';
     if (pricingMode === 'rental_tiers') {
       if (rentalTiers.length === 0) e.rentalTiers = 'Добавьте хотя бы одну ступень.';
       else {
         for (let i = 0; i < rentalTiers.length; i++) {
-          if (rentalTiers[i].upToHours <= 0) { e.rentalTiers = `Ступень ${i + 1}: upToHours должен быть больше нуля.`; break; }
+          if (rentalTiers[i].upToHours <= 0) { e.rentalTiers = `Ступень ${i + 1}: укажите, до скольких часов она действует.`; break; }
           if (rentalTiers[i].price < 0) { e.rentalTiers = `Ступень ${i + 1}: цена не может быть отрицательной.`; break; }
-          if (i > 0 && rentalTiers[i].upToHours <= rentalTiers[i - 1].upToHours) {
-            e.rentalTiers = 'Ступени должны идти в строго возрастающем порядке upToHours.'; break;
-          }
+          if (i > 0 && rentalTiers[i].upToHours <= rentalTiers[i - 1].upToHours) { e.rentalTiers = 'Ступени должны идти по возрастанию часов.'; break; }
         }
       }
     } else if (!pricingBaseAmount || isNaN(Number(pricingBaseAmount)) || Number(pricingBaseAmount) < 0) {
-      e.pricingBaseAmount = 'Укажите корректную цену.';
+      e.pricingBaseAmount = 'Укажите цену.';
     }
-    return e;
-  };
 
-  const validateAvailability = () => {
-    const e: Record<string, string> = {};
-    windows.forEach((w, i) => {
-      if (!w.startsOn || !w.endsOn) e[`window-${i}`] = `Окно ${i + 1}: укажите период сезона.`;
-      else if (w.startsOn > w.endsOn) e[`window-${i}`] = `Окно ${i + 1}: начало сезона позже конца.`;
-      else if (toMinutes(w.dailyOpensAt) >= toMinutes(w.dailyClosesAt)) e[`window-${i}`] = `Окно ${i + 1}: открытие должно быть раньше закрытия.`;
-    });
-    blockedPeriods.forEach((b, i) => {
-      if (b.startsOn && b.endsOn && b.startsOn > b.endsOn) e[`blocked-${i}`] = `Закрытый период ${i + 1}: начало позже конца.`;
-    });
-    return e;
-  };
-
-  const validateVisibility = () => {
-    const e: Record<string, string> = {};
-    if (visibilityMode === 'seasonal' && !(visibleFrom && visibleUntil)) {
-      e.visibilityRange = 'Укажите период показа для режима «По расписанию».';
+    if (!isEdit) {
+      windows.forEach((w, i) => {
+        if (!w.startsOn || !w.endsOn) e[`window-${i}`] = 'Укажите период сезона.';
+        else if (w.startsOn > w.endsOn) e[`window-${i}`] = 'Начало сезона позже конца.';
+        else if (toMinutes(w.dailyOpensAt) >= toMinutes(w.dailyClosesAt)) e[`window-${i}`] = 'Открытие должно быть раньше закрытия.';
+      });
+      blockedPeriods.forEach((b, i) => {
+        if (b.startsOn && b.endsOn && b.startsOn > b.endsOn) e[`blocked-${i}`] = 'Начало позже конца.';
+      });
+      if (visibilityMode === 'seasonal' && !(visibleFrom && visibleUntil)) e.visibilityRange = 'Укажите период показа.';
     }
-    return e;
+
+    setErrors(e);
+    if (Object.keys(e).length > 0) {
+      if (Object.keys(e).some(key => key.startsWith('window') || key.startsWith('blocked') || key === 'visibilityRange')) setShowMore(true);
+      window.setTimeout(() => document.querySelector('[aria-invalid="true"], [data-error="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0);
+      return false;
+    }
+    return true;
   };
 
-  const stepValidators = [validateBasics, validatePricing, validateAvailability, validateVisibility];
+  const buildData = (): OfferFormData => ({
+    title: title.trim(),
+    primaryResourceId: resourceId,
+    offerType,
+    bookingFlowType,
+    resourceId,
+    resourceTitle: selectedResource?.title || '',
+    pricingMode,
+    pricingBaseAmount: pricingMode === 'rental_tiers' ? undefined : Number(pricingBaseAmount),
+    pricingCurrency: pricingCurrency || 'RUB',
+    pricingStatus: 'active',
+    rentalTiers: pricingMode === 'rental_tiers' ? rentalTiers : undefined,
+    multiDayRate: pricingMode === 'rental_tiers' && multiDayRate.trim() !== '' ? Number(multiDayRate) : null,
+    description,
+    fulfillmentLocationId: locationId || null,
+    durationHours: Number(durationHours) || null,
+    timezone,
+    availabilityWindows: windows,
+    blockedPeriods,
+    slotIntervalMinutes: Number(slotIntervalMinutes) || null,
+    availabilityStatus,
+    visibilityMode,
+    visibleFrom,
+    visibleUntil,
+    infoSections: INFO_SECTION_KINDS
+      .map(({ kind }) => ({ kind, items: (sectionItems[kind] ?? []).map(item => item.trim()).filter(Boolean) }))
+      .filter(section => section.items.length > 0),
+  });
 
-  const buildData = (): OfferFormData => {
-    const resource = resources.find(r => r.resourceId === resourceId);
-    return {
-      title,
-      primaryResourceId: resourceId,
-      offerType,
-      bookingFlowType,
-      resourceId,
-      resourceTitle: resource?.title || '',
-      pricingMode,
-      pricingBaseAmount: pricingMode === 'rental_tiers' ? undefined : Number(pricingBaseAmount),
-      pricingCurrency: pricingCurrency || 'RUB',
-      pricingStatus: 'active',
-      rentalTiers: pricingMode === 'rental_tiers' ? rentalTiers : undefined,
-      multiDayRate: pricingMode === 'rental_tiers' && multiDayRate.trim() !== '' ? Number(multiDayRate) : null,
-      description,
-      fulfillmentLocationId: locationId || null,
-      durationHours: Number(durationHours) || null,
-      // Availability + visibility (used by the create wizard; ignored on edit)
-      timezone,
-      availabilityWindows: windows,
-      blockedPeriods,
-      slotIntervalMinutes: Number(slotIntervalMinutes) || null,
-      availabilityStatus,
-      visibilityMode,
-      visibleFrom,
-      visibleUntil,
-      infoSections: INFO_SECTION_KINDS
-        .map(({ kind }) => ({ kind, items: (sectionItems[kind] ?? []).map(item => item.trim()).filter(Boolean) }))
-        .filter(section => section.items.length > 0),
-    };
+  const goToPreview = () => {
+    if (!validate()) return;
+    setStep(1);
+    window.scrollTo({ top: 0 });
   };
 
-  const goNext = () => {
-    const e = stepValidators[step]();
-    if (Object.keys(e).length > 0) { setErrors(e); return; }
-    setErrors({});
-    setStep(s => Math.min(WIZARD_STEPS.length - 1, s + 1));
+  const revealMore = () => {
+    setShowMore(true);
+    window.setTimeout(() => moreRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
   };
 
-  const goBack = () => { setErrors({}); setStep(s => Math.max(0, s - 1)); };
+  const bookingLabel = authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType)?.title;
+  const priceLines: string[] = pricingMode === 'rental_tiers'
+    ? [
+        ...rentalTiers.map(tier => `${tier.label?.trim() || `до ${tier.upToHours} ч`} — ${formatMoney(tier.price, pricingCurrency)}`),
+        ...(multiDayRate.trim() ? [`каждые следующие сутки — ${formatMoney(multiDayRate, pricingCurrency)}`] : []),
+      ]
+    : [pricingMode === 'per_unit_time' ? `${formatMoney(pricingBaseAmount, pricingCurrency)} в час` : formatMoney(pricingBaseAmount, pricingCurrency)];
 
-  const handleSubmit = () => {
-    // Edit mode validates basics + pricing; wizard validates the final step (others already passed).
-    const e = isWizard ? validateVisibility() : { ...validateBasics(), ...validatePricing() };
-    if (Object.keys(e).length > 0) { setErrors(e); return; }
-    void onSubmit(buildData());
-  };
+  if (!isEdit && step === 1) {
+    return (
+      <FormPage>
+        <FormStepper steps={CREATE_STEPS} current={1} onSelect={setStep} />
+        <FormSection title="Так предложение увидят клиенты" description="Проверьте карточку. Изменить что-то можно, вернувшись на шаг назад.">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            {selectedResource?.mediaPreviewUrl && <img src={selectedResource.mediaPreviewUrl} alt="" className="aspect-[4/3] w-full object-cover" />}
+            <div className="space-y-4 p-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">{selectedResource?.title ?? 'Инвентарь'}</p>
+                <h3 className="mt-1 text-xl font-semibold text-gray-950">{title.trim()}</h3>
+                {description.trim() && <p className="mt-2 text-sm leading-5 text-gray-700">{description.trim()}</p>}
+              </div>
+              <PreviewBlock title="Цена">
+                <ul className="space-y-0.5 text-sm text-gray-900">{priceLines.map(line => <li key={line}>{line}</li>)}</ul>
+              </PreviewBlock>
+              <PreviewBlock title="Пункт проката">
+                <p className="text-sm text-gray-900">{selectedLocation ? `${selectedLocation.name}${selectedLocation.cityName ? ` · ${selectedLocation.cityName}` : ''}` : '—'}</p>
+                {selectedLocation && <p className="text-xs text-gray-500">{selectedLocation.address}</p>}
+              </PreviewBlock>
+              {bookingLabel && <PreviewBlock title="Бронирование"><p className="text-sm text-gray-900">{bookingLabel}</p></PreviewBlock>}
+              {INFO_SECTION_KINDS.filter(({ kind }) => (sectionItems[kind] ?? []).some(item => item.trim())).map(({ kind, label }) => (
+                <PreviewBlock key={kind} title={label}>
+                  <ul className="list-disc space-y-0.5 pl-5 text-sm text-gray-900">
+                    {(sectionItems[kind] ?? []).filter(item => item.trim()).map((item, index) => <li key={index}>{item}</li>)}
+                  </ul>
+                </PreviewBlock>
+              ))}
+              <PreviewBlock title="Доступность и показ">
+                <p className="text-sm text-gray-900">
+                  {windows.length > 0
+                    ? windows.map(w => `${formatRuDate(w.startsOn)} – ${formatRuDate(w.endsOn)}, ${w.dailyOpensAt}–${w.dailyClosesAt}`).join('; ')
+                    : 'Окна работы не заданы — брони не принимаются, пока вы их не добавите.'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {VISIBILITY_MODES.find(mode => mode.value === visibilityMode)?.title}
+                  {visibilityMode === 'seasonal' && visibleFrom && visibleUntil ? `: ${formatRuDate(visibleFrom)} – ${formatRuDate(visibleUntil)}` : ''}
+                </p>
+              </PreviewBlock>
+            </div>
+          </div>
+        </FormSection>
+        <ActionBar
+          error={submitError}
+          left={
+            <>
+              <Button variant="secondary" onClick={() => setStep(0)} disabled={submitting}>Назад</Button>
+              <Button variant="ghost" onClick={onCancel} disabled={submitting}>Отмена</Button>
+            </>
+          }
+          right={<Button variant="primary" onClick={() => void onSubmit(buildData())} loading={submitting}>Завершить создание</Button>}
+        />
+      </FormPage>
+    );
+  }
 
-  const basicsPanel = (
-    <Card>
-      <div className="space-y-4">
-        <Input
-          label="Название предложения"
+  return (
+    <FormPage>
+      {!isEdit && <FormStepper steps={CREATE_STEPS} current={0} />}
+
+      <FormSection title="Информация о предложении">
+        <FloatingInput
+          label="Название"
+          required
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={event => setTitle(event.target.value)}
           error={errors.title}
-          placeholder="Например: горный велосипед на день"
+          hint="Например: Горный велосипед на день"
+          maxLength={160}
         />
-        <FancySelect
-          label="Инвентарь"
-          options={resourceOptions}
-          value={resourceId}
-          onChange={value => {
-            setResourceId(value);
-            setOfferType('');
-            setBookingFlowType('');
-          }}
-          error={errors.resourceId}
-        />
-        <FancySelect
-          label="Пункт выдачи"
-          options={locationOptions}
+        {fixedResource ? (
+          <FloatingInput label="Инвентарь" value={fixedResource.title} readOnly disabled />
+        ) : (
+          <PickerRow
+            label="Инвентарь"
+            required
+            items={resources.map(item => ({ value: item.resourceId, label: item.title, description: item.categoryName || item.category?.title }))}
+            value={resourceId}
+            onChange={value => { setResourceId(value); setOfferType(''); setBookingFlowType(''); }}
+            error={errors.resourceId}
+            emptyText="Сначала добавьте позицию в каталог."
+          />
+        )}
+        <PickerRow
+          label="Пункт проката"
+          required
+          items={locations.filter(location => location.status !== 'inactive').map(location => ({
+            value: location.locationId,
+            label: location.name,
+            description: location.cityName ? `${location.cityName}, ${location.address}` : location.address,
+          }))}
           value={locationId}
           onChange={setLocationId}
-          error={errors.locationId}
+          error={errors.locationId || (locationsError ? 'Пункты проката не загрузились.' : undefined)}
+          hint="Где клиент получит и вернёт снаряжение."
+          emptyText="Пунктов проката пока нет."
+          footer={<Link to="/settings/locations" className="font-medium text-blue-700 hover:underline">Добавить пункт проката</Link>}
         />
-        {locationsError && (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            Пункты выдачи не загрузились. Добавьте или проверьте их в разделе настроек.
-          </p>
-        )}
-
-        <div className="space-y-3">
-          {!hideOfferType && (
-            <OptionPicker
-              title="Тип предложения"
-              options={authoringOptions?.offerTypes ?? []}
-              value={offerType}
-              loading={optionsLoading}
-              error={errors.offerType}
-              onChange={setOfferType}
-            />
-          )}
-          <OptionPicker
-            title="Бронирование"
-            options={authoringOptions?.bookingFlowTypes ?? []}
-            value={bookingFlowType}
-            loading={optionsLoading}
-            error={errors.bookingFlowType}
-            onChange={setBookingFlowType}
+        {!hideOfferType && (
+          <FloatingSelect
+            label="Тип предложения"
+            required
+            value={offerType}
+            onChange={event => setOfferType(event.target.value)}
+            options={(authoringOptions?.offerTypes ?? []).map(option => ({ value: option.value, label: option.title, disabled: !isAuthoringOptionActive(option) }))}
+            hint={authoringOptions?.offerTypes.find(option => option.value === offerType)?.description}
+            error={errors.offerType}
+            disabled={optionsLoading}
           />
-          {optionsError && (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {optionsError}
-            </p>
-          )}
-        </div>
-
-        <Textarea
-          label="Описание (необязательно)"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          rows={3}
-          placeholder="Что включено, основные детали..."
+        )}
+        <FloatingSelect
+          label="Бронирование"
+          required
+          value={bookingFlowType}
+          onChange={event => setBookingFlowType(event.target.value)}
+          options={(authoringOptions?.bookingFlowTypes ?? []).map(option => ({ value: option.value, label: option.title, disabled: !isAuthoringOptionActive(option) }))}
+          hint={authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType)?.description}
+          error={errors.bookingFlowType || optionsError || undefined}
+          disabled={optionsLoading}
         />
+        <FloatingTextarea
+          label="Описание"
+          value={description}
+          onChange={event => setDescription(event.target.value)}
+          rows={3}
+          hint="Что включено и главные детали. Необязательно."
+        />
+      </FormSection>
 
-        <div className="space-y-4 border-t border-gray-100 pt-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Информация для клиента</h3>
-            <p className="mt-0.5 text-xs text-gray-500">Списки видны клиенту. Порядок = порядок показа.</p>
-          </div>
-          {INFO_SECTION_KINDS.map(({ kind, label, placeholder }) => (
-            <StringListEditor
-              key={kind}
-              label={label}
-              items={sectionItems[kind] ?? []}
-              onChange={items => setSectionItems(current => ({ ...current, [kind]: items }))}
-              placeholder={placeholder}
-              addLabel="Добавить пункт"
-            />
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-
-  const pricingPanel = (
-    <Card>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Цена предложения</h3>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Используется при расчёте стоимости бронирования.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-foreground">Как считать цену</p>
-          {optionsLoading ? (
-            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">Загружаем способы расчёта…</div>
-          ) : pricingModeOptions.length === 0 ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">Для этой позиции нет доступных способов расчёта.</div>
-          ) : (
-            <div className="space-y-2">
-              {pricingModeOptions.map(mode => {
-                const selected = pricingMode === mode.value;
-                const disabled = mode.isActive === false;
-                return (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => setPricingMode(mode.value)}
-                    className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition ${
-                      disabled ? 'cursor-not-allowed border-gray-100 bg-gray-50 opacity-60'
-                        : selected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500/30'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                    aria-pressed={selected}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="text-sm font-medium text-gray-900">{mode.title}</span>
-                      {mode.description && <span className="mt-0.5 block text-xs leading-5 text-gray-500">{mode.description}</span>}
-                    </span>
-                    {selected && <Check size={16} className="mt-0.5 shrink-0 text-blue-600" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {errors.pricingMode && <p className="text-xs text-red-600">{errors.pricingMode}</p>}
-        </div>
+      <FormSection title="Цена" description="Используется при расчёте стоимости бронирования.">
+        {optionsLoading ? (
+          <p className="px-1 text-sm text-gray-500">Загружаем способы расчёта…</p>
+        ) : pricingModeOptions.length === 0 ? (
+          <p className="px-1 text-sm text-amber-700">Для этой позиции нет доступных способов расчёта.</p>
+        ) : (
+          <ChoiceCards
+            options={pricingModeOptions.map(mode => ({ value: mode.value, title: mode.title, description: mode.description, disabled: mode.isActive === false }))}
+            value={pricingMode}
+            onChange={setPricingMode}
+          />
+        )}
+        <FieldNote error={errors.pricingMode} />
 
         {pricingMode !== 'rental_tiers' && (
-          <div className="grid gap-3 md:grid-cols-[1fr_140px]">
-            <Input
-              label={pricingMode === 'per_unit_time' ? 'Цена за час' : 'Цена'}
-              type="number"
-              value={pricingBaseAmount}
-              onChange={e => setPricingBaseAmount(e.target.value)}
-              error={errors.pricingBaseAmount}
-              placeholder="Например: 500"
-            />
-            <Input
-              label="Валюта"
-              value={pricingCurrency}
-              onChange={e => setPricingCurrency(e.target.value.toUpperCase())}
-              placeholder="RUB"
-              disabled={pricingLoading}
-            />
-          </div>
+          <FloatingInput
+            label={pricingMode === 'per_unit_time' ? 'Цена за час' : 'Цена'}
+            required
+            type="number"
+            min="0"
+            inputMode="decimal"
+            value={pricingBaseAmount}
+            onChange={event => setPricingBaseAmount(event.target.value)}
+            error={errors.pricingBaseAmount}
+            suffix={currencySymbol(pricingCurrency)}
+            disabled={pricingLoading}
+          />
         )}
 
         {pricingMode === 'rental_tiers' && (
-          <div className="space-y-3">
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-gray-700">Тарифные ступени</p>
-                <div className="flex items-center gap-2">
-                  {rentalTiers.length === 0 && (
-                    <Button size="sm" variant="secondary" onClick={() => setRentalTiers(STANDARD_TIERS.map(t => ({ ...t })))}>
-                      Стандартные ступени
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setRentalTiers(t => [...t, { upToHours: 0, price: 0, label: '' }])}
-                  >
-                    <Plus size={12} /> Ступень
-                  </Button>
-                </div>
+          <div className="space-y-3" data-error={errors.rentalTiers ? 'true' : undefined}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-gray-700">Тарифные ступени</p>
+              <div className="flex items-center gap-2">
+                {rentalTiers.length === 0 && (
+                  <Button size="sm" variant="secondary" onClick={() => setRentalTiers(STANDARD_TIERS.map(t => ({ ...t })))}>Стандартные</Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => setRentalTiers(t => [...t, { upToHours: 0, price: 0, label: '' }])}>
+                  <Plus size={12} /> Ступень
+                </Button>
               </div>
-              <p className="mb-2 text-xs leading-5 text-gray-500">
-                Цена за прокат вплоть до указанного числа часов. Ступени идут по возрастанию: например 1 ч, 4 ч (полдня), 24 ч (сутки).
+            </div>
+            {rentalTiers.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500">
+                Цена за прокат до указанного числа часов: например 1 ч, 4 ч (полдня), 24 ч (сутки).
               </p>
-              {errors.rentalTiers && <p className="mb-2 text-xs text-red-600">{errors.rentalTiers}</p>}
-              {rentalTiers.length === 0 ? (
-                <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-500">
-                  Добавьте ступени или нажмите «Стандартные ступени».
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-[90px_1fr_1fr_auto] gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                    <span>До (часов)</span><span>Цена, {pricingCurrency || 'RUB'}</span><span>Название</span><span />
-                  </div>
-                  {rentalTiers.map((tier, index) => (
-                    <div key={index} className="grid grid-cols-[90px_1fr_1fr_auto] items-center gap-2 rounded-md border border-gray-100 bg-gray-50 p-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={String(tier.upToHours)}
-                        onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, upToHours: Number(e.target.value) || 0 } : x))}
-                        placeholder="8"
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        value={String(tier.price)}
-                        onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, price: Number(e.target.value) || 0 } : x))}
-                        placeholder="900"
-                      />
-                      <Input
-                        value={tier.label ?? ''}
-                        onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, label: e.target.value } : x))}
-                        placeholder="Полдня"
-                      />
-                      <Button size="sm" variant="ghost" onClick={() => setRentalTiers(t => t.filter((_, i) => i !== index))}>
-                        <Trash2 size={12} />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="grid gap-3 md:grid-cols-[1fr_140px]">
-              <Input
-                label="Цена за сутки сверх ступеней (необязательно)"
-                type="number"
-                min="0"
-                value={multiDayRate}
-                onChange={e => setMultiDayRate(e.target.value)}
-                placeholder="1300"
-              />
-              <Input
-                label="Валюта"
-                value={pricingCurrency}
-                onChange={e => setPricingCurrency(e.target.value.toUpperCase())}
-                placeholder="RUB"
-                disabled={pricingLoading}
-              />
-            </div>
-          </div>
-        )}
-        {pricingError && (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            Не удалось загрузить текущую цену. Можно сохранить новое значение.
-          </p>
-        )}
-      </div>
-    </Card>
-  );
-
-  const availabilityPanel = (
-    <Card>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Доступность</h3>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Когда предложение можно бронировать. Можно пропустить и настроить позже.
-          </p>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <Input label="Часовой пояс" value={timezone} onChange={e => setTimezone(e.target.value)} placeholder={DEFAULT_TIMEZONE} />
-          <FancySelect
-            label="Приём бронирований"
-            options={[
-              { value: 'active', label: 'Принимать' },
-              { value: 'inactive', label: 'Временно закрыто' },
-            ]}
-            value={availabilityStatus}
-            onChange={setAvailabilityStatus}
-          />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <Input
-            label="Длительность (ч)"
-            type="number"
-            min="1"
-            value={durationHours}
-            onChange={e => setDurationHours(e.target.value)}
-            placeholder="Для сеансов фиксированной длины"
-          />
-          <Input
-            label="Шаг слота (мин)"
-            type="number"
-            min="1"
-            value={slotIntervalMinutes}
-            onChange={e => setSlotIntervalMinutes(e.target.value)}
-            placeholder="Не задан"
-          />
-        </div>
-
-        <div className="space-y-2 border-t border-gray-100 pt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-700">Сезонные окна работы</p>
-            <Button size="sm" variant="secondary" onClick={() => setWindows(ws => [...ws, emptyWindow()])}>
-              <Plus size={12} /> Добавить окно
-            </Button>
-          </div>
-          {windows.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-500">
-              Без окон работы предложение не будет принимать брони. Можно добавить позже.
-            </div>
-          ) : (
-            windows.map((window, index) => (
-              <div key={index}>
-                <div className="grid items-end gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 sm:grid-cols-[1.6fr_100px_100px_auto]">
-                  <DateRangePicker
-                    label="Сезон"
-                    startsOn={window.startsOn}
-                    endsOn={window.endsOn}
-                    onChange={range => patchWindow(index, range)}
+            ) : (
+              rentalTiers.map((tier, index) => (
+                <div key={index} className="grid grid-cols-[96px_1fr_1fr_auto] items-start gap-2">
+                  <FloatingInput
+                    label="До, ч"
+                    type="number"
+                    min="1"
+                    value={tier.upToHours ? String(tier.upToHours) : ''}
+                    onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, upToHours: Number(e.target.value) || 0 } : x))}
                   />
-                  <TimeSelect label="Открытие" value={window.dailyOpensAt} onChange={value => patchWindow(index, { dailyOpensAt: value })} />
-                  <TimeSelect label="Закрытие" value={window.dailyClosesAt} onChange={value => patchWindow(index, { dailyClosesAt: value })} />
-                  <Button size="sm" variant="ghost" onClick={() => setWindows(ws => ws.filter((_, i) => i !== index))}>
-                    <Trash2 size={13} />
+                  <FloatingInput
+                    label="Цена"
+                    type="number"
+                    min="0"
+                    value={String(tier.price)}
+                    suffix={currencySymbol(pricingCurrency)}
+                    onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, price: Number(e.target.value) || 0 } : x))}
+                  />
+                  <FloatingInput
+                    label="Название"
+                    value={tier.label ?? ''}
+                    onChange={e => setRentalTiers(t => t.map((x, i) => i === index ? { ...x, label: e.target.value } : x))}
+                  />
+                  <Button size="icon" variant="ghost" className="mt-2.5" onClick={() => setRentalTiers(t => t.filter((_, i) => i !== index))} aria-label="Удалить ступень">
+                    <Trash2 size={14} />
                   </Button>
                 </div>
-                {errors[`window-${index}`] && <p className="mt-1 text-xs text-red-600">{errors[`window-${index}`]}</p>}
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="space-y-2 border-t border-gray-100 pt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-700">Закрытые периоды</p>
-            <Button size="sm" variant="secondary" onClick={() => setBlockedPeriods(bs => [...bs, emptyBlockedPeriod()])}>
-              <Plus size={12} /> Закрыть даты
-            </Button>
+              ))
+            )}
+            <FieldNote error={errors.rentalTiers} />
+            <FloatingInput
+              label="Каждые следующие сутки"
+              type="number"
+              min="0"
+              value={multiDayRate}
+              onChange={e => setMultiDayRate(e.target.value)}
+              suffix={currencySymbol(pricingCurrency)}
+              hint="Цена за сутки сверх последней ступени. Необязательно."
+            />
           </div>
-          {blockedPeriods.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-500">
-              Закрытых периодов нет.
-            </div>
-          ) : (
-            blockedPeriods.map((period, index) => (
-              <div key={index}>
-                <div className="grid items-end gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 sm:grid-cols-[1.4fr_1fr_auto]">
-                  <DateRangePicker
-                    label="Период"
-                    startsOn={period.startsOn}
-                    endsOn={period.endsOn}
-                    onChange={range => patchBlocked(index, range)}
-                  />
-                  <Input
-                    label="Причина"
-                    value={period.reasonCode ?? ''}
-                    onChange={e => patchBlocked(index, { reasonCode: e.target.value })}
-                    placeholder="maintenance"
-                  />
-                  <Button size="sm" variant="ghost" onClick={() => setBlockedPeriods(bs => bs.filter((_, i) => i !== index))}>
-                    <Trash2 size={13} />
-                  </Button>
-                </div>
-                {errors[`blocked-${index}`] && <p className="mt-1 text-xs text-red-600">{errors[`blocked-${index}`]}</p>}
-              </div>
-            ))
-          )}
+        )}
+        {pricingError && <p className="px-1 text-xs text-amber-700">Не удалось загрузить текущую цену. Можно сохранить новое значение.</p>}
+      </FormSection>
+
+      {!showMore && (
+        <div className="pt-8">
+          <Button variant="secondary" onClick={revealMore}>Заполнить больше</Button>
+          <p className="mt-2 text-xs text-gray-500">Информация для клиента{!isEdit ? ', доступность и видимость' : ''} — можно заполнить сейчас или позже.</p>
         </div>
-      </div>
-    </Card>
-  );
-
-  const visibilityPanel = (
-    <Card>
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Видимость</h3>
-          <p className="mt-0.5 text-xs text-gray-500">Когда предложение видно клиентам в каталоге.</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-            {VISIBILITY_MODES.map(mode => {
-              const selected = visibilityMode === mode.value;
-              const Icon = mode.icon;
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  onClick={() => setVisibilityMode(mode.value)}
-                  title={mode.description}
-                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                    selected ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  aria-pressed={selected}
-                >
-                  <Icon size={14} className={selected ? 'text-blue-600' : 'text-gray-400'} />
-                  {mode.label}
-                </button>
-              );
-            })}
-          </div>
-          {visibilityMode === 'seasonal' && (
-            <div className="w-52">
-              <DateRangePicker
-                startsOn={visibleFrom ?? ''}
-                endsOn={visibleUntil ?? ''}
-                placeholder="Укажите период"
-                onChange={range => { setVisibleFrom(range.startsOn || null); setVisibleUntil(range.endsOn || null); }}
-              />
-            </div>
-          )}
-        </div>
-        <p className="text-xs leading-5 text-gray-500">
-          {VISIBILITY_MODES.find(m => m.value === visibilityMode)?.description}
-        </p>
-        {errors.visibilityRange && <p className="text-xs text-red-600">{errors.visibilityRange}</p>}
-      </div>
-    </Card>
-  );
-
-  const wizardPanels = [basicsPanel, pricingPanel, availabilityPanel, visibilityPanel];
-  const isLastStep = step === WIZARD_STEPS.length - 1;
-
-  return (
-    <div className={`${isWizard ? 'max-w-3xl' : 'max-w-2xl'} mx-auto space-y-5`}>
-      <div>
-        <h2 className="text-sm font-semibold text-gray-900">{offer ? 'Редактировать предложение' : 'Создать предложение'}</h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {offer ? 'Обновите условия предложения.' : 'Опишите новое предложение аренды для клиентов.'}
-        </p>
-      </div>
-
-      {isWizard && (
-        <ol className="flex items-center gap-2 text-xs">
-          {WIZARD_STEPS.map((label, index) => {
-            const state = index === step ? 'current' : index < step ? 'done' : 'todo';
-            return (
-              <li key={label} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { if (index < step) { setErrors({}); setStep(index); } }}
-                  disabled={index > step}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition ${
-                    state === 'current' ? 'bg-blue-600 text-white'
-                      : state === 'done' ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px]">{index + 1}</span>
-                  {label}
-                </button>
-                {index < WIZARD_STEPS.length - 1 && <span className="h-px w-3 bg-gray-200" />}
-              </li>
-            );
-          })}
-        </ol>
       )}
 
-      {isWizard ? wizardPanels[step] : <>{basicsPanel}{pricingPanel}</>}
+      {showMore && (
+        <div ref={moreRef}>
+          <FormSection title="Информация для клиента" description="Списки видны клиенту в карточке. Порядок пунктов — порядок показа.">
+            {INFO_SECTION_KINDS.map(({ kind, label, placeholder }) => (
+              <StringListEditor
+                key={kind}
+                label={label}
+                items={sectionItems[kind] ?? []}
+                onChange={items => setSectionItems(current => ({ ...current, [kind]: items }))}
+                placeholder={placeholder}
+                addLabel="Добавить пункт"
+              />
+            ))}
+          </FormSection>
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-2">
-          {isWizard && step > 0 && (
-            <Button variant="secondary" onClick={goBack} disabled={submitting}>Назад</Button>
+          {!isEdit && (
+            <>
+              <FormSection title="Доступность" description="Когда предложение можно бронировать. Без окон работы брони не принимаются.">
+                <FieldRow>
+                  <FloatingInput label="Часовой пояс" value={timezone} onChange={e => setTimezone(e.target.value)} />
+                  <FloatingSelect
+                    label="Приём бронирований"
+                    value={availabilityStatus}
+                    onChange={e => setAvailabilityStatus(e.target.value)}
+                    options={[{ value: 'active', label: 'Принимать' }, { value: 'inactive', label: 'Временно закрыто' }]}
+                  />
+                </FieldRow>
+                <FieldRow>
+                  <FloatingInput label="Длительность сеанса, ч" type="number" min="1" value={durationHours} onChange={e => setDurationHours(e.target.value)} hint="Для сеансов фиксированной длины." />
+                  <FloatingInput label="Шаг слота, мин" type="number" min="1" value={slotIntervalMinutes} onChange={e => setSlotIntervalMinutes(e.target.value)} />
+                </FieldRow>
+
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm text-gray-700">Сезонные окна работы</p>
+                  <Button size="sm" variant="secondary" onClick={() => setWindows(ws => [...ws, emptyWindow()])}><Plus size={12} /> Окно</Button>
+                </div>
+                {windows.map((window, index) => (
+                  <div key={index} data-error={errors[`window-${index}`] ? 'true' : undefined}>
+                    <div className="grid items-end gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1.6fr_100px_100px_auto]">
+                      <DateRangePicker label="Сезон" startsOn={window.startsOn} endsOn={window.endsOn} onChange={range => patchWindow(index, range)} />
+                      <TimeSelect label="Открытие" value={window.dailyOpensAt} onChange={value => patchWindow(index, { dailyOpensAt: value })} />
+                      <TimeSelect label="Закрытие" value={window.dailyClosesAt} onChange={value => patchWindow(index, { dailyClosesAt: value })} />
+                      <Button size="icon" variant="ghost" onClick={() => setWindows(ws => ws.filter((_, i) => i !== index))} aria-label="Удалить окно"><Trash2 size={13} /></Button>
+                    </div>
+                    <FieldNote error={errors[`window-${index}`]} />
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm text-gray-700">Закрытые периоды</p>
+                  <Button size="sm" variant="secondary" onClick={() => setBlockedPeriods(bs => [...bs, emptyBlockedPeriod()])}><Plus size={12} /> Закрыть даты</Button>
+                </div>
+                {blockedPeriods.map((period, index) => (
+                  <div key={index} data-error={errors[`blocked-${index}`] ? 'true' : undefined}>
+                    <div className="grid items-end gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1.4fr_1fr_auto]">
+                      <DateRangePicker label="Период" startsOn={period.startsOn} endsOn={period.endsOn} onChange={range => patchBlocked(index, range)} />
+                      <FloatingInput label="Причина" value={period.reasonCode ?? ''} onChange={e => patchBlocked(index, { reasonCode: e.target.value })} />
+                      <Button size="icon" variant="ghost" onClick={() => setBlockedPeriods(bs => bs.filter((_, i) => i !== index))} aria-label="Удалить период"><Trash2 size={13} /></Button>
+                    </div>
+                    <FieldNote error={errors[`blocked-${index}`]} />
+                  </div>
+                ))}
+              </FormSection>
+
+              <FormSection title="Видимость" description="Когда предложение видно клиентам в каталоге.">
+                <ChoiceCards options={VISIBILITY_MODES.map(mode => ({ ...mode }))} value={visibilityMode} onChange={setVisibilityMode} columns={3} />
+                {visibilityMode === 'seasonal' && (
+                  <div className="max-w-xs" data-error={errors.visibilityRange ? 'true' : undefined}>
+                    <DateRangePicker
+                      label="Период показа"
+                      startsOn={visibleFrom ?? ''}
+                      endsOn={visibleUntil ?? ''}
+                      placeholder="Укажите период"
+                      onChange={range => { setVisibleFrom(range.startsOn || null); setVisibleUntil(range.endsOn || null); }}
+                    />
+                    <FieldNote error={errors.visibilityRange} />
+                  </div>
+                )}
+              </FormSection>
+            </>
           )}
-          <Button variant="ghost" onClick={onCancel} disabled={submitting}>Отмена</Button>
         </div>
-        {isWizard && !isLastStep ? (
-          <Button variant="primary" onClick={goNext}>Далее</Button>
-        ) : (
-          <Button variant="primary" onClick={handleSubmit} loading={submitting}>
-            {offer ? 'Сохранить изменения' : 'Создать предложение'}
-          </Button>
-        )}
-      </div>
-    </div>
+      )}
+
+      <ActionBar
+        error={isEdit ? submitError : undefined}
+        left={
+          <>
+            <Button variant="secondary" onClick={onCancel} disabled={submitting}>Отмена</Button>
+            {!showMore && <Button variant="ghost" onClick={revealMore}>Заполнить больше</Button>}
+          </>
+        }
+        right={
+          isEdit
+            ? <Button variant="primary" onClick={() => { if (validate()) void onSubmit(buildData()); }} loading={submitting}>Сохранить</Button>
+            : <Button variant="primary" onClick={goToPreview}>Далее</Button>
+        }
+      />
+    </FormPage>
   );
 }
 
-function FancySelect({
-  label,
-  options,
-  value,
-  error,
-  onChange,
-}: {
-  label: string;
-  options: SimpleOption[];
-  value: string;
-  error?: string;
-  onChange: (value: string) => void;
-}) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const selected = options.find(option => option.value === value);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [open]);
-
+function PreviewBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div ref={rootRef} className="relative">
-      <p className="mb-1.5 text-xs font-medium text-foreground">{label}</p>
-      <button
-        type="button"
-        onClick={() => setOpen(current => !current)}
-        className={`flex h-9 w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-100 ${
-          error ? 'border-red-300' : open ? 'border-blue-300' : 'border-gray-200'
-        }`}
-      >
-        <span className={`truncate ${selected?.value ? 'text-gray-900' : 'text-gray-400'}`}>
-          {selected?.label ?? 'Выберите значение'}
-        </span>
-        <ChevronDown size={16} className={`ml-3 shrink-0 text-gray-400 transition ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-40 mt-1 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-          {options.map(option => {
-            const isSelected = option.value === value;
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onMouseDown={event => event.preventDefault()}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${
-                  isSelected ? 'bg-blue-50 text-blue-950' : 'text-gray-800 hover:bg-gray-50'
-                }`}
-              >
-                <span className="truncate">{option.label}</span>
-                {isSelected && <Check size={14} className="shrink-0 text-blue-700" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{title}</p>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
@@ -915,119 +669,4 @@ function readFulfillmentLocationId(offer: Offer | undefined) {
 
   const legacyId = offer.location?.providerLocationId;
   return typeof legacyId === 'string' ? legacyId : '';
-}
-
-function OptionPicker({
-  title,
-  options,
-  value,
-  loading,
-  error,
-  onChange,
-}: {
-  title: string;
-  options: OfferAuthoringOption[];
-  value: string;
-  loading: boolean;
-  error?: string;
-  onChange: (value: string) => void;
-}) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const selected = options.find(option => option.value === value);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [open]);
-
-  if (loading) {
-    return (
-      <div>
-        <p className="mb-1.5 text-xs font-medium text-foreground">{title}</p>
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-          Загружаем модели...
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={rootRef} className="relative">
-      <p className="mb-1.5 text-xs font-medium text-foreground">{title}</p>
-      <button
-        type="button"
-        onClick={() => setOpen(current => !current)}
-        className={`flex min-h-10 w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-100 ${
-          error ? 'border-red-300' : open ? 'border-blue-300' : 'border-gray-200'
-        }`}
-      >
-        <span className="min-w-0">
-          <span className={`block truncate font-medium ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
-            {selected?.title ?? 'Выберите значение'}
-          </span>
-          {selected?.description && (
-            <span className="mt-0.5 block truncate text-xs text-gray-500">{selected.description}</span>
-          )}
-        </span>
-        <ChevronDown size={16} className={`ml-3 shrink-0 text-gray-400 transition ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-40 mt-1 max-h-72 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-          {options.map(option => {
-            const isSelected = option.value === value;
-            const isActive = isAuthoringOptionActive(option);
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onMouseDown={event => event.preventDefault()}
-                onClick={() => {
-                  if (!isActive) return;
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                disabled={!isActive}
-                className={`flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition ${
-                  !isActive
-                    ? 'cursor-not-allowed bg-gray-50 text-gray-400'
-                    : isSelected
-                      ? 'bg-blue-50 text-blue-950'
-                      : 'text-gray-800 hover:bg-gray-50'
-                }`}
-              >
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <span>{option.title}</span>
-                    {!isActive && (
-                      <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                        Недоступно
-                      </span>
-                    )}
-                  </span>
-                  {option.description && (
-                    <span className={`mt-0.5 block text-xs leading-4 ${isActive ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {option.description}
-                    </span>
-                  )}
-                </span>
-                {isSelected && <Check size={14} className="mt-0.5 shrink-0 text-blue-700" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
-  );
 }
