@@ -4,9 +4,11 @@ import { cn } from '../../lib/utils';
 /**
  * One column of sections with a bar of actions at the end — the shape of every create/edit page
  * (after Ozon's «Создание товара»). Sections are headings, not cards: the page is the container.
+ * The column starts at the page's left edge, under the heading, instead of floating in the middle
+ * of a wide screen away from everything else.
  */
 export function FormPage({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cn('mx-auto w-full px-6 pb-28 pt-2', wide ? 'max-w-3xl' : 'max-w-xl', className)}>{children}</div>;
+  return <div className={cn('w-full px-6 pb-28 pt-2', wide ? 'max-w-3xl' : 'max-w-xl', className)}>{children}</div>;
 }
 
 export function FormSection({

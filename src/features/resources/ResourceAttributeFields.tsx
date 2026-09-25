@@ -78,7 +78,7 @@ function ResourceAttributeField({
         label={label}
         required={required}
         value={value}
-        onChange={event => onChange(event.target.value)}
+        onChange={onChange}
         options={attribute.allowedValues
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder)

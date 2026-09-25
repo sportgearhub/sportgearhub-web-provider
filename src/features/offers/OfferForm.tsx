@@ -166,10 +166,12 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       .then(options => {
         if (cancelled) return;
         setAuthoringOptions(options);
-        setOfferType(current => nextAuthoringValue(current, options.defaults.offerType, options.offerTypes));
-        setBookingFlowType(current => nextAuthoringValue(current, options.defaults.bookingFlowType, options.bookingFlowTypes));
+        // A payload without `defaults` must not take the form down; the lists still let one choose.
+        const defaults = options.defaults ?? { offerType: '', bookingFlowType: '', pricingMode: '' };
+        setOfferType(current => nextAuthoringValue(current, defaults.offerType, options.offerTypes ?? []));
+        setBookingFlowType(current => nextAuthoringValue(current, defaults.bookingFlowType, options.bookingFlowTypes ?? []));
         if (options.pricingModes?.length) {
-          setPricingMode(current => nextAuthoringValue(current, options.defaults.pricingMode || options.pricingModes[0].value, options.pricingModes));
+          setPricingMode(current => nextAuthoringValue(current, defaults.pricingMode || options.pricingModes[0].value, options.pricingModes));
         }
       })
       .catch(err => {
@@ -401,8 +403,8 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
             label="Тип предложения"
             required
             value={offerType}
-            onChange={event => setOfferType(event.target.value)}
-            options={(authoringOptions?.offerTypes ?? []).map(option => ({ value: option.value, label: option.title, disabled: !isAuthoringOptionActive(option) }))}
+            onChange={setOfferType}
+            options={(authoringOptions?.offerTypes ?? []).map(option => ({ value: option.value, label: option.title, description: option.description, disabled: !isAuthoringOptionActive(option) }))}
             hint={authoringOptions?.offerTypes.find(option => option.value === offerType)?.description}
             error={errors.offerType}
             disabled={optionsLoading}
@@ -412,8 +414,8 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
           label="Бронирование"
           required
           value={bookingFlowType}
-          onChange={event => setBookingFlowType(event.target.value)}
-          options={(authoringOptions?.bookingFlowTypes ?? []).map(option => ({ value: option.value, label: option.title, disabled: !isAuthoringOptionActive(option) }))}
+          onChange={setBookingFlowType}
+          options={(authoringOptions?.bookingFlowTypes ?? []).map(option => ({ value: option.value, label: option.title, description: option.description, disabled: !isAuthoringOptionActive(option) }))}
           hint={authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType)?.description}
           error={errors.bookingFlowType || optionsError || undefined}
           disabled={optionsLoading}
@@ -538,7 +540,7 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
                   <FloatingSelect
                     label="Приём бронирований"
                     value={availabilityStatus}
-                    onChange={e => setAvailabilityStatus(e.target.value)}
+                    onChange={setAvailabilityStatus}
                     options={[{ value: 'active', label: 'Принимать' }, { value: 'inactive', label: 'Временно закрыто' }]}
                   />
                 </FieldRow>

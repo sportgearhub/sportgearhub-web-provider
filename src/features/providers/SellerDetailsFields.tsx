@@ -147,8 +147,8 @@ export function SellerDetailsFields({ draft, onChange, onLookupError }: { draft:
             </div>
           )}
           <FieldRow>
-            <FloatingSelect label="Система налогообложения" required value={draft.taxationSystem} options={taxationSystemOptions} onChange={event => onChange({ ...draft, taxationSystem: event.target.value })} />
-            <FloatingSelect label="Ставка НДС в чеке" required value={draft.vatRate} options={vatRateOptions} onChange={event => onChange({ ...draft, vatRate: event.target.value })} />
+            <FloatingSelect label="Система налогообложения" required value={draft.taxationSystem} options={taxationSystemOptions} onChange={taxationSystem => onChange({ ...draft, taxationSystem })} />
+            <FloatingSelect label="Ставка НДС в чеке" required value={draft.vatRate} options={vatRateOptions} onChange={vatRate => onChange({ ...draft, vatRate })} />
           </FieldRow>
           <p className="px-1 text-xs text-gray-500">Название, ОГРН, адрес и руководителя мы берём из реестра. Систему налогообложения реестр не сообщает — укажите её сами.</p>
         </>
