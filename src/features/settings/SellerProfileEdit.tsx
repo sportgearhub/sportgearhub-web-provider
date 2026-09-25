@@ -8,7 +8,7 @@ import { ApiError, providerApi } from '../../lib/api-client';
 import type { SellerProfile } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
 import { kindLabel, taxationSystemOptions, vatRateOptions } from '../providers/providerStatus';
-import { SettingsSection } from './SettingsSection';
+import { SectionPage } from '../../components/layout/SectionPage';
 
 /**
  * The editable part of «Информация о продавце». Only what a seller may change: the taxation system,
@@ -76,7 +76,7 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
   };
 
   return (
-    <SettingsSection
+    <SectionPage
       title="Редактирование данных продавца"
       breadcrumb={{ label: 'Информация о продавце', path: '/settings/seller' }}
       onNavigate={onNavigate}
@@ -128,6 +128,6 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
           </div>
         </div>
       )}
-    </SettingsSection>
+    </SectionPage>
   );
 }

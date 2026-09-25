@@ -10,7 +10,7 @@ import { ApiError, profileApi } from '../../lib/api-client';
 import type { Provider } from '../../types';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
-import { SettingsSection } from './SettingsSection';
+import { SectionPage } from '../../components/layout/SectionPage';
 
 /** What the shop looks like to a customer. Read here, changed on /settings/shop/edit. */
 export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => void }) {
@@ -39,7 +39,7 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
   }, [provider.providerId]);
 
   return (
-    <SettingsSection
+    <SectionPage
       title="Профиль проката"
       description="Название, контакты и описание — то, что видят клиенты. Юридические данные в разделе «Информация о продавце»."
       action={
@@ -62,7 +62,7 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           <DetailRow label="Описание" value={profile?.description} />
         </DetailList>
       )}
-    </SettingsSection>
+    </SectionPage>
   );
 }
 
@@ -134,7 +134,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
   };
 
   return (
-    <SettingsSection
+    <SectionPage
       title="Редактирование профиля"
       description="Изменения увидят клиенты после сохранения."
       breadcrumb={{ label: 'Профиль проката', path: '/settings/shop' }}
@@ -185,6 +185,6 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
           </div>
         </div>
       )}
-    </SettingsSection>
+    </SectionPage>
   );
 }

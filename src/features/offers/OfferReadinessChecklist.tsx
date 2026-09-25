@@ -45,7 +45,7 @@ function sectionLabel(section: OfferReadinessSection) {
 }
 
 function readinessItems(readiness: OfferReadiness): ReadinessItem[] {
-  return readiness.sections.map(section => ({
+  return (readiness.sections ?? []).map(section => ({
     key: section.code,
     label: sectionLabel(section),
     detail: section.message || section.reasonCodes?.join(', ') || 'Требуется проверка.',
@@ -54,7 +54,8 @@ function readinessItems(readiness: OfferReadiness): ReadinessItem[] {
 }
 
 export function offerReadinessItems(offer: Offer): ReadinessItem[] {
-  if (offer.readiness) return readinessItems(offer.readiness);
+  // The API's own checklist when it sent one; otherwise the list derived from the offer's links.
+  if (offer.readiness?.sections?.length) return readinessItems(offer.readiness);
 
   const resource = statusOf(offer, 'resourceLinkStatus');
   const availability = statusOf(offer, 'availabilityLinkStatus');

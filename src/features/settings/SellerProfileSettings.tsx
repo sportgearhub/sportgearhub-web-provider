@@ -8,7 +8,7 @@ import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SellerDetailsFields, SellerKindChoice, emptySellerDraft, sellerDraftError, sellerDraftToInput, type SellerDraft } from '../providers/SellerDetailsFields';
 import { kindLabel } from '../providers/providerStatus';
-import { SettingsSection } from './SettingsSection';
+import { SectionPage } from '../../components/layout/SectionPage';
 
 export const taxationLabel = (value: string) => taxationLabels[value] ?? value;
 export const vatLabel = (value: string) => vatLabels[value] ?? value;
@@ -95,7 +95,7 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
     : director ? [director.lastName, director.firstName, director.middleName].filter(Boolean).join(' ') : '—';
 
   return (
-    <SettingsSection
+    <SectionPage
       title="Информация о продавце"
       description="Юридические данные кабинета — кому платформа перечисляет деньги."
       action={
@@ -180,6 +180,6 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
           </button>
         </>
       )}
-    </SettingsSection>
+    </SectionPage>
   );
 }

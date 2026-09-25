@@ -14,6 +14,14 @@ import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
 import { ResourceEditPage } from './features/resources/ResourceEditPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
+import {
+  OfferAvailabilityEditRoute,
+  OfferAvailabilityRoute,
+  OfferCreateRoute as OfferCreateStandaloneRoute,
+  OfferDetailRoute,
+  OfferEditRoute,
+  OfferPolicyRoute,
+} from './features/offers/OfferRoutes';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
 
@@ -109,6 +117,34 @@ function OfferCreateRoute() {
   return <OfferCreatePage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
 }
 
+function OffersListRoute() {
+  const { navigateTo } = useConsole();
+  return <OffersPage onNavigate={navigateTo} />;
+}
+
+/** One component per offer page, each reading the id from the URL. */
+function OfferCreateStandalone() {
+  const { navigateTo } = useConsole();
+  return <OfferCreateStandaloneRoute onNavigate={navigateTo} />;
+}
+
+function OfferRoute({ page }: { page: 'detail' | 'edit' | 'availability' | 'availability-edit' | 'policy' }) {
+  const { navigateTo } = useConsole();
+  const { offerId = '' } = useParams();
+  switch (page) {
+    case 'edit':
+      return <OfferEditRoute offerId={offerId} onNavigate={navigateTo} />;
+    case 'availability':
+      return <OfferAvailabilityRoute offerId={offerId} onNavigate={navigateTo} />;
+    case 'availability-edit':
+      return <OfferAvailabilityEditRoute offerId={offerId} onNavigate={navigateTo} />;
+    case 'policy':
+      return <OfferPolicyRoute offerId={offerId} onNavigate={navigateTo} />;
+    default:
+      return <OfferDetailRoute offerId={offerId} onNavigate={navigateTo} />;
+  }
+}
+
 function SettingsRoute({ tab }: { tab: SettingsTab }) {
   const { navigateTo } = useConsole();
   return <SettingsPage tab={tab} onNavigate={navigateTo} />;
@@ -137,7 +173,13 @@ const router = createBrowserRouter([
           { path: 'resources/:resourceId', element: <ResourceDetailRoute /> },
           { path: 'resources/:resourceId/edit', element: <ResourceEditRoute /> },
           { path: 'resources/:resourceId/offers/new', element: <OfferCreateRoute /> },
-          { path: 'offers', element: <OffersPage /> },
+          { path: 'offers', element: <OffersListRoute /> },
+          { path: 'offers/new', element: <OfferCreateStandalone /> },
+          { path: 'offers/:offerId', element: <OfferRoute page="detail" /> },
+          { path: 'offers/:offerId/edit', element: <OfferRoute page="edit" /> },
+          { path: 'offers/:offerId/availability', element: <OfferRoute page="availability" /> },
+          { path: 'offers/:offerId/availability/edit', element: <OfferRoute page="availability-edit" /> },
+          { path: 'offers/:offerId/policy', element: <OfferRoute page="policy" /> },
           { path: 'settings', element: <Navigate to="shop" replace /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
           { path: 'settings/shop/edit', element: <SettingsRoute tab="shop-edit" /> },

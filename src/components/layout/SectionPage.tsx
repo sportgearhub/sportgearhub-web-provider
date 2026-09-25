@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 /**
- * The frame every settings page shares: optional way back, name, one line of explanation, one
+ * The frame a full-page section shares: optional way back, name, one line of explanation, one
  * primary action, and errors in the same place each time.
  */
-export function SettingsSection({
+export function SectionPage({
   title,
   description,
   action,

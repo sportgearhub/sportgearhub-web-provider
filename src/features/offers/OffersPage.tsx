@@ -6,20 +6,9 @@ import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { ApiError, offersApi, pricingApi, resourcesApi } from '../../lib/api-client';
 import type { Offer, OfferStatus, Resource } from '../../types';
-import { OfferAvailabilityView } from './OfferAvailabilityView';
-import { OfferDetail } from './OfferDetail';
-import { createOfferWithSetup } from './offerCreate';
-import { OfferForm, type OfferFormData } from './OfferForm';
-import { OfferPolicyTab } from './OfferPolicyTab';
 import { attachOfferReadiness, attachOffersReadiness, offerBookingSetupReady, offerCustomerVisible } from './offerReadiness';
 import { bookingFlowLabel, offerTypeLabel } from './offerDisplay';
 import { offerIsSellerControlled, offerStatusBadge as statusBadge, offerStatusFilterOptions } from './offerStatus';
-
-type View = 'list' | 'detail' | 'create' | 'edit' | 'availability' | 'policy';
-
-function mergeOfferPricing(offer: Offer, data: OfferFormData): Offer {
-  return { ...offer, basePrice: data.pricingBaseAmount, price: data.pricingBaseAmount ?? null, currency: data.pricingCurrency || 'RUB' };
-}
 
 async function enrichOfferPrices(offers: Offer[]) {
   return Promise.all(offers.map(async offer => {
@@ -32,14 +21,13 @@ async function enrichOfferPrices(offers: Offer[]) {
   }));
 }
 
-export function OffersPage() {
+/** The list. Every offer page it opens has its own address, so the browser's history works. */
+export function OffersPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [resourceFilter, setResourceFilter] = useState('');
   const [query, setQuery] = useState('');
-  const [view, setView] = useState<View>('list');
-  const [selected, setSelected] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -79,43 +67,9 @@ export function OffersPage() {
 
   const updateOfferInState = (nextOffer: Offer) => {
     setOffers(prev => prev.map(o => (o.offerId === nextOffer.offerId ? nextOffer : o)));
-    setSelected(cur => cur?.offerId === nextOffer.offerId ? nextOffer : cur);
   };
 
-  const openDetail = (offer: Offer) => { setSelected(offer); setView('detail'); };
-  const openList = () => { setView('list'); setSelected(null); setError(''); };
-
-  const handleCreate = async (data: OfferFormData) => {
-    setError(''); setSaving(true);
-    try {
-      const nextOffer = await createOfferWithSetup(data, { resourceFallback: resourceFilter || '' });
-      const readyOffer = await attachOfferReadiness(nextOffer);
-      setOffers(prev => [mergeOfferPricing(readyOffer, data), ...prev]);
-      openList();
-    } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось создать: ${err.message}` : 'Не удалось создать предложение.');
-    } finally { setSaving(false); }
-  };
-
-  const handleUpdate = async (data: OfferFormData) => {
-    if (!selected) return;
-    setError(''); setSaving(true);
-    try {
-      const nextOffer = await offersApi.patch(selected.offerId, { title: data.title, description: data.description, fulfillmentLocationId: data.fulfillmentLocationId ?? null });
-      await pricingApi.putOfferPolicy(selected.offerId, {
-        pricingMode: data.pricingMode || 'rental_tiers',
-        currency: data.pricingCurrency || 'RUB',
-        baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
-        rentalTiers: data.pricingMode === 'rental_tiers' ? (data.rentalTiers ?? null) : null,
-        status: data.pricingStatus || 'active',
-      });
-      await offersApi.putInfoSections(selected.offerId, data.infoSections ?? []);
-      updateOfferInState(mergeOfferPricing(await attachOfferReadiness(nextOffer), data));
-      setView('detail');
-    } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить предложение.');
-    } finally { setSaving(false); }
-  };
+  const openDetail = (offer: Offer) => onNavigate(`/offers/${offer.offerId}`);
 
   const handleStatusChange = async (offer: Offer, status: OfferStatus) => {
     setError(''); setSaving(true);
@@ -129,80 +83,6 @@ export function OffersPage() {
       setError(err instanceof ApiError ? `Не удалось изменить статус: ${err.message}` : 'Не удалось изменить статус.');
     } finally { setSaving(false); }
   };
-
-  // ── Edit view ──────────────────────────────────────────────────────────────
-  if (view === 'edit' && selected) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setView('detail')} className="text-xs text-gray-500 hover:text-gray-800">← Назад</button>
-            <h3 className="text-sm font-semibold text-gray-900">Редактировать предложение</h3>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto">
-          <OfferForm offer={selected} resources={resources} onSubmit={handleUpdate} onCancel={() => setView('detail')} submitting={saving} />
-        </div>
-      </div>
-    );
-  }
-
-  // ── Availability sub-view ────────────────────────────────────────────────────
-  if (view === 'availability' && selected) {
-    return <OfferAvailabilityView offer={selected} onBack={() => setView('detail')} />;
-  }
-
-  // ── Policy sub-view ──────────────────────────────────────────────────────────
-  if (view === 'policy' && selected) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Правила</h3>
-            <p className="mt-0.5 text-xs text-gray-500">{selected.title}</p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => setView('detail')}>Назад</Button>
-        </div>
-        <div className="flex-1 overflow-auto">
-          <OfferPolicyTab offer={selected} />
-        </div>
-      </div>
-    );
-  }
-
-  // ── Detail view ────────────────────────────────────────────────────────────
-  if (view === 'detail' && selected) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-        <OfferDetail
-          offer={selected}
-          onBack={openList}
-          onEdit={() => setView('edit')}
-          onStatusChange={status => void handleStatusChange(selected, status)}
-          onConfigurePolicy={() => setView('policy')}
-          onOpenAvailability={() => setView('availability')}
-          onOpenPolicy={() => setView('policy')}
-        />
-      </div>
-    );
-  }
-
-  // ── Create view ────────────────────────────────────────────────────────────
-  if (view === 'create') {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={openList} className="text-xs text-gray-500 hover:text-gray-800">← Назад</button>
-            <h3 className="text-sm font-semibold text-gray-900">Новое предложение</h3>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto">
-          <OfferForm resources={resources} onSubmit={handleCreate} onCancel={openList} initialResourceId={resourceFilter || undefined} submitting={saving} />
-        </div>
-      </div>
-    );
-  }
 
   // ── List view ──────────────────────────────────────────────────────────────
   return (
@@ -231,7 +111,7 @@ export function OffersPage() {
             />
             <Select options={resourceOptions} value={resourceFilter} onChange={e => setResourceFilter(e.target.value)} />
           </div>
-          <Button variant="primary" size="sm" onClick={() => setView('create')}>
+          <Button variant="primary" size="sm" onClick={() => onNavigate('/offers/new')}>
             <Plus size={13} /> Добавить
           </Button>
         </div>

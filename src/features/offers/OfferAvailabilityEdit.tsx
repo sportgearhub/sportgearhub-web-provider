@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Plus, Save, Trash2 } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import { Plus, Save, Trash2, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { SectionPage } from '../../components/layout/SectionPage';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -24,12 +24,13 @@ function emptyBlockedPeriod(): OfferAvailabilityBlockedPeriod {
   return { startsOn: '', endsOn: '', reasonCode: 'maintenance' };
 }
 
-interface OfferAvailabilityViewProps {
+interface OfferAvailabilityEditProps {
   offer: Offer;
-  onBack: () => void;
+  onNavigate: (path: string) => void;
 }
 
-export function OfferAvailabilityView({ offer, onBack }: OfferAvailabilityViewProps) {
+export function OfferAvailabilityEdit({ offer, onNavigate }: OfferAvailabilityEditProps) {
+  const readPath = `/offers/${offer.offerId}/availability`;
   const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [form, setForm] = useState<OfferAvailabilityForm>(emptyOfferAvailabilityForm());
   const [windows, setWindows] = useState<OfferAvailabilityWindow[]>([]);
@@ -91,43 +92,25 @@ export function OfferAvailabilityView({ offer, onBack }: OfferAvailabilityViewPr
         blockedPeriods,
       });
       setAvailability(next);
-      setForm(offerAvailabilityToForm(next));
-      setWindows(next.availabilityWindows ?? []);
-      setBlockedPeriods(next.blockedPeriods ?? []);
+      onNavigate(readPath);
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось сохранить: ${err.message}` : 'Не удалось сохранить.');
-    } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Доступность</h3>
-          <p className="mt-0.5 text-xs text-gray-500">{offer.title}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {availability && (
-            <Badge variant={availability.status === 'active' ? 'green' : 'yellow'}>
-              {availability.status === 'active' ? 'Включено' : 'Не настроено'}
-            </Badge>
-          )}
-          <Button variant="secondary" size="sm" onClick={onBack}>Назад</Button>
-        </div>
-      </div>
-
+    <SectionPage
+      title="Настройка доступности"
+      description={offer.title}
+      breadcrumb={{ label: 'Доступность', path: readPath }}
+      onNavigate={onNavigate}
+      error={error}
+    >
       {loading ? (
-        <div className="py-12 text-center text-sm text-gray-500">Загружаем настройки...</div>
+        <p className="text-sm text-gray-500">Загружаем настройки...</p>
       ) : (
-        <div className="max-w-xl space-y-4 px-6 py-5">
-          {error && (
-            <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>{error}</span>
-            </div>
-          )}
-
+        <div className="max-w-2xl space-y-4">
           <Input
             label="Часовой пояс"
             value={form.timezone}
@@ -239,18 +222,23 @@ export function OfferAvailabilityView({ offer, onBack }: OfferAvailabilityViewPr
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+          <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
             <p className="text-xs text-gray-500">
               {availability?.updatedAt
                 ? `Обновлено: ${new Date(availability.updatedAt).toLocaleString('ru-RU')}`
                 : 'Настройки ещё не сохранены'}
             </p>
-            <Button variant="primary" onClick={() => void save()} loading={saving}>
-              <Save size={13} /> Сохранить
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={() => void save()} loading={saving}>
+                <Save size={13} /> Сохранить
+              </Button>
+              <Button variant="secondary" disabled={saving} onClick={() => onNavigate(readPath)}>
+                <X size={13} /> Отмена
+              </Button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </SectionPage>
   );
 }
