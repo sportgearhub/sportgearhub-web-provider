@@ -13,15 +13,9 @@ import { OfferForm, type OfferFormData } from './OfferForm';
 import { OfferPolicyTab } from './OfferPolicyTab';
 import { attachOfferReadiness, attachOffersReadiness, offerBookingSetupReady, offerCustomerVisible } from './offerReadiness';
 import { bookingFlowLabel, offerTypeLabel } from './offerDisplay';
+import { offerIsSellerControlled, offerStatusBadge as statusBadge, offerStatusFilterOptions } from './offerStatus';
 
 type View = 'list' | 'detail' | 'create' | 'edit' | 'availability' | 'policy';
-
-const statusBadge: Record<OfferStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'blue' }> = {
-  active: { label: 'Активно', variant: 'green' },
-  draft: { label: 'Черновик', variant: 'yellow' },
-  inactive: { label: 'Неактивно', variant: 'gray' },
-  archived: { label: 'В архиве', variant: 'gray' },
-};
 
 function mergeOfferPricing(offer: Offer, data: OfferFormData): Offer {
   return { ...offer, basePrice: data.pricingBaseAmount, price: data.pricingBaseAmount ?? null, currency: data.pricingCurrency || 'RUB' };
@@ -31,7 +25,7 @@ async function enrichOfferPrices(offers: Offer[]) {
   return Promise.all(offers.map(async offer => {
     try {
       const policy = await pricingApi.getOfferPolicy(offer.offerId);
-      return { ...offer, basePrice: policy.baseAmount ?? policy.unitRules?.baseAmount, price: policy.baseAmount ?? policy.unitRules?.baseAmount ?? null, currency: policy.currency || offer.currency || 'RUB' };
+      return { ...offer, basePrice: policy.baseAmount ?? undefined, price: policy.baseAmount ?? null, currency: policy.currency || offer.currency || 'RUB' };
     } catch {
       return offer;
     }
@@ -113,7 +107,6 @@ export function OffersPage() {
         currency: data.pricingCurrency || 'RUB',
         baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
         rentalTiers: data.pricingMode === 'rental_tiers' ? (data.rentalTiers ?? null) : null,
-        multiDayRate: data.pricingMode === 'rental_tiers' ? (data.multiDayRate ?? null) : null,
         status: data.pricingStatus || 'active',
       });
       await offersApi.putInfoSections(selected.offerId, data.infoSections ?? []);
@@ -128,7 +121,7 @@ export function OffersPage() {
     setError(''); setSaving(true);
     try {
       const nextOffer = status === 'active' ? await offersApi.activate(offer.offerId)
-        : status === 'inactive' ? await offersApi.deactivate(offer.offerId)
+        : status === 'paused' ? await offersApi.deactivate(offer.offerId)
         : status === 'archived' ? await offersApi.archive(offer.offerId, 'provider_requested')
         : await offersApi.patch(offer.offerId, {});
       updateOfferInState(await attachOfferReadiness(nextOffer));
@@ -232,7 +225,7 @@ export function OffersPage() {
               />
             </div>
             <Select
-              options={[{ value: '', label: 'Все статусы' }, { value: 'active', label: 'Активно' }, { value: 'draft', label: 'Черновик' }, { value: 'inactive', label: 'Неактивно' }]}
+              options={offerStatusFilterOptions}
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             />
@@ -307,10 +300,14 @@ export function OffersPage() {
                       className="justify-end"
                       items={[
                         { label: 'Открыть', onClick: () => openDetail(offer) },
-                        offer.status === 'active'
-                          ? { label: 'Отключить', onClick: () => void handleStatusChange(offer, 'inactive'), disabled: saving }
-                          : { label: 'Включить', onClick: () => void handleStatusChange(offer, 'active'), disabled: saving || !offerBookingSetupReady(offer) },
-                        { label: 'В архив', onClick: () => void handleStatusChange(offer, 'archived'), danger: true, disabled: saving },
+                        ...(offerIsSellerControlled(offer)
+                          ? [
+                              offer.status === 'active'
+                                ? { label: 'Снять с публикации', onClick: () => void handleStatusChange(offer, 'paused'), disabled: saving }
+                                : { label: 'Опубликовать', onClick: () => void handleStatusChange(offer, 'active'), disabled: saving || !offerBookingSetupReady(offer) },
+                              { label: 'В архив', onClick: () => void handleStatusChange(offer, 'archived'), danger: true, disabled: saving },
+                            ]
+                          : []),
                       ]}
                     />
                   </td>

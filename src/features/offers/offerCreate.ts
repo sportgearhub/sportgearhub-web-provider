@@ -30,7 +30,6 @@ export async function createOfferWithSetup(
     currency: data.pricingCurrency || 'RUB',
     baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
     rentalTiers: data.pricingMode === 'rental_tiers' ? (data.rentalTiers ?? null) : null,
-    multiDayRate: data.pricingMode === 'rental_tiers' ? (data.multiDayRate ?? null) : null,
     status: data.pricingStatus || 'active',
   });
 
@@ -49,15 +48,6 @@ export async function createOfferWithSetup(
     });
   }
 
-  // Visibility — only persist when it differs from the default "always visible".
-  if (data.visibilityMode && data.visibilityMode !== 'always_visible') {
-    await offersApi.putVisibility(offer.offerId, {
-      visibilityMode: data.visibilityMode,
-      visibleFrom: data.visibleFrom ?? null,
-      visibleUntil: data.visibleUntil ?? null,
-      status: 'active',
-    });
-  }
 
   // Info sections — only persist when the provider listed something.
   if (data.infoSections?.length) {

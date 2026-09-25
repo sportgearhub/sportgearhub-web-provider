@@ -378,18 +378,19 @@ export interface DashboardStats {
 
 export type ResourceStatus = 'active' | 'inactive' | 'archived' | 'draft';
 
+/** As the API reports it: one status word per aspect, not a set of booleans. */
 export interface ResourceReadiness {
-  capabilityValid: boolean;
-  availabilityReady: boolean;
-  pricingReady: boolean;
-  policyReady: boolean;
-  variantReady: boolean;
-  offerAuthoringReady: boolean;
-  errors: string[];
+  availabilityStatus: string;
+  pricingStatus: string;
+  policyStatus: string;
+  inventoryStatus: string;
+  offerAuthoringStatus: string;
 }
 
 export interface PublishabilityImpact {
-  publishable: boolean;
+  status?: string;
+  reason?: string;
+  publishable?: boolean;
   reasonCodes: string[];
 }
 
@@ -577,10 +578,8 @@ export interface PricingPolicy {
   pricingMode?: string;
   currency?: string;
   baseAmount?: number | null;
-  unitRules?: UnitRules;
   adjustmentRules?: AdjustmentRule[];
   rentalTiers?: RentalTier[] | null;
-  multiDayRate?: number | null;
   status: string;
   readiness?: Record<string, unknown>;
   publishabilityImpact?: PublishabilityImpact | { status?: string; reason?: string };
@@ -721,7 +720,11 @@ export interface PolicyDiagnostics {
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
-export type OfferStatus = 'draft' | 'active' | 'inactive' | 'archived';
+/**
+ * The API's own vocabulary. `paused` is the seller's switch («Отключить»); `suspended` is the
+ * platform's, and only the platform can lift it, so the console offers no control for it.
+ */
+export type OfferStatus = 'draft' | 'active' | 'paused' | 'suspended' | 'archived';
 
 export interface LocationRef {
   city?: string | null;
@@ -765,13 +768,6 @@ export interface OfferReadiness {
   checkedAt?: string;
 }
 
-export interface OfferVisibility {
-  visibilityMode: 'always_visible' | 'seasonal' | 'hidden' | string;
-  visibleFrom: string | null;
-  visibleUntil: string | null;
-  status: string;
-}
-
 export interface Offer {
   offerId: string;
   offerType: string;
@@ -782,11 +778,8 @@ export interface Offer {
   subtitle?: string;
   description?: string;
   locationRef?: LocationRef;
-  location?: Record<string, unknown> | null;
   fulfillmentLocationId?: string | null;
   meetupLocation?: Record<string, unknown> | null;
-  locationSummary?: Record<string, unknown> | null;
-  visibility?: OfferVisibility;
   includedItems?: IncludedItem[];
   requiredItems?: IncludedItem[];
   mediaRefs?: MediaRefs;
@@ -812,14 +805,6 @@ export interface Offer {
   readiness?: OfferReadiness;
 }
 
-export interface OfferVariantExposure {
-  offerId?: string;
-  resourceVariantId?: string;
-  isRequiredForBooking: boolean;
-  displayLabelOverride?: string | null;
-  visibilityStatus: string;
-  sortOrder?: number | null;
-}
 
 export interface OfferRoutability {
   publishable: boolean;
@@ -831,7 +816,7 @@ export interface OfferRoutability {
   pricingReady: boolean;
   policyReady: boolean;
   capabilityValid: boolean;
-  variantReady: boolean;
+  inventoryReady: boolean | null;
   reasonCodes: string[];
   warnings: string[];
   issues: string[];

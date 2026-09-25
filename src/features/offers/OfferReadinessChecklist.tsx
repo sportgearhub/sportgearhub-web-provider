@@ -28,15 +28,15 @@ function sectionLabel(section: OfferReadinessSection) {
 
   const labels: Record<string, string> = {
     offer_status: 'Статус предложения',
+    select_resource: 'Выбор инвентаря',
+    active: 'Публикация',
     resource: 'Ресурс выбран',
     category: 'Категория',
-    variants: 'Модели',
     inventory: 'Инвентарь',
     availability: 'Доступность',
     pricing: 'Цена',
     policy: 'Правила проката',
-    location: 'Место выдачи',
-    visibility: 'Видимость',
+    location: 'Пункт проката',
     payment_route: 'Оплата',
     routability: 'Маршрутизация',
   };

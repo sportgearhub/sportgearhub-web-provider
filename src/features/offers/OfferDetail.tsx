@@ -1,46 +1,20 @@
 import { useEffect, useState } from 'react';
-import { CreditCard as Edit2, AlertTriangle, CalendarRange, CheckCircle, Eye, EyeOff, Loader2, X } from 'lucide-react';
+import { CreditCard as Edit2, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import { ApiError, offerAvailabilityApi, offersApi, policyApi } from '../../lib/api-client';
-import type { Offer, OfferAvailability, OfferInfoSection, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus, OfferVisibility } from '../../types';
+import type { Offer, OfferAvailability, OfferInfoSection, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus } from '../../types';
 import { infoSectionLabel } from './infoSections';
 import { OfferReadinessChecklist } from './OfferReadinessChecklist';
 import { offerBookingSetupReady, offerCustomerVisible } from './offerReadiness';
+import { offerIsSellerControlled, offerStatusBadge as statusBadge } from './offerStatus';
 import {
   bookingFlowLabel,
   offerTypeLabel,
   publishabilityLabel,
 } from './offerDisplay';
 
-const VISIBILITY_MODES = [
-  {
-    value: 'always_visible',
-    label: 'Всегда видно',
-    description: 'Предложение постоянно показывается клиентам в каталоге и доступно для брони.',
-    icon: Eye,
-  },
-  {
-    value: 'seasonal',
-    label: 'По расписанию',
-    description: 'Показывается клиентам только в выбранный период дат, затем скрывается автоматически.',
-    icon: CalendarRange,
-  },
-  {
-    value: 'hidden',
-    label: 'Скрыто',
-    description: 'Не показывается клиентам и недоступно по прямой ссылке. Брони не принимаются.',
-    icon: EyeOff,
-  },
-] as const;
 
-const statusBadge: Record<OfferStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'blue' }> = {
-  active: { label: 'Активно', variant: 'green' },
-  draft: { label: 'Черновик', variant: 'yellow' },
-  inactive: { label: 'Неактивно', variant: 'gray' },
-  archived: { label: 'В архиве', variant: 'gray' },
-};
 
 interface OfferDetailProps {
   offer: Offer;
@@ -54,30 +28,18 @@ interface OfferDetailProps {
 
 export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigurePolicy, onOpenAvailability, onOpenPolicy }: OfferDetailProps) {
   const sb = statusBadge[offer.status];
-  const [visibility, setVisibility] = useState<OfferVisibility | null>(offer.visibility ?? null);
   const [readiness, setReadiness] = useState<OfferReadiness | undefined>(offer.readiness);
-  const [visibilityDraft, setVisibilityDraft] = useState<OfferVisibility>({
-    visibilityMode: 'always_visible',
-    visibleFrom: null,
-    visibleUntil: null,
-    status: 'active',
-  });
   const [routability, setRoutability] = useState<OfferRoutability | null>(null);
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
   const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [policy, setPolicy] = useState<OfferPolicy | null>(null);
   const [diagnosticsError, setDiagnosticsError] = useState('');
-  const [savingVisibility, setSavingVisibility] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setDiagnosticsError('');
 
     Promise.all([
-      offersApi.getVisibility(offer.offerId).catch(err => {
-        if (err instanceof ApiError && err.status === 404) return null;
-        throw err;
-      }),
       offersApi.getRoutability(offer.offerId).catch(err => {
         if (err instanceof ApiError && err.status === 404) return null;
         throw err;
@@ -87,17 +49,13 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
         throw err;
       }),
     ])
-      .then(([nextVisibility, nextRoutability, nextReadiness]) => {
+      .then(([nextRoutability, nextReadiness]) => {
         if (cancelled) return;
-        if (nextVisibility) {
-          setVisibility(nextVisibility);
-          setVisibilityDraft(nextVisibility);
-        }
         if (nextRoutability) setRoutability(nextRoutability);
         if (nextReadiness) setReadiness(nextReadiness);
       })
       .catch(err => {
-        if (!cancelled) setDiagnosticsError(err instanceof ApiError ? err.message : 'Не удалось загрузить видимость и маршрутизацию.');
+        if (!cancelled) setDiagnosticsError(err instanceof ApiError ? err.message : 'Не удалось загрузить готовность и маршрутизацию.');
       });
 
     return () => {
@@ -121,31 +79,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
 
   const offerWithReadiness = { ...offer, readiness };
 
-  const selectMode = (mode: OfferVisibility['visibilityMode']) => {
-    if (mode === visibilityDraft.visibilityMode) return;
-    const next = { ...visibilityDraft, visibilityMode: mode };
-    // For seasonal, hold off on saving until a full period is chosen.
-    if (mode === 'seasonal' && !(next.visibleFrom && next.visibleUntil)) {
-      setVisibilityDraft(next);
-      return;
-    }
-    void applyVisibility(next);
-  };
-
-  const applyVisibility = async (next: OfferVisibility) => {
-    setVisibilityDraft(next);
-    setSavingVisibility(true);
-    setDiagnosticsError('');
-    try {
-      const saved = await offersApi.putVisibility(offer.offerId, next);
-      setVisibility(saved);
-      setVisibilityDraft(saved);
-    } catch (err) {
-      setDiagnosticsError(err instanceof ApiError ? err.message : 'Не удалось сохранить видимость.');
-    } finally {
-      setSavingVisibility(false);
-    }
-  };
 
   return (
     <div>
@@ -180,17 +113,13 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
           <Button size="sm" variant="secondary" onClick={onEdit}>
             <Edit2 size={13} /> Редактировать
           </Button>
-          {offer.status === 'draft' && (
+          {offerIsSellerControlled(offer) && (offer.status === 'active' ? (
+            <Button size="sm" variant="ghost" onClick={() => onStatusChange('paused')}>Снять с публикации</Button>
+          ) : (
             <Button size="sm" variant="primary" onClick={() => onStatusChange('active')} disabled={!offerBookingSetupReady(offerWithReadiness)}>
-              Включить
+              Опубликовать
             </Button>
-          )}
-          {offer.status === 'active' && (
-            <Button size="sm" variant="ghost" onClick={() => onStatusChange('inactive')}>Отключить</Button>
-          )}
-          {offer.status === 'inactive' && (
-            <Button size="sm" variant="primary" onClick={() => onStatusChange('active')}>Включить</Button>
-          )}
+          ))}
         </div>
       </div>
 
@@ -213,6 +142,9 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
         {/* Left column */}
         <div className="min-w-0 divide-y divide-gray-100">
           <section className="px-6 py-4">
+            {diagnosticsError && (
+              <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">{diagnosticsError}</p>
+            )}
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Детали предложения</h3>
             <div className="space-y-2">
               <Row label="Инвентарь" value={offer.resourceTitle || offer.primaryResourceId} />
@@ -220,7 +152,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
                 <Row label="Цена" value={`${offer.basePrice.toLocaleString()} ${offer.currency ?? 'RUB'}`} />
               )}
               <Row label="Публикация" value={publishabilityLabel(offer)} />
-              <Row label="Видимость" value={visibilityLabel(visibility)} />
               <Row label="Маршрутизация" value={routability?.routable ? 'Готова' : routability ? 'Есть блокеры' : 'Не проверена'} />
             </div>
           </section>
@@ -265,69 +196,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
             )}
           </section>
 
-          <section className="px-6 py-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Видимость</h3>
-                <p className="mt-0.5 text-xs text-gray-500">Когда предложение видно клиентам.</p>
-              </div>
-            </div>
-            {diagnosticsError && (
-              <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">{diagnosticsError}</p>
-            )}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-                  {VISIBILITY_MODES.map(mode => {
-                    const selected = visibilityDraft.visibilityMode === mode.value;
-                    const Icon = mode.icon;
-                    return (
-                      <button
-                        key={mode.value}
-                        type="button"
-                        onClick={() => selectMode(mode.value)}
-                        title={mode.description}
-                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                          selected ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                        aria-pressed={selected}
-                      >
-                        <Icon size={14} className={selected ? 'text-blue-600' : 'text-gray-400'} />
-                        {mode.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {visibilityDraft.visibilityMode === 'seasonal' && (
-                  <div className="w-52">
-                    <DateRangePicker
-                      startsOn={visibilityDraft.visibleFrom ?? ''}
-                      endsOn={visibilityDraft.visibleUntil ?? ''}
-                      placeholder="Укажите период"
-                      onChange={range => {
-                        const next = {
-                          ...visibilityDraft,
-                          visibleFrom: range.startsOn || null,
-                          visibleUntil: range.endsOn || null,
-                        };
-                        // Only persist once both ends of the period are set.
-                        if (range.startsOn && range.endsOn) void applyVisibility(next);
-                        else setVisibilityDraft(next);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-              <p className="text-xs leading-5 text-gray-500">
-                {VISIBILITY_MODES.find(m => m.value === visibilityDraft.visibilityMode)?.description}
-              </p>
-            </div>
-            {savingVisibility && (
-              <span className="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
-                <Loader2 size={12} className="animate-spin" /> Сохранение…
-              </span>
-            )}
-          </section>
 
           {offer.description && (
             <section className="px-6 py-4">
@@ -384,12 +252,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
   );
 }
 
-function visibilityLabel(visibility: OfferVisibility | null) {
-  if (!visibility) return 'Не загружена';
-  if (visibility.visibilityMode === 'hidden') return 'Скрыто';
-  if (visibility.visibilityMode === 'seasonal') return `${visibility.visibleFrom ?? '—'} - ${visibility.visibleUntil ?? '—'}`;
-  return 'Всегда видно';
-}
 
 function availabilityConfigured(availability: OfferAvailability | null): boolean {
   if (!availability || availability.status === 'not_configured') return false;

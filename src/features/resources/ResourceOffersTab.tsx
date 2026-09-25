@@ -26,8 +26,8 @@ async function enrichOfferPrice(offer: Offer): Promise<Offer> {
     const policy = await pricingApi.getOfferPolicy(offer.offerId);
     return {
       ...offer,
-      basePrice: policy.baseAmount ?? policy.unitRules?.baseAmount,
-      price: policy.baseAmount ?? policy.unitRules?.baseAmount ?? null,
+      basePrice: policy.baseAmount ?? undefined,
+      price: policy.baseAmount ?? null,
       currency: policy.currency || offer.currency || 'RUB',
     };
   } catch {
@@ -103,7 +103,6 @@ export function ResourceOffersTab({ resource, onNavigate }: ResourceOffersTabPro
         currency: data.pricingCurrency || 'RUB',
         baseAmount: data.pricingMode === 'rental_tiers' ? null : (data.pricingBaseAmount ?? null),
         rentalTiers: data.pricingMode === 'rental_tiers' ? (data.rentalTiers ?? null) : null,
-        multiDayRate: data.pricingMode === 'rental_tiers' ? (data.multiDayRate ?? null) : null,
         status: data.pricingStatus || 'active',
       });
       await offersApi.putInfoSections(offer.offerId, data.infoSections ?? []);
@@ -124,7 +123,7 @@ export function ResourceOffersTab({ resource, onNavigate }: ResourceOffersTabPro
       const nextOffer =
         status === 'active'
           ? await offersApi.activate(offer.offerId)
-          : status === 'inactive'
+          : status === 'paused'
             ? await offersApi.deactivate(offer.offerId)
             : status === 'archived'
               ? await offersApi.archive(offer.offerId, 'provider_requested')

@@ -83,7 +83,7 @@ export function ActionBar({ left, right, error }: { left?: ReactNode; right: Rea
   );
 }
 
-/** A group of large radio-like cards for a choice that deserves an explanation (pricing mode, visibility). */
+/** A group of large radio-like cards for a choice that deserves an explanation, e.g. the pricing mode. */
 export function ChoiceCards<T extends string>({
   options,
   value,

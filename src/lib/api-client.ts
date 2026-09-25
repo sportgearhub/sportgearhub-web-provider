@@ -38,7 +38,6 @@ import type {
   OfferReadiness,
   OfferRoutability,
   OfferPublishability,
-  OfferVisibility,
   OfferInfoSection,
   OfferInfoSections,
   OfferAuthoringOptions,
@@ -49,7 +48,6 @@ import type {
   AcquiringConnection,
   AcquiringDealBinding,
   AcquiringOnboardingPayload,
-  AcquiringRecipientRoute,
   AcquiringRoutability,
   StorefrontEditSession,
   StorefrontSettings,
@@ -136,12 +134,9 @@ type ApiOffer = {
   mediaPreviewUrl?: string | null;
   publishability?: OfferPublishability | null;
   executionLink?: Record<string, unknown> | null;
-  location?: Record<string, unknown> | null;
   locationRef?: Offer['locationRef'];
   fulfillmentLocationId?: string | null;
   meetupLocation?: Record<string, unknown> | null;
-  locationSummary?: Record<string, unknown> | null;
-  visibility?: OfferVisibility | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -384,17 +379,15 @@ function normalizeResource(resource: ApiResource): Resource {
     status,
     title,
     readiness: (resource.readiness ?? {
-      capabilityValid: false,
-      availabilityReady: false,
-      pricingReady: false,
-      policyReady: false,
-      variantReady: false,
-      offerAuthoringReady: false,
-      errors: [],
+      availabilityStatus: 'unknown',
+      pricingStatus: 'unknown',
+      policyStatus: 'unknown',
+      inventoryStatus: 'unknown',
+      offerAuthoringStatus: 'unknown',
     }) as Resource['readiness'],
     publishabilityImpact: (resource.publishabilityImpact ?? {
-      publishable: false,
-      reasonCodes: [],
+      status: 'unknown',
+      reason: 'not_checked',
     }) as Resource['publishabilityImpact'],
     createdAt: resource.createdAt,
     updatedAt,
@@ -409,7 +402,7 @@ function normalizeResource(resource: ApiResource): Resource {
 
 function normalizeOffer(offer: ApiOffer): Offer {
   const offerId = offer.offerId ?? '';
-  const status = ['active', 'inactive', 'archived', 'draft'].includes(offer.status ?? '')
+  const status = ['draft', 'active', 'paused', 'suspended', 'archived'].includes(offer.status ?? '')
     ? offer.status as OfferStatus
     : 'draft';
   const title = offer.title ?? 'Новое предложение';
@@ -427,12 +420,11 @@ function normalizeOffer(offer: ApiOffer): Offer {
     bookingFlowType: offer.bookingFlowType ?? 'standard_rental',
     title,
     description: offer.description ?? undefined,
-    location: offer.location ?? null,
     locationRef: offer.locationRef ?? undefined,
-    fulfillmentLocationId: offer.fulfillmentLocationId ?? readFulfillmentLocationId(offer),
+    // The пункт проката the offer hands over at, straight from the API. Null means the seller has
+    // not chosen one — the form leaves the picker empty rather than picking the first location.
+    fulfillmentLocationId: offer.fulfillmentLocationId ?? null,
     meetupLocation: offer.meetupLocation ?? null,
-    locationSummary: offer.locationSummary ?? null,
-    visibility: offer.visibility ?? undefined,
     price: offer.price ?? null,
     currency: offer.currency ?? 'RUB',
     mediaPreviewUrl: offer.mediaPreviewUrl ?? null,
@@ -452,16 +444,6 @@ function normalizeOffer(offer: ApiOffer): Offer {
   };
 }
 
-function readFulfillmentLocationId(offer: ApiOffer) {
-  const fromSummary = offer.locationSummary?.fulfillmentLocation;
-  if (fromSummary && typeof fromSummary === 'object') {
-    const id = (fromSummary as Record<string, unknown>).fulfillmentLocationId;
-    if (typeof id === 'string') return id;
-  }
-
-  const legacyId = offer.location?.providerLocationId;
-  return typeof legacyId === 'string' ? legacyId : null;
-}
 
 function loadStoredToken(): StoredOidcToken | null {
   try {
@@ -1231,7 +1213,6 @@ export const pricingApi = {
       currency: string;
       baseAmount?: number | null;
       rentalTiers?: PricingPolicy['rentalTiers'];
-      multiDayRate?: number | null;
       minParticipants?: number | null;
       maxParticipants?: number | null;
       groupDiscountPercent?: number | null;
@@ -1332,14 +1313,6 @@ export const offersApi = {
 
   listReadiness: () => providerRequest<OfferReadiness[]>('/offers/readiness'),
 
-  getVisibility: (offerId: string) =>
-    providerRequest<OfferVisibility>(`/offers/${offerId}/visibility`),
-
-  putVisibility: (offerId: string, data: OfferVisibility) =>
-    providerRequest<OfferVisibility>(`/offers/${offerId}/visibility`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
 
   getInfoSections: (offerId: string) =>
     providerRequest<OfferInfoSections>(`/offers/${offerId}/info-sections`),
@@ -1468,10 +1441,6 @@ export const acquiringApi = {
   getRoutability: (connectionId: string) =>
     providerRequest<AcquiringRoutability>(`/acquiring-connections/${connectionId}/routability`),
 
-  getRecipientRoutes: (connectionId: string) =>
-    providerRequest<AcquiringRecipientRoute[]>(
-      `/acquiring-connections/${connectionId}/recipient-routes`
-    ),
 
   getDealBinding: (connectionId: string) =>
     providerRequest<AcquiringDealBinding>(

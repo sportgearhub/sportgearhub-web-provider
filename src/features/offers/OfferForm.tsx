@@ -30,7 +30,6 @@ export type OfferFormData = Partial<Offer> & {
   pricingCurrency?: string;
   pricingStatus?: string;
   rentalTiers?: RentalTier[];
-  multiDayRate?: number | null;
   fulfillmentLocationId?: string | null;
   durationHours?: number | null;
   // Availability
@@ -39,21 +38,12 @@ export type OfferFormData = Partial<Offer> & {
   blockedPeriods?: OfferAvailabilityBlockedPeriod[];
   slotIntervalMinutes?: number | null;
   availabilityStatus?: string;
-  // Visibility
-  visibilityMode?: string;
-  visibleFrom?: string | null;
-  visibleUntil?: string | null;
   // Info sections (included / excluded / bring / requirements …)
   infoSections?: OfferInfoSection[];
 };
 
 const DEFAULT_TIMEZONE = 'Asia/Yekaterinburg';
 
-const VISIBILITY_MODES = [
-  { value: 'always_visible', title: 'Всегда видно', description: 'Предложение постоянно показывается клиентам в каталоге.' },
-  { value: 'seasonal', title: 'По расписанию', description: 'Показывается клиентам только в выбранный период дат.' },
-  { value: 'hidden', title: 'Скрыто', description: 'Не показывается клиентам и недоступно по прямой ссылке.' },
-] as const;
 
 const CREATE_STEPS = ['Информация о предложении', 'Предварительный просмотр'];
 
@@ -118,7 +108,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [pricingBaseAmount, setPricingBaseAmount] = useState(String(offer?.basePrice || offer?.price || ''));
   const [pricingCurrency, setPricingCurrency] = useState(offer?.currency || 'RUB');
   const [rentalTiers, setRentalTiers] = useState<RentalTier[]>([]);
-  const [multiDayRate, setMultiDayRate] = useState('');
   const [description, setDescription] = useState(offer?.description || '');
   const [sectionItems, setSectionItems] = useState<Record<string, string[]>>({});
   const [locations, setLocations] = useState<ProviderLocation[]>([]);
@@ -139,10 +128,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
   const [windows, setWindows] = useState<OfferAvailabilityWindow[]>([]);
   const [blockedPeriods, setBlockedPeriods] = useState<OfferAvailabilityBlockedPeriod[]>([]);
 
-  // Visibility (creation only)
-  const [visibilityMode, setVisibilityMode] = useState<(typeof VISIBILITY_MODES)[number]['value']>('always_visible');
-  const [visibleFrom, setVisibleFrom] = useState<string | null>(null);
-  const [visibleUntil, setVisibleUntil] = useState<string | null>(null);
 
   const pricingModeOptions = authoringOptions?.pricingModes ?? [];
   const fixedResource = resources.length === 1 && Boolean(initialResourceId) ? resources[0] : null;
@@ -161,13 +146,17 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       .then(nextLocations => {
         if (cancelled) return;
         setLocations(nextLocations);
-        setLocationId(current => current || nextLocations[0]?.locationId || '');
+        // Preselect only when the choice is not a choice: a new offer and exactly one пункт.
+        // An existing offer keeps what the API says, so saving a renamed offer cannot move it.
+        if (!offer && nextLocations.length === 1) {
+          setLocationId(current => current || nextLocations[0].locationId);
+        }
       })
       .catch(err => {
         if (!cancelled) setLocationsError(err instanceof ApiError ? err.message : 'Не удалось загрузить пункты проката.');
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [offer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,10 +188,9 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       .then(policy => {
         if (cancelled) return;
         setPricingMode(policy.pricingMode || 'per_unit_time');
-        setPricingBaseAmount(policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? policy.unitRules?.baseAmount ?? ''));
+        setPricingBaseAmount(policy.pricingMode === 'rental_tiers' ? '' : String(policy.baseAmount ?? ''));
         setPricingCurrency(policy.currency || 'RUB');
         setRentalTiers(policy.rentalTiers ?? []);
-        setMultiDayRate(policy.multiDayRate != null ? String(policy.multiDayRate) : '');
       })
       .catch(err => {
         if (!cancelled && !(err instanceof ApiError && err.status === 404)) {
@@ -260,12 +248,11 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
       blockedPeriods.forEach((b, i) => {
         if (b.startsOn && b.endsOn && b.startsOn > b.endsOn) e[`blocked-${i}`] = 'Начало позже конца.';
       });
-      if (visibilityMode === 'seasonal' && !(visibleFrom && visibleUntil)) e.visibilityRange = 'Укажите период показа.';
     }
 
     setErrors(e);
     if (Object.keys(e).length > 0) {
-      if (Object.keys(e).some(key => key.startsWith('window') || key.startsWith('blocked') || key === 'visibilityRange')) setShowMore(true);
+      if (Object.keys(e).some(key => key.startsWith('window') || key.startsWith('blocked'))) setShowMore(true);
       window.setTimeout(() => document.querySelector('[aria-invalid="true"], [data-error="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0);
       return false;
     }
@@ -284,7 +271,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
     pricingCurrency: pricingCurrency || 'RUB',
     pricingStatus: 'active',
     rentalTiers: pricingMode === 'rental_tiers' ? rentalTiers : undefined,
-    multiDayRate: pricingMode === 'rental_tiers' && multiDayRate.trim() !== '' ? Number(multiDayRate) : null,
     description,
     fulfillmentLocationId: locationId || null,
     durationHours: Number(durationHours) || null,
@@ -293,9 +279,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
     blockedPeriods,
     slotIntervalMinutes: Number(slotIntervalMinutes) || null,
     availabilityStatus,
-    visibilityMode,
-    visibleFrom,
-    visibleUntil,
     infoSections: INFO_SECTION_KINDS
       .map(({ kind }) => ({ kind, items: (sectionItems[kind] ?? []).map(item => item.trim()).filter(Boolean) }))
       .filter(section => section.items.length > 0),
@@ -314,10 +297,7 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
 
   const bookingLabel = authoringOptions?.bookingFlowTypes.find(option => option.value === bookingFlowType)?.title;
   const priceLines: string[] = pricingMode === 'rental_tiers'
-    ? [
-        ...rentalTiers.map(tier => `${tier.label?.trim() || `до ${tier.upToHours} ч`} — ${formatMoney(tier.price, pricingCurrency)}`),
-        ...(multiDayRate.trim() ? [`каждые следующие сутки — ${formatMoney(multiDayRate, pricingCurrency)}`] : []),
-      ]
+    ? rentalTiers.map(tier => `${tier.label?.trim() || `до ${tier.upToHours} ч`} — ${formatMoney(tier.price, pricingCurrency)}`)
     : [pricingMode === 'per_unit_time' ? `${formatMoney(pricingBaseAmount, pricingCurrency)} в час` : formatMoney(pricingBaseAmount, pricingCurrency)];
 
   if (!isEdit && step === 1) {
@@ -348,16 +328,14 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
                   </ul>
                 </PreviewBlock>
               ))}
-              <PreviewBlock title="Доступность и показ">
+              <PreviewBlock title="Доступность">
                 <p className="text-sm text-gray-900">
                   {windows.length > 0
                     ? windows.map(w => `${formatRuDate(w.startsOn)} – ${formatRuDate(w.endsOn)}, ${w.dailyOpensAt}–${w.dailyClosesAt}`).join('; ')
                     : 'Окна работы не заданы — брони не принимаются, пока вы их не добавите.'}
                 </p>
-                <p className="text-xs text-gray-500">
-                  {VISIBILITY_MODES.find(mode => mode.value === visibilityMode)?.title}
-                  {visibilityMode === 'seasonal' && visibleFrom && visibleUntil ? `: ${formatRuDate(visibleFrom)} – ${formatRuDate(visibleUntil)}` : ''}
-                </p>
+                {/* Creation publishes straight away: the API gives a new offer the active status. */}
+                <p className="text-xs text-gray-500">Предложение будет опубликовано сразу после создания. Снять с публикации можно в любой момент.</p>
               </PreviewBlock>
             </div>
           </div>
@@ -525,15 +503,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
               ))
             )}
             <FieldNote error={errors.rentalTiers} />
-            <FloatingInput
-              label="Каждые следующие сутки"
-              type="number"
-              min="0"
-              value={multiDayRate}
-              onChange={e => setMultiDayRate(e.target.value)}
-              suffix={currencySymbol(pricingCurrency)}
-              hint="Цена за сутки сверх последней ступени. Необязательно."
-            />
           </div>
         )}
         {pricingError && <p className="px-1 text-xs text-amber-700">Не удалось загрузить текущую цену. Можно сохранить новое значение.</p>}
@@ -610,21 +579,6 @@ export function OfferForm({ offer, resources, onSubmit, onCancel, initialResourc
                 ))}
               </FormSection>
 
-              <FormSection title="Видимость" description="Когда предложение видно клиентам в каталоге.">
-                <ChoiceCards options={VISIBILITY_MODES.map(mode => ({ ...mode }))} value={visibilityMode} onChange={setVisibilityMode} columns={3} />
-                {visibilityMode === 'seasonal' && (
-                  <div className="max-w-xs" data-error={errors.visibilityRange ? 'true' : undefined}>
-                    <DateRangePicker
-                      label="Период показа"
-                      startsOn={visibleFrom ?? ''}
-                      endsOn={visibleUntil ?? ''}
-                      placeholder="Укажите период"
-                      onChange={range => { setVisibleFrom(range.startsOn || null); setVisibleUntil(range.endsOn || null); }}
-                    />
-                    <FieldNote error={errors.visibilityRange} />
-                  </div>
-                )}
-              </FormSection>
             </>
           )}
         </div>
@@ -657,16 +611,7 @@ function PreviewBlock({ title, children }: { title: string; children: ReactNode 
   );
 }
 
+/** The пункт проката the offer already hands over at, or nothing. The API is the only source. */
 function readFulfillmentLocationId(offer: Offer | undefined) {
-  if (!offer) return '';
-  if (offer.fulfillmentLocationId) return offer.fulfillmentLocationId;
-
-  const summaryLocation = offer.locationSummary?.fulfillmentLocation;
-  if (summaryLocation && typeof summaryLocation === 'object') {
-    const id = (summaryLocation as Record<string, unknown>).fulfillmentLocationId;
-    if (typeof id === 'string') return id;
-  }
-
-  const legacyId = offer.location?.providerLocationId;
-  return typeof legacyId === 'string' ? legacyId : '';
+  return offer?.fulfillmentLocationId ?? '';
 }
