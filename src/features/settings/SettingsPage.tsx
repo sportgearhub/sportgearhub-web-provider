@@ -9,17 +9,33 @@ import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../context/useAuth';
-import { addressesApi, ApiError, profileApi, providerMembersApi, storefrontApi } from '../../lib/api-client';
-import type { RuAddressSuggestion } from '../../lib/api-client';
+import { ApiError, profileApi, providerMembersApi, storefrontApi } from '../../lib/api-client';
 import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOption, StorefrontEditSession, StorefrontSettings } from '../../types';
 import { LocationsPage } from '../locations/LocationsPage';
 import { PayoutsPage } from '../payouts/PayoutsPage';
 import { SellerProfileSettings } from './SellerProfileSettings';
+import { SellerProfileEdit } from './SellerProfileEdit';
+import { ShopProfileEdit, ShopProfileView } from './ShopProfileSettings';
 import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 
-export type SettingsTab = 'shop' | 'seller' | 'storefront' | 'locations' | 'account' | 'employees' | 'payouts' | 'contracts';
+export type SettingsTab =
+  | 'shop'
+  | 'shop-edit'
+  | 'seller'
+  | 'seller-edit'
+  | 'storefront'
+  | 'locations'
+  | 'account'
+  | 'employees'
+  | 'payouts'
+  | 'contracts';
+
+/** An "…-edit" page keeps its parent lit in the sidebar: it is the same section, one step deeper. */
+function sectionOf(tab: SettingsTab): SettingsTab {
+  return tab.endsWith('-edit') ? (tab.slice(0, -'-edit'.length) as SettingsTab) : tab;
+}
 type StorefrontTab = 'settings' | 'live';
 
 interface SettingsPageProps {
@@ -63,6 +79,7 @@ const reservedProviderSlugs = new Set([
 
 export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   const showSidebar = tab !== 'storefront';
+  const section = sectionOf(tab);
   return (
     <div className="flex min-h-0 flex-1 bg-white">
       {showSidebar && (
@@ -71,7 +88,7 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
             <div key={group.title} className="mb-6">
               <p className="mb-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
               {group.items.map(item => {
-                const active = item.id === tab;
+                const active = item.id === section;
                 return (
                   <button
                     key={item.id}
@@ -95,7 +112,7 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
           <div className="border-b border-gray-200 px-4 py-2 md:hidden">
             <Select
               aria-label="Раздел настроек"
-              value={tab}
+              value={section}
               options={sidebarGroups.flatMap(group => group.items.map(item => ({ value: item.id, label: item.label })))}
               onChange={event => {
                 const target = sidebarGroups.flatMap(group => group.items).find(item => item.id === event.target.value);
@@ -104,8 +121,10 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
             />
           </div>
         )}
-        {tab === 'shop' && <ShopProfileSettings />}
+        {tab === 'shop' && <ShopProfileView onNavigate={onNavigate} />}
+        {tab === 'shop-edit' && <ShopProfileEdit onNavigate={onNavigate} />}
         {tab === 'seller' && <SellerProfileSettings onNavigate={onNavigate} />}
+        {tab === 'seller-edit' && <SellerProfileEdit onNavigate={onNavigate} />}
         {tab === 'contracts' && <ContractsSettings />}
         {tab === 'storefront' && <StorefrontSettingsPage />}
         {tab === 'locations' && <LocationsPage embedded />}
@@ -114,213 +133,6 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
         {tab === 'account' && <AccountSettings />}
       </div>
     </div>
-  );
-}
-
-function ShopProfileSettings() {
-  const provider = useProvider();
-  const [form, setForm] = useState({
-    displayName: provider.displayName,
-    contactEmail: '',
-    contactPhone: '',
-    address: '',
-    description: '',
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [addressSuggestions, setAddressSuggestions] = useState<RuAddressSuggestion[]>([]);
-  const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
-  const [addressSuggestionsLoading, setAddressSuggestionsLoading] = useState(false);
-  const [addressSuggestError, setAddressSuggestError] = useState('');
-  const [addressFocused, setAddressFocused] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setLoading(true);
-    setError('');
-    profileApi.get()
-      .then(nextProfile => {
-        if (cancelled) return;
-        setForm({
-          displayName: nextProfile.displayName ?? provider.displayName,
-          contactEmail: nextProfile.contactEmail ?? '',
-          contactPhone: nextProfile.contactPhone ?? '',
-          address: nextProfile.address ?? '',
-          description: nextProfile.description ?? '',
-        });
-      })
-      .catch(err => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? `Профиль магазина пока недоступен: ${err.message}` : 'Профиль магазина пока недоступен.');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [provider.displayName]);
-
-  useEffect(() => {
-    const query = form.address.trim();
-
-    if (!addressFocused || query.length < 3) {
-      setAddressSuggestions([]);
-      setAddressSuggestionsOpen(false);
-      setAddressSuggestError('');
-      setAddressSuggestionsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setAddressSuggestionsLoading(true);
-
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await addressesApi.ruSuggestions(query, 7);
-        if (cancelled) return;
-        setAddressSuggestions(response.suggestions);
-        setAddressSuggestError('');
-        setAddressSuggestionsOpen(true);
-      } catch (err) {
-        if (cancelled) return;
-        setAddressSuggestions([]);
-        setAddressSuggestError(err instanceof ApiError ? err.message : 'Не удалось загрузить адреса.');
-        setAddressSuggestionsOpen(true);
-      } finally {
-        if (!cancelled) setAddressSuggestionsLoading(false);
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [addressFocused, form.address]);
-
-  const save = async () => {
-    setSaving(true);
-    setError('');
-    setSaved(false);
-    try {
-      await profileApi.patch({
-        displayName: form.displayName.trim(),
-        contactEmail: form.contactEmail.trim() || undefined,
-        contactPhone: form.contactPhone.trim() || undefined,
-        address: form.address.trim() || undefined,
-        description: form.description.trim() || undefined,
-      });
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? `Не удалось сохранить профиль: ${err.message}` : 'Не удалось сохранить профиль.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card className="rounded-none border-0 p-6 shadow-none">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Основная информация</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Название, контакты и описание кабинета — то, что видят клиенты. Юридические данные — во вкладке «Продавец».</p>
-        </div>
-        {saved && <Badge variant="green">сохранено</Badge>}
-      </div>
-
-      {error && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-gray-500">Загружаем профиль магазина...</p>
-      ) : (
-        <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Название магазина"
-              value={form.displayName}
-              onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))}
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={form.contactEmail}
-              onChange={event => setForm(current => ({ ...current, contactEmail: event.target.value }))}
-            />
-            <Input
-              label="Телефон"
-              value={form.contactPhone}
-              onChange={event => setForm(current => ({ ...current, contactPhone: event.target.value }))}
-            />
-            <div className="relative">
-              <Input
-                label="Адрес"
-                value={form.address}
-                onChange={event => {
-                  setForm(current => ({ ...current, address: event.target.value }));
-                  setAddressFocused(true);
-                  setAddressSuggestionsOpen(true);
-                }}
-                onFocus={() => {
-                  setAddressFocused(true);
-                  if (addressSuggestions.length > 0 || addressSuggestError) setAddressSuggestionsOpen(true);
-                }}
-                onBlur={() => {
-                  setAddressFocused(false);
-                  setAddressSuggestionsOpen(false);
-                }}
-              />
-              {addressSuggestionsOpen && (addressSuggestionsLoading || addressSuggestions.length > 0 || addressSuggestError) && (
-                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                  {addressSuggestionsLoading && <div className="px-3 py-2 text-xs text-gray-500">Ищем адрес...</div>}
-                  {!addressSuggestionsLoading && addressSuggestError && <div className="px-3 py-2 text-xs text-red-600">{addressSuggestError}</div>}
-                  {!addressSuggestionsLoading && !addressSuggestError && addressSuggestions.map(suggestion => (
-                    <button
-                      key={`${suggestion.fiasId ?? suggestion.value}-${suggestion.unrestrictedValue}`}
-                      type="button"
-                      onMouseDown={event => event.preventDefault()}
-                      onClick={() => {
-                        setForm(current => ({
-                          ...current,
-                          address: suggestion.value,
-                        }));
-                        setAddressSuggestions([]);
-                        setAddressSuggestionsOpen(false);
-                        setAddressSuggestError('');
-                      }}
-                      className="w-full px-3 py-2 text-left transition hover:bg-blue-50"
-                    >
-                      <span className="block truncate text-sm font-medium text-gray-900">{suggestion.value}</span>
-                      {suggestion.unrestrictedValue && suggestion.unrestrictedValue !== suggestion.value && (
-                        <span className="mt-0.5 block truncate text-[11px] text-gray-500">{suggestion.unrestrictedValue}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <Textarea
-            label="Описание"
-            rows={4}
-            value={form.description}
-            onChange={event => setForm(current => ({ ...current, description: event.target.value }))}
-            placeholder="Коротко о прокате, условиях выдачи и особенностях магазина..."
-          />
-          <Button variant="primary" onClick={() => void save()} loading={saving}>
-            <Save size={14} /> Сохранить
-          </Button>
-        </div>
-      )}
-    </Card>
   );
 }
 

@@ -15,6 +15,7 @@ import { ResourceEditPage } from './features/resources/ResourceEditPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
+import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
 
 function Loading() {
   return (
@@ -120,6 +121,7 @@ const router = createBrowserRouter([
   { path: '/auth/*', element: <AuthRoute page="sign-in" /> },
   {
     element: <RequireSession />,
+    errorElement: <RouteErrorPage />,
     children: [
       { path: '/providers', element: <ProviderPickerPage /> },
       { path: '/providers/new', element: <CreateProviderPage /> },
@@ -138,7 +140,9 @@ const router = createBrowserRouter([
           { path: 'offers', element: <OffersPage /> },
           { path: 'settings', element: <Navigate to="shop" replace /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
+          { path: 'settings/shop/edit', element: <SettingsRoute tab="shop-edit" /> },
           { path: 'settings/seller', element: <SettingsRoute tab="seller" /> },
+          { path: 'settings/seller/edit', element: <SettingsRoute tab="seller-edit" /> },
           { path: 'settings/locations', element: <SettingsRoute tab="locations" /> },
           { path: 'settings/employees', element: <SettingsRoute tab="employees" /> },
           { path: 'settings/payouts', element: <SettingsRoute tab="payouts" /> },
@@ -148,7 +152,7 @@ const router = createBrowserRouter([
           { path: 'new', element: <Navigate to="/providers/new" replace /> },
           { path: 'payouts', element: <Navigate to="/settings/payouts" replace /> },
           { path: 'locations', element: <Navigate to="/settings/locations" replace /> },
-          { path: '*', element: <Navigate to="/" replace /> },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

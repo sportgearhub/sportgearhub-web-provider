@@ -33,7 +33,17 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
       <div className="mx-auto flex w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-1.5">
-        <ProviderSwitcher currentName={provider.displayName} />
+        <button
+          type="button"
+          onClick={() => onNavigate('/')}
+          className="flex shrink-0 items-center gap-2 rounded-md text-left transition hover:opacity-80"
+          title="На главную"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+            <Mountain size={15} />
+          </span>
+          <span className="hidden text-sm font-semibold text-foreground sm:block">Sportgearhub</span>
+        </button>
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         <nav
@@ -59,6 +69,8 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}
+          {/* The cabinet sits with the account, the way a seller cabinet puts the shop switcher. */}
+          <ProviderSwitcher currentName={provider.displayName} />
           <Button type="button" variant="secondary" size="icon" className="h-8 w-8" title="Помощь">
             <HelpCircle size={14} />
           </Button>
@@ -79,7 +91,7 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
   const { providers } = useAuth();
   const current = useProvider();
   const navigate = useNavigate();
-  const menu = useDropdown('left', 264);
+  const menu = useDropdown('right', 264);
   return (
     <>
       <button
@@ -88,14 +100,14 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
         onClick={menu.toggle}
         aria-expanded={menu.open}
         aria-haspopup="menu"
-        className="flex shrink-0 items-center gap-2.5 rounded-md pr-1 text-left transition hover:opacity-80"
+        className={cn(
+          'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium transition',
+          menu.open ? 'bg-sidebar-accent text-foreground' : 'text-foreground hover:bg-sidebar-accent'
+        )}
         title="Сменить кабинет"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-          <Mountain size={15} />
-        </span>
-        <span className="hidden max-w-[180px] truncate text-sm font-semibold text-foreground sm:block">{currentName}</span>
-        <ChevronDown size={13} className={cn('hidden text-muted-foreground transition-transform sm:block', menu.open && 'rotate-180')} />
+        <span className="max-w-[80px] truncate sm:max-w-[200px]">{currentName}</span>
+        <ChevronDown size={13} className={cn('shrink-0 text-muted-foreground transition-transform', menu.open && 'rotate-180')} />
       </button>
       {menu.render(
         <>
