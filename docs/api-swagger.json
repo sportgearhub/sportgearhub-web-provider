@@ -3259,111 +3259,6 @@
         ]
       }
     },
-    "/api/v1/providers/{providerId}/offers/{offer_id}/availability": {
-      "get": {
-        "tags": [
-          "Api"
-        ],
-        "operationId": "EbashITSportgearhubApiEndpointsProviderOffersGetProviderOfferAvailabilityEndpoint",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "offer_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "guid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EbashITSportgearhubApiModelsOffersProviderProviderOfferAvailabilitySettingsResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "JWTBearerAuth": []
-          }
-        ]
-      },
-      "put": {
-        "tags": [
-          "Api"
-        ],
-        "operationId": "EbashITSportgearhubApiEndpointsProviderOffersPutProviderOfferAvailabilityEndpoint",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "offer_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "guid"
-            }
-          }
-        ],
-        "requestBody": {
-          "x-name": "PutProviderOfferAvailabilityRequest",
-          "description": "",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsProviderOffersPutProviderOfferAvailabilityRequest"
-              }
-            }
-          },
-          "required": true,
-          "x-position": 1
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EbashITSportgearhubApiModelsOffersProviderProviderOfferAvailabilitySettingsResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "JWTBearerAuth": []
-          }
-        ]
-      }
-    },
     "/api/v1/providers/{providerId}/offers/{offer_id}": {
       "get": {
         "tags": [
@@ -7543,9 +7438,6 @@
           "resolution_ready": {
             "type": "boolean"
           },
-          "availability_ready": {
-            "type": "boolean"
-          },
           "pricing_ready": {
             "type": "boolean"
           },
@@ -7889,9 +7781,6 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "availability_status": {
-            "type": "string"
-          },
           "pricing_status": {
             "type": "string"
           },
@@ -9409,94 +9298,6 @@
         "type": "object",
         "additionalProperties": false
       },
-      "EbashITSportgearhubApiModelsOffersProviderProviderOfferAvailabilitySettingsResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "settings_id": {
-            "type": "string",
-            "format": "guid",
-            "nullable": true
-          },
-          "offer_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "timezone": {
-            "type": "string",
-            "nullable": true
-          },
-          "availability_windows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonOfferAvailabilityWindowModel"
-            }
-          },
-          "blocked_periods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonOfferAvailabilityBlockedPeriodModel"
-            }
-          },
-          "slot_interval_minutes": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "status": {
-            "type": "string"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsCommonOfferAvailabilityWindowModel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "starts_on": {
-            "type": "string",
-            "format": "date"
-          },
-          "ends_on": {
-            "type": "string",
-            "format": "date"
-          },
-          "daily_opens_at": {
-            "type": "string",
-            "format": "time"
-          },
-          "daily_closes_at": {
-            "type": "string",
-            "format": "time"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsCommonOfferAvailabilityBlockedPeriodModel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "starts_on": {
-            "type": "string",
-            "format": "date"
-          },
-          "ends_on": {
-            "type": "string",
-            "format": "date"
-          },
-          "reason_code": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsProviderOffersGetProviderOfferAvailabilityRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
       "EbashITSportgearhubApiModelsOffersProviderProviderOfferDetailResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -9587,9 +9388,6 @@
         "additionalProperties": false,
         "properties": {
           "resource_link_status": {
-            "type": "string"
-          },
-          "availability_link_status": {
             "type": "string"
           },
           "pricing_link_status": {
@@ -10236,36 +10034,6 @@
             "items": {
               "type": "string"
             }
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsProviderOffersPutProviderOfferAvailabilityRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "timezone": {
-            "type": "string"
-          },
-          "availability_windows": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonOfferAvailabilityWindowModel"
-            }
-          },
-          "blocked_periods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonOfferAvailabilityBlockedPeriodModel"
-            }
-          },
-          "slot_interval_minutes": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "nullable": true
           }
         }
       },

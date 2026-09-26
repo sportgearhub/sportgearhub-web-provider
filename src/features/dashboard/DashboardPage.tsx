@@ -19,7 +19,7 @@ const checklistMeta: Record<string, { title: string; path: string; hints: Record
   profile: {
     title: 'Профиль',
     path: '/settings/shop',
-    hints: { description: 'добавьте описание', email: 'подтвердите почту для документов' },
+    hints: { description: 'добавьте описание', email: 'подтвердите почту — акты и отчёты уходят на неё' },
   },
   seller_profile: { title: 'Продавец', path: '/settings/seller', hints: {} },
   payout: {
@@ -171,11 +171,18 @@ function ChecklistRow({
   const meta = checklistMeta[item.key];
   const ready = item.status === 'ready';
   const optional = item.status === 'optional';
+  // The profile line can be complaining about two different pages. A missing description belongs
+  // to the shop profile; an unverified e-mail is attached from the account, and sending the seller
+  // to the shop profile to look for an e-mail field they will not find is worse than not linking.
+  const target = path
+    ?? (item.key === 'profile' && item.hint?.includes('email') ? '/settings/account' : undefined)
+    ?? meta?.path
+    ?? '/';
   return (
     <li>
       <button
         type="button"
-        onClick={() => onNavigate(path ?? meta?.path ?? '/')}
+        onClick={() => onNavigate(target)}
         className="flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-gray-50"
       >
         {ready ? (
