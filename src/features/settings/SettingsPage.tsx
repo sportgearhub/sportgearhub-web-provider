@@ -85,10 +85,14 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   const section = sectionOf(tab);
   return (
     <div className="flex min-h-0 flex-1 bg-white">
+      {/* The section list is a panel like the cards beside it, not a rail welded to the page. */}
       {showSidebar && (
-        <aside className="hidden w-64 shrink-0 border-r border-gray-200 px-3 py-5 md:block" aria-label="Разделы настроек">
+        <aside
+          className="my-6 ml-6 hidden w-60 shrink-0 self-start rounded-lg border border-gray-200 p-3 md:block"
+          aria-label="Разделы настроек"
+        >
           {sidebarGroups.map(group => (
-            <div key={group.title} className="mb-5 last:mb-0">
+            <div key={group.title} className="mb-4 last:mb-0">
               <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
               <div className="space-y-0.5">
                 {group.items.map(item => {
