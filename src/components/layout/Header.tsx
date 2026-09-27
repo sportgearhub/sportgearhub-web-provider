@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronDown, HelpCircle, LogOut, Mountain, Plus, UserRound } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  Building2,
+  LogOut,
+  MapPin,
+  Mountain,
+  Plus,
+  Store,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
 import { selectProvider } from '../../lib/active-provider';
@@ -12,10 +27,34 @@ import { Button } from '../ui/Button';
 
 const navItems: { label: string; path: string }[] = [
   { label: 'Дашборд', path: '/' },
+  { label: 'Заказы', path: '/bookings' },
   { label: 'Выдача', path: '/fulfillment' },
   { label: 'Каталог', path: '/resources' },
   { label: 'Предложения', path: '/offers' },
-  { label: 'Настройки', path: '/settings' },
+];
+
+// Settings live in the profile menu, grouped as they are in the settings sidebar.
+const profileMenuGroups: { title: string; items: { label: string; path: string; icon: LucideIcon }[] }[] = [
+  {
+    title: 'Управление кабинетом',
+    items: [
+      { label: 'Профиль проката', path: '/settings/shop', icon: Store },
+      { label: 'Пункты проката', path: '/settings/locations', icon: MapPin },
+      { label: 'Сотрудники', path: '/settings/employees', icon: Users },
+    ],
+  },
+  {
+    title: 'Реквизиты и договор',
+    items: [
+      { label: 'Информация о продавце', path: '/settings/seller', icon: Building2 },
+      { label: 'Реквизиты', path: '/settings/payouts', icon: CreditCard },
+      { label: 'Договоры', path: '/settings/contracts', icon: FileText },
+    ],
+  },
+  {
+    title: 'Учётная запись',
+    items: [{ label: 'Аккаунт', path: '/settings/account', icon: UserRound }],
+  },
 ];
 
 interface HeaderProps {
@@ -77,7 +116,8 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
           <UserMenu
             name={user?.name ?? ''}
             phone={user?.phone ?? ''}
-            onAccount={() => onNavigate('/settings/account')}
+            currentPath={currentPath}
+            onNavigate={onNavigate}
             onSignOut={signOut}
           />
         </div>
@@ -159,15 +199,19 @@ function ProviderSwitcher({ currentName }: { currentName: string }) {
 function UserMenu({
   name,
   phone,
-  onAccount,
+  currentPath,
+  onNavigate,
   onSignOut,
 }: {
   name: string;
   phone: string;
-  onAccount: () => void;
+  currentPath: string;
+  onNavigate: (path: string) => void;
   onSignOut: () => void;
 }) {
-  const menu = useDropdown('right');
+  const menu = useDropdown('right', 268);
+  const inSettings = currentPath.startsWith('/settings');
+
   return (
     <>
       <button
@@ -177,28 +221,48 @@ function UserMenu({
         aria-expanded={menu.open}
         aria-haspopup="menu"
         title={name}
-        className="flex h-9 w-9 items-center justify-center rounded-md border bg-background text-xs font-bold text-foreground transition hover:bg-sidebar-accent"
+        className={cn(
+          'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium transition',
+          inSettings || menu.open ? 'bg-sidebar-accent text-sidebar-primary' : 'text-foreground hover:bg-sidebar-accent'
+        )}
       >
-        {name.charAt(0).toUpperCase() || '?'}
+        <UserRound size={15} className="shrink-0" />
+        <span className="hidden sm:block">Профиль</span>
+        <ChevronDown size={13} className={cn('shrink-0 text-muted-foreground transition-transform', menu.open && 'rotate-180')} />
       </button>
       {menu.render(
         <>
           <div className="border-b px-3 pb-2 pt-1">
-            <p className="truncate text-xs font-medium text-foreground">{name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{phone}</p>
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{phone}</p>
           </div>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              menu.close();
-              onAccount();
-            }}
-            className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-foreground transition hover:bg-sidebar-accent"
-          >
-            <UserRound size={14} />
-            Аккаунт
-          </button>
+          {profileMenuGroups.map(group => (
+            <div key={group.title} className="border-b py-1 last:border-b-0">
+              <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.title}</p>
+              {group.items.map(item => {
+                const Icon = item.icon;
+                const active = currentPath.startsWith(item.path);
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      menu.close();
+                      onNavigate(item.path);
+                    }}
+                    className={cn(
+                      'flex h-9 w-full items-center gap-2 px-3 text-left text-sm transition hover:bg-sidebar-accent',
+                      active ? 'text-sidebar-primary' : 'text-foreground'
+                    )}
+                  >
+                    <Icon size={14} className="shrink-0 text-muted-foreground" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
           <button
             type="button"
             role="menuitem"
@@ -206,7 +270,7 @@ function UserMenu({
               menu.close();
               onSignOut();
             }}
-            className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-red-600 transition hover:bg-red-50"
+            className="mt-1 flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-red-600 transition hover:bg-red-50"
           >
             <LogOut size={14} />
             Выйти

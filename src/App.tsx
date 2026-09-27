@@ -8,6 +8,7 @@ import { CreateProviderPage } from './features/providers/CreateProviderPage';
 import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/ConsoleLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { FulfillmentPage } from './features/fulfillment/FulfillmentPage';
+import { BookingsPage } from './features/bookings/BookingsPage';
 import { ResourcesPage } from './features/resources/ResourcePage';
 import { ResourceCreatePage } from './features/resources/ResourceCreatePage';
 import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
@@ -117,6 +118,11 @@ function OfferCreateRoute() {
   return <OfferCreatePage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
 }
 
+function BookingsRoute() {
+  const { navigateTo } = useConsole();
+  return <BookingsPage onNavigate={navigateTo} />;
+}
+
 function OffersListRoute() {
   const { navigateTo } = useConsole();
   return <OffersPage onNavigate={navigateTo} />;
@@ -167,6 +173,7 @@ const router = createBrowserRouter([
         element: <ConsoleLayout />,
         children: [
           { index: true, element: <DashboardRoute /> },
+          { path: 'bookings', element: <BookingsRoute /> },
           { path: 'fulfillment', element: <FulfillmentPage /> },
           { path: 'resources', element: <ResourcesRoute /> },
           { path: 'resources/create', element: <ResourceCreateRoute /> },

@@ -12,6 +12,7 @@ export type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageB
 // Page names for the content column. Keyed by the console-relative path.
 const pageConfig: Record<string, PageConfig> = {
   '/': { title: '' },
+  '/bookings': { title: 'Заказы', subtitle: 'Бронирования клиентов' },
   '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
   '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
   '/resources/create': { title: 'Создание позиции' },
