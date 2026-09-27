@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import {
-  Check,
+  Building2,
   ChevronDown,
   CreditCard,
   FileText,
-  HelpCircle,
-  Building2,
   LogOut,
   MapPin,
   Mountain,
-  Plus,
+  Repeat,
   Store,
   UserRound,
   Users,
@@ -19,11 +16,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
-import { selectProvider } from '../../lib/active-provider';
-import { statusMeta } from '../../features/providers/providerStatus';
+import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
 
 const navItems: { label: string; path: string }[] = [
   { label: 'Дашборд', path: '/' },
@@ -108,14 +102,11 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}
-          {/* The cabinet sits with the account, the way a seller cabinet puts the shop switcher. */}
-          <ProviderSwitcher currentName={provider.displayName} />
-          <Button type="button" variant="secondary" size="icon" className="h-8 w-8" title="Помощь">
-            <HelpCircle size={14} />
-          </Button>
-          <UserMenu
+          <ProfileMenu
             name={user?.name ?? ''}
             phone={user?.phone ?? ''}
+            cabinetName={provider.displayName}
+            currentProviderId={provider.providerId}
             currentPath={currentPath}
             onNavigate={onNavigate}
             onSignOut={signOut}
@@ -126,90 +117,25 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
   );
 }
 
-/** The cabinet in the header, with the way back to the list and to a new one — the picker's shortcut. */
-function ProviderSwitcher({ currentName }: { currentName: string }) {
-  const { providers } = useAuth();
-  const current = useProvider();
-  const navigate = useNavigate();
-  const menu = useDropdown('right', 264);
-  return (
-    <>
-      <button
-        ref={menu.triggerRef}
-        type="button"
-        onClick={menu.toggle}
-        aria-expanded={menu.open}
-        aria-haspopup="menu"
-        className={cn(
-          'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-left text-sm font-medium transition',
-          menu.open ? 'bg-sidebar-accent text-foreground' : 'text-foreground hover:bg-sidebar-accent'
-        )}
-        title="Сменить кабинет"
-      >
-        <span className="max-w-[80px] truncate sm:max-w-[200px]">{currentName}</span>
-        <ChevronDown size={13} className={cn('shrink-0 text-muted-foreground transition-transform', menu.open && 'rotate-180')} />
-      </button>
-      {menu.render(
-        <>
-          <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Кабинеты</p>
-          {providers.map(item => {
-            const meta = statusMeta(item.status);
-            const active = item.providerId === current.providerId;
-            return (
-              <button
-                key={item.providerId}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  menu.close();
-                  if (!active) {
-                    selectProvider(item.providerId);
-                    navigate('/');
-                  }
-                }}
-                className={cn(
-                  'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-sidebar-accent',
-                  active ? 'text-sidebar-primary' : 'text-foreground'
-                )}
-              >
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center">{active && <Check size={14} />}</span>
-                <span className="min-w-0 flex-1 truncate">{item.displayName}</span>
-                {item.status !== 'active' && <Badge variant={meta.variant}>{meta.label}</Badge>}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              menu.close();
-              navigate('/providers/new');
-            }}
-            className="mt-1 flex h-9 w-full items-center gap-2 border-t px-3 text-left text-sm text-foreground transition hover:bg-sidebar-accent"
-          >
-            <Plus size={14} />
-            Добавить кабинет
-          </button>
-        </>
-      )}
-    </>
-  );
-}
-
-function UserMenu({
+function ProfileMenu({
   name,
   phone,
+  cabinetName,
+  currentProviderId,
   currentPath,
   onNavigate,
   onSignOut,
 }: {
   name: string;
   phone: string;
+  cabinetName: string;
+  currentProviderId: string;
   currentPath: string;
   onNavigate: (path: string) => void;
   onSignOut: () => void;
 }) {
-  const menu = useDropdown('right', 268);
+  const menu = useDropdown('right', 280);
+  const [switching, setSwitching] = useState(false);
   const inSettings = currentPath.startsWith('/settings');
 
   return (
@@ -222,22 +148,43 @@ function UserMenu({
         aria-haspopup="menu"
         title={name}
         className={cn(
-          'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium transition',
-          inSettings || menu.open ? 'bg-sidebar-accent text-sidebar-primary' : 'text-foreground hover:bg-sidebar-accent'
+          'flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium transition',
+          inSettings || menu.open
+            ? 'border-blue-200 bg-sidebar-accent text-sidebar-primary'
+            : 'border-input bg-background text-foreground hover:bg-sidebar-accent'
         )}
       >
         <UserRound size={15} className="shrink-0" />
         <span className="hidden sm:block">Профиль</span>
         <ChevronDown size={13} className={cn('shrink-0 text-muted-foreground transition-transform', menu.open && 'rotate-180')} />
       </button>
+
       {menu.render(
         <>
           <div className="border-b px-3 pb-2 pt-1">
             <p className="truncate text-sm font-medium text-foreground">{name}</p>
             <p className="truncate text-xs text-muted-foreground">{phone}</p>
           </div>
+
+          {/* The cabinet everything on screen belongs to, and the way to another one. */}
+          <div className="border-b px-3 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Кабинет</p>
+            <p className="mt-0.5 truncate text-sm font-medium text-foreground">{cabinetName}</p>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                menu.close();
+                setSwitching(true);
+              }}
+              className="mt-1 flex items-center gap-1.5 text-sm font-medium text-blue-700 transition hover:text-blue-800"
+            >
+              <Repeat size={13} /> Сменить кабинет
+            </button>
+          </div>
+
           {profileMenuGroups.map(group => (
-            <div key={group.title} className="border-b py-1 last:border-b-0">
+            <div key={group.title} className="border-b py-1">
               <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.title}</p>
               {group.items.map(item => {
                 const Icon = item.icon;
@@ -263,6 +210,7 @@ function UserMenu({
               })}
             </div>
           ))}
+
           <button
             type="button"
             role="menuitem"
@@ -277,6 +225,8 @@ function UserMenu({
           </button>
         </>
       )}
+
+      <CabinetSwitchDialog open={switching} currentProviderId={currentProviderId} onClose={() => setSwitching(false)} />
     </>
   );
 }

@@ -100,10 +100,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Позиции в каталоге" value={dashboard?.counts.activeResources ?? 0} total={dashboard?.counts.totalResources} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/resources')} />
-        <StatCard label="Активные предложения" value={dashboard?.counts.activeOffers ?? 0} total={dashboard?.counts.totalOffers} icon={<ShoppingBag size={18} className="text-teal-500" />} onClick={() => onNavigate('/offers')} />
-        <StatCard label="Предстоящие бронирования" value={dashboard?.counts.upcomingBookings ?? 0} icon={<Clock size={18} className="text-amber-500" />} onClick={() => onNavigate('/fulfillment')} />
-        <StatCard label="Всего бронирований" value={dashboard?.counts.totalBookings ?? 0} icon={<CheckCircle2 size={18} className="text-green-500" />} />
+        <StatCard label="Позиции в каталоге" value={dashboard?.counts?.activeResources ?? 0} total={dashboard?.counts?.totalResources} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/resources')} />
+        <StatCard label="Активные предложения" value={dashboard?.counts?.activeOffers ?? 0} total={dashboard?.counts?.totalOffers} icon={<ShoppingBag size={18} className="text-teal-500" />} onClick={() => onNavigate('/offers')} />
+        <StatCard label="Предстоящие бронирования" value={dashboard?.counts?.upcomingBookings ?? 0} icon={<Clock size={18} className="text-amber-500" />} onClick={() => onNavigate('/fulfillment')} />
+        <StatCard label="Всего бронирований" value={dashboard?.counts?.totalBookings ?? 0} icon={<CheckCircle2 size={18} className="text-green-500" />} />
       </div>
     </div>
   );
