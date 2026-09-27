@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, Save, Smartphone } from 'lucide-react';
+import { CheckCircle2, Save } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
+import { SectionPage } from '../../components/layout/SectionPage';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { Input } from '../../components/ui/Input';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { Select } from '../../components/ui/Select';
@@ -96,37 +97,34 @@ export function PayoutsPage() {
   const isSbp = details?.method === 'sbp';
 
   return (
-    <div className="space-y-5 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Выплаты</h2>
-          <p className="mt-0.5 text-xs text-gray-500">
-            {isSbp ? 'Самозанятым платформа переводит деньги по СБП на номер телефона.' : 'ИП и организациям платформа переводит деньги на расчётный счёт.'}
-          </p>
-        </div>
-        {details && (
+    <SectionPage
+      title="Реквизиты выплат"
+      description="Счёт, на который платформа переводит выручку. Подключение в банке выполняет платформа после проверки кабинета."
+      error={error}
+      action={
+        details && (
           details.registered
             ? <Badge variant="green">банк подключён</Badge>
             : details.hasDetails
               ? <Badge variant="yellow">ждёт подключения банка</Badge>
               : <Badge variant="gray">реквизиты не заполнены</Badge>
-        )}
-      </div>
-      {error && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+        )
+      }
+    >
       {loading ? (
-        <Card><div className="py-8 text-center text-sm text-gray-500">Загружаем выплаты...</div></Card>
+        <p className="text-sm text-gray-500">Загружаем выплаты...</p>
       ) : details && (
-        <Card className="space-y-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-            {isSbp ? <Smartphone size={16} className="text-blue-600" /> : <Building2 size={16} className="text-blue-600" />}
-            {isSbp ? 'СБП по номеру телефона' : 'Расчётный счёт'}
-            {details.beneficiaryName && <span className="text-xs font-normal text-gray-500">· получатель {details.beneficiaryName}</span>}
-          </div>
+        <div className="max-w-3xl">
+        <SettingsCard
+          title={isSbp ? 'СБП по номеру телефона' : 'Расчётный счёт'}
+          description={
+            (isSbp
+              ? 'Самозанятым платформа переводит деньги по СБП на номер телефона.'
+              : 'ИП и организациям платформа переводит деньги на расчётный счёт.')
+            + (details.beneficiaryName ? ` Получатель — ${details.beneficiaryName}.` : '')
+          }
+        >
+          <div className="space-y-4">
           {isSbp ? (
             <div className="grid gap-3 md:grid-cols-2">
               <RuPhoneInput label="Телефон, привязанный к СБП" value={phone} onChange={setPhone} />
@@ -161,9 +159,10 @@ export function PayoutsPage() {
             </Button>
             {saved && <span className="flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 size={13} /> сохранено</span>}
           </div>
-          <p className="text-xs text-gray-500">Подключение в банке выполняет платформа после проверки кабинета.</p>
-        </Card>
+          </div>
+        </SettingsCard>
+        </div>
       )}
-    </div>
+    </SectionPage>
   );
 }

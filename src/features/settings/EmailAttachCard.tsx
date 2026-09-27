@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi } from '../../lib/api-client';
@@ -75,11 +75,10 @@ export function EmailAttachCard() {
   };
 
   return (
-    <Card className="rounded-none border-0 border-t border-gray-100 p-6 shadow-none">
-      <h2 className="text-sm font-semibold text-gray-900">Почта</h2>
-      <p className="mt-1 text-xs text-gray-500">
-        Нужна для счетов, актов и уведомлений. Вход выполняется по номеру телефона.
-      </p>
+    <SettingsCard
+      title="Почта"
+      description="Сюда приходят уведомления кабинета: счета, акты и письма о заказах и выплатах."
+    >
 
       {current && (
         <div className="mt-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
@@ -137,6 +136,6 @@ export function EmailAttachCard() {
           </Button>
         </form>
       )}
-    </Card>
+    </SettingsCard>
   );
 }

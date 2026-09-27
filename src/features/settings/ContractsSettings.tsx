@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { SectionPage } from '../../components/layout/SectionPage';
 import { ApiError, providerApi } from '../../lib/api-client';
 import type { Agreement, PayoutDetails } from '../../types';
 import { AGREEMENT_URL, DOCS_BASE_URL } from '../providers/providerStatus';
@@ -41,12 +42,11 @@ export function ContractsSettings() {
   const status = agreement ? agreementStatus[agreement.status] ?? { label: agreement.status, variant: 'gray' as const } : null;
 
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold text-gray-950">Договоры</h1>
-      <p className="mt-1 max-w-xl text-sm text-gray-500">
-        Все договоры вашего кабинета с платформой. Договор, по которому вы работаете сейчас, отмечен значком «Активен».
-      </p>
-      {error && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+    <SectionPage
+      title="Договоры"
+      description="Все договоры вашего кабинета с платформой. Договор, по которому вы работаете сейчас, отмечен значком «Активен»."
+      error={error}
+    >
       {loading ? (
         <p className="mt-6 text-sm text-gray-500">Загружаем...</p>
       ) : agreement && status ? (
@@ -94,7 +94,7 @@ export function ContractsSettings() {
         <DocLink href={`${DOCS_BASE_URL}/docs/legal/providers/payouts-and-reports`} label="Выплаты и отчётные документы" />
         <DocLink href={`${DOCS_BASE_URL}/docs/legal/providers/changelog`} label="Архив изменений" />
       </ul>
-    </div>
+    </SectionPage>
   );
 }
 

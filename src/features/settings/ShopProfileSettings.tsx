@@ -11,6 +11,7 @@ import type { Provider } from '../../types';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SectionPage } from '../../components/layout/SectionPage';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 
 /** What the shop looks like to a customer. Read here, changed on /settings/shop/edit. */
 export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => void }) {
@@ -39,29 +40,32 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
   }, [provider.providerId]);
 
   return (
-    <SectionPage
-      title="Профиль проката"
-      description="Название, контакты и описание — то, что видят клиенты. Юридические данные в разделе «Информация о продавце»."
-      action={
-        !loading && (
-          <Button type="button" variant="secondary" onClick={() => onNavigate('/settings/shop/edit')}>
-            <Pencil size={14} /> Редактировать
-          </Button>
-        )
-      }
-      error={error}
-    >
-      {loading ? (
-        <p className="text-sm text-gray-500">Загружаем профиль...</p>
-      ) : (
-        <DetailList>
-          <DetailRow label="Название проката" value={profile?.displayName ?? provider.displayName} />
-          <DetailRow label="Email" value={profile?.contactEmail} />
-          <DetailRow label="Телефон" value={profile?.contactPhone} />
-          <DetailRow label="Адрес" value={profile?.address} />
-          <DetailRow label="Описание" value={profile?.description} />
-        </DetailList>
-      )}
+    <SectionPage title="Профиль проката" error={error}>
+      <div className="max-w-3xl">
+        <SettingsCard
+          title="Витрина проката"
+          description="Название, контакты и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."
+          action={
+            !loading && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/shop/edit')}>
+                <Pencil size={14} /> Редактировать
+              </Button>
+            )
+          }
+        >
+          {loading ? (
+            <p className="text-sm text-gray-500">Загружаем профиль...</p>
+          ) : (
+            <DetailList>
+              <DetailRow label="Название проката" value={profile?.displayName ?? provider.displayName} />
+              <DetailRow label="Email" value={profile?.contactEmail} />
+              <DetailRow label="Телефон" value={profile?.contactPhone} />
+              <DetailRow label="Адрес" value={profile?.address} />
+              <DetailRow label="Описание" value={profile?.description} />
+            </DetailList>
+          )}
+        </SettingsCard>
+      </div>
     </SectionPage>
   );
 }
@@ -144,7 +148,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
       {loading ? (
         <p className="text-sm text-gray-500">Загружаем профиль...</p>
       ) : (
-        <div className="max-w-3xl space-y-4">
+        <div className="max-w-2xl space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Input
               label="Название проката"

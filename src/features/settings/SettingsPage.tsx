@@ -18,6 +18,9 @@ import { SellerProfileEdit } from './SellerProfileEdit';
 import { ShopProfileEdit, ShopProfileView } from './ShopProfileSettings';
 import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
+import { SectionPage } from '../../components/layout/SectionPage';
+import { SettingsCard } from '../../components/layout/SettingsCard';
+import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 
 export type SettingsTab =
@@ -83,26 +86,30 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   return (
     <div className="flex min-h-0 flex-1 bg-white">
       {showSidebar && (
-        <aside className="hidden w-64 shrink-0 border-r border-gray-200 px-4 py-5 md:block" aria-label="Разделы настроек">
+        <aside className="hidden w-64 shrink-0 border-r border-gray-200 px-3 py-5 md:block" aria-label="Разделы настроек">
           {sidebarGroups.map(group => (
-            <div key={group.title} className="mb-6">
-              <p className="mb-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
-              {group.items.map(item => {
-                const active = item.id === section;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onNavigate(item.path)}
-                    aria-current={active ? 'page' : undefined}
-                    className={`flex w-full items-center rounded-md border-l-2 px-2 py-1.5 text-left text-sm transition ${
-                      active ? 'border-blue-600 bg-blue-50 font-medium text-blue-700' : 'border-transparent text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+            <div key={group.title} className="mb-5 last:mb-0">
+              <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
+              <div className="space-y-0.5">
+                {group.items.map(item => {
+                  const active = item.id === section;
+                  // Weight and padding stay put between states: only colour moves, so the label does
+                  // not thicken or shift sideways when a section becomes the current one.
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onNavigate(item.path)}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex h-9 w-full items-center rounded-md px-3 text-left text-sm transition ${
+                        active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </aside>
@@ -489,10 +496,11 @@ function EmployeesSettings() {
         providerMembersApi.listMembers(),
         providerMembersApi.listInvitations(),
       ]);
-      setRoleOptions(nextOptions.roles);
-      setMembers(nextMembers);
-      setInvitations(nextInvitations);
-      setForm(current => current.role ? current : { ...current, role: nextOptions.roles[0]?.value ?? '' });
+      const roles = nextOptions.roles ?? [];
+      setRoleOptions(roles);
+      setMembers(nextMembers ?? []);
+      setInvitations(nextInvitations ?? []);
+      setForm(current => current.role ? current : { ...current, role: roles[0]?.value ?? '' });
     } catch (err) {
       setPageError(err instanceof ApiError ? err.message : 'Не удалось загрузить сотрудников.');
     } finally {
@@ -573,12 +581,12 @@ function EmployeesSettings() {
   };
 
   return (
-    <>
-      <Card className="rounded-none border-0 p-6 shadow-none">
+    <SectionPage title="Сотрудники">
+      <div className="max-w-4xl">
+      <Card className="border-0 p-0 shadow-none">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-gray-900">Сотрудники</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Доступы команды к кабинету магазина.</p>
+            <p className="text-sm text-gray-500">Доступы команды к кабинету магазина.</p>
           </div>
           <Button
             type="button"
@@ -763,7 +771,8 @@ function EmployeesSettings() {
           </div>
         </div>
       </Modal>
-    </>
+      </div>
+    </SectionPage>
   );
 }
 
@@ -771,18 +780,18 @@ function AccountSettings() {
   const { user } = useAuth();
 
   return (
-    <div>
-      <Card className="rounded-none border-0 p-6 shadow-none">
-        <h2 className="text-sm font-semibold text-gray-900">Аккаунт</h2>
-        <div className="mt-4 space-y-3 text-sm">
-          <InfoRow label="Имя" value={user?.name ?? '—'} />
-          <InfoRow label="Телефон" value={user?.phone ?? '—'} />
-          <InfoRow label="Почта" value={user?.email || '—'} />
-        </div>
-      </Card>
-
-      <EmailAttachCard />
-    </div>
+    <SectionPage title="Аккаунт">
+      <div className="max-w-3xl space-y-4">
+        <SettingsCard title="Ваши данные" description="Учётная запись, под которой вы вошли в кабинет.">
+          <DetailList>
+            <DetailRow label="Имя" value={user?.name} />
+            <DetailRow label="Телефон" value={user?.phone} />
+            <DetailRow label="Почта" value={user?.email} />
+          </DetailList>
+        </SettingsCard>
+        <EmailAttachCard />
+      </div>
+    </SectionPage>
   );
 }
 
@@ -831,11 +840,3 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="min-w-0 text-right text-xs font-medium text-gray-900 break-words">{value}</span>
-    </div>
-  );
-}

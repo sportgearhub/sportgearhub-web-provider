@@ -9,6 +9,7 @@ import { useProvider } from '../providers/ProviderContext';
 import { SellerDetailsFields, SellerKindChoice, emptySellerDraft, sellerDraftError, sellerDraftToInput, type SellerDraft } from '../providers/SellerDetailsFields';
 import { kindLabel } from '../providers/providerStatus';
 import { SectionPage } from '../../components/layout/SectionPage';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 
 export const taxationLabel = (value: string) => taxationLabels[value] ?? value;
 export const vatLabel = (value: string) => vatLabels[value] ?? value;
@@ -95,22 +96,11 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
     : director ? [director.lastName, director.firstName, director.middleName].filter(Boolean).join(' ') : '—';
 
   return (
-    <SectionPage
-      title="Информация о продавце"
-      description="Юридические данные кабинета — кому платформа перечисляет деньги."
-      action={
-        profile && (
-          <Button type="button" variant="secondary" onClick={() => onNavigate('/settings/seller/edit')}>
-            <Pencil size={14} /> Редактировать
-          </Button>
-        )
-      }
-      error={error}
-    >
+    <SectionPage title="Информация о продавце" error={error}>
       {loading ? (
         <p className="text-sm text-gray-500">Загружаем...</p>
       ) : missing || !profile ? (
-        <div className="max-w-xl space-y-5">
+        <div className="max-w-2xl space-y-5">
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
             <p className="font-semibold">Данные продавца ещё не заполнены.</p>
             <p className="mt-1">Кабинет создан до того, как они стали обязательными. Без формы собственности и ИНН нельзя принять договор и получать выплаты. Заполните их один раз — изменить потом можно будет только через новый кабинет.</p>
@@ -134,31 +124,43 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
           </Button>
         </div>
       ) : (
-        <>
-          <h2 className="text-base font-semibold text-gray-950">Общая информация</h2>
-          <DetailList className="mt-3">
-            <DetailRow label="Форма собственности" value={kindLabel(profile.kind)} />
-            <DetailRow
-              label="Система налогообложения"
-              value={profile.business ? taxationLabel(profile.business.taxationSystem) : taxationLabels.npd}
-            />
-            <DetailRow label="Ставка НДС" value={profile.business ? vatLabel(profile.business.vatRate) : vatLabels.none} />
-            <DetailRow label={profile.person ? 'ФИО' : director?.position ?? 'Руководитель'} value={personName} />
-            <DetailRow label="Название кабинета" value={provider.displayName} />
-            {profile.business && <DetailRow label="Наименование" value={profile.business.legalName} />}
-            {profile.business && <DetailRow label="Адрес регистрации" value={profile.business.legalAddress} />}
-            {profile.business && <DetailRow label={profile.kind === 'company' ? 'ОГРН' : 'ОГРНИП'} value={profile.business.registrationNumber} />}
-            <DetailRow label="ИНН" value={profile.inn} />
-            {profile.company && <DetailRow label="КПП" value={profile.company.kpp} />}
-          </DetailList>
-          <p className="mt-4 max-w-2xl text-sm text-gray-500">
-            Форма собственности и ИНН не меняются — для другого юридического лица создайте новый кабинет.
-          </p>
+        <div className="max-w-3xl space-y-4">
+          <SettingsCard
+            title="Юридическое лицо"
+            description="Кому платформа перечисляет деньги. Форма собственности и ИНН не меняются — для другого лица нужен новый кабинет."
+            action={
+              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/seller/edit')}>
+                <Pencil size={14} /> Редактировать
+              </Button>
+            }
+          >
+            <DetailList>
+              <DetailRow label="Форма собственности" value={kindLabel(profile.kind)} />
+              <DetailRow
+                label="Система налогообложения"
+                value={profile.business ? taxationLabel(profile.business.taxationSystem) : taxationLabels.npd}
+              />
+              <DetailRow label="Ставка НДС" value={profile.business ? vatLabel(profile.business.vatRate) : vatLabels.none} />
+              <DetailRow label={profile.person ? 'ФИО' : director?.position ?? 'Руководитель'} value={personName} />
+              {profile.business && <DetailRow label="Наименование" value={profile.business.legalName} />}
+              {profile.business && <DetailRow label="Адрес регистрации" value={profile.business.legalAddress} />}
+              {profile.business && <DetailRow label={profile.kind === 'company' ? 'ОГРН' : 'ОГРНИП'} value={profile.business.registrationNumber} />}
+              <DetailRow label="ИНН" value={profile.inn} />
+              {profile.company && <DetailRow label="КПП" value={profile.company.kpp} />}
+            </DetailList>
+          </SettingsCard>
 
-          <h2 className="mt-10 text-base font-semibold text-gray-950">Реквизиты</h2>
-          <DetailList className="mt-3">
+          <SettingsCard
+            title="Реквизиты выплат"
+            description="Счёт, на который платформа переводит выручку за вычетом комиссии."
+            action={
+              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/payouts')}>
+                <Pencil size={14} /> {payout?.hasDetails ? 'Изменить реквизиты' : 'Указать реквизиты'}
+              </Button>
+            }
+          >
             {payout?.hasDetails ? (
-              <>
+              <DetailList>
                 <DetailRow label="Платёжный метод" value={payout.method === 'sbp' ? 'СБП по номеру телефона' : 'Банковский счёт'} />
                 {payout.method === 'sbp'
                   ? <DetailRow label="Телефон" value={payout.phone} />
@@ -166,19 +168,14 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
                 {payout.bik && <DetailRow label="БИК банка" value={payout.bik} />}
                 <DetailRow label="Название банка" value={payout.bankName} />
                 <DetailRow label="Валюта" value="RUB" />
-              </>
+              </DetailList>
             ) : (
-              <DetailRow
-                label="Платёжный метод"
-                value={payout?.method === 'sbp' ? 'СБП по номеру телефона' : 'Банковский счёт'}
-                hint="Реквизиты не указаны — без них выплаты не уйдут."
-              />
+              <p className="text-sm text-gray-500">
+                Реквизиты не указаны — до этого выплаты не уйдут, даже когда заказы начнут приходить.
+              </p>
             )}
-          </DetailList>
-          <button type="button" onClick={() => onNavigate('/settings/payouts')} className="mt-3 text-sm font-medium text-blue-700 hover:underline">
-            {payout?.hasDetails ? 'Изменить реквизиты' : 'Указать реквизиты'}
-          </button>
-        </>
+          </SettingsCard>
+        </div>
       )}
     </SectionPage>
   );

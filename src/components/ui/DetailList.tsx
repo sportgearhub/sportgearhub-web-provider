@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
  * a form full of inputs you can change by accident.
  */
 export function DetailList({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <dl className={`max-w-3xl ${className}`}>{children}</dl>;
+  return <dl className={className}>{children}</dl>;
 }
 
 export function DetailRow({
@@ -21,7 +21,7 @@ export function DetailRow({
   hint?: string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-1 border-b border-gray-100 py-3 text-sm last:border-b-0 md:grid-cols-[220px_1fr] md:gap-6">
+    <div className="grid grid-cols-1 gap-1 border-b border-gray-100 py-2.5 text-sm last:border-b-0 sm:grid-cols-[minmax(160px,220px)_1fr] sm:gap-6">
       <dt className="text-gray-500">{label}</dt>
       <dd className="text-gray-900">
         {children ?? (value ? value : <span className="text-gray-400">Не указано</span>)}
