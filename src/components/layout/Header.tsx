@@ -65,7 +65,7 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
-      <div className="mx-auto flex w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-1.5">
+      <div className="mx-auto flex min-h-16 w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
         <button
           type="button"
           onClick={() => onNavigate('/')}
@@ -73,7 +73,7 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
           title="На главную"
           aria-label="Sportgearhub — на главную"
         >
-          <BrandWordmark size="sm" />
+          <BrandWordmark size="sm" className="sm:text-lg" />
         </button>
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
@@ -88,7 +88,7 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
               onClick={() => onNavigate(item.path)}
               aria-current={isActive(item.path) ? 'page' : undefined}
               className={cn(
-                'shrink-0 rounded-md px-3 py-1 text-sm font-medium transition-colors',
+                'flex h-9 shrink-0 items-center rounded-md px-3 text-sm font-medium transition-colors',
                 isActive(item.path)
                   ? 'bg-sidebar-accent text-sidebar-primary'
                   : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
@@ -146,7 +146,7 @@ function ProfileMenu({
         aria-haspopup="menu"
         title={name}
         className={cn(
-          'flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium transition',
+          'flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition',
           inSettings || menu.open
             ? 'border-blue-200 bg-sidebar-accent text-sidebar-primary'
             : 'border-input bg-background text-foreground hover:bg-sidebar-accent'
