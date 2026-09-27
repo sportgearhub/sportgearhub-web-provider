@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronRight, Mountain, Plus, UserRound } from 'lucide-react';
+import { ChevronRight, Plus, UserRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { BrandWordmark } from '../../components/layout/BrandWordmark';
 import { FocusFrame } from '../../components/layout/FocusFrame';
 import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
@@ -56,11 +57,9 @@ export function ProviderPickerPage() {
 
   return (
     <FocusFrame>
-      <div className="flex items-center justify-center gap-2 text-foreground">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-          <Mountain size={16} />
-        </span>
-        <span className="text-base font-semibold">Sportgearhub · Кабинет</span>
+      <div className="flex flex-col items-center gap-1 text-foreground">
+        <BrandWordmark />
+        <span className="text-sm text-muted-foreground">Кабинет партнёра</span>
       </div>
       <Card className="space-y-4 p-6">
         <h1 className="text-center text-xl font-semibold text-gray-950">Выберите кабинет</h1>

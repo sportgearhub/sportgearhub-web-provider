@@ -7,7 +7,6 @@ import {
   FileText,
   LogOut,
   MapPin,
-  Mountain,
   Repeat,
   Store,
   UserRound,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
+import { BrandWordmark } from './BrandWordmark';
 import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
 
@@ -69,13 +69,11 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
         <button
           type="button"
           onClick={() => onNavigate('/')}
-          className="flex shrink-0 items-center gap-2 rounded-md text-left transition hover:opacity-80"
+          className="flex shrink-0 items-center rounded-md text-left transition hover:opacity-80"
           title="На главную"
+          aria-label="Sportgearhub — на главную"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-            <Mountain size={15} />
-          </span>
-          <span className="hidden text-sm font-semibold text-foreground sm:block">Sportgearhub</span>
+          <BrandWordmark size="sm" />
         </button>
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}

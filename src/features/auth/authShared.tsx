@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Mail, Mountain } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Mail } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
+import { BrandWordmark } from '../../components/layout/BrandWordmark';
 
 type AuthInputIcon = typeof Mail;
 
@@ -8,12 +9,9 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 shadow-md">
-            <Mountain size={24} className="text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900">Sportgearhub</h1>
-          <p className="mt-1 text-sm text-gray-500">Кабинет партнера</p>
+        <div className="mb-8 flex flex-col items-center gap-1">
+          <BrandWordmark />
+          <p className="text-sm text-gray-500">Кабинет партнёра</p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
