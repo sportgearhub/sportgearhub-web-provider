@@ -281,7 +281,7 @@ export function InventoryParkCard({
                       label={`Действия с велосипедом ${unit.inventoryCode || ''}`}
                       disabled={saving}
                       items={[
-                        { label: 'Изменить', icon: <Edit2 size={14} />, onClick: () => openEditModal(unit) },
+                        { label: 'Редактировать', icon: <Edit2 size={14} />, onClick: () => openEditModal(unit) },
                         { label: 'Убрать из проката', icon: <Archive size={14} />, onClick: () => onArchive(unit), disabled: saving },
                         { label: 'Удалить навсегда', icon: <Trash2 size={14} />, onClick: () => onDelete(unit), danger: true, disabled: saving },
                       ]}
@@ -299,7 +299,7 @@ export function InventoryParkCard({
         onClose={() => {
           if (!saving) setUnitModalOpen(false);
         }}
-        title={form.unitId ? 'Изменить велосипед' : 'Добавить велосипед'}
+        title={form.unitId ? 'Редактирование велосипеда' : 'Добавление велосипеда'}
         size="md"
       >
         <div className="space-y-4">

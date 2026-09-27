@@ -160,7 +160,7 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Доступность</h3>
               {onOpenAvailability && (
-                <Button size="sm" variant="ghost" onClick={onOpenAvailability}>Изменить</Button>
+                <Button size="sm" variant="ghost" aria-label="Редактировать доступность" onClick={onOpenAvailability}>Редактировать</Button>
               )}
             </div>
             {availabilityConfigured(availability) ? (
@@ -180,7 +180,7 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Правила</h3>
               {onOpenPolicy && (
-                <Button size="sm" variant="ghost" onClick={onOpenPolicy}>Изменить</Button>
+                <Button size="sm" variant="ghost" aria-label="Редактировать правила" onClick={onOpenPolicy}>Редактировать</Button>
               )}
             </div>
             {policy ? (

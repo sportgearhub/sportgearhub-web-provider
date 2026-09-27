@@ -129,7 +129,13 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
             title="Юридическое лицо"
             description="Кому платформа перечисляет деньги. Форма собственности и ИНН не меняются — для другого лица нужен новый кабинет."
             action={
-              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/seller/edit')}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label="Редактировать данные юридического лица"
+                onClick={() => onNavigate('/settings/seller/edit')}
+              >
                 <Pencil size={14} /> Редактировать
               </Button>
             }
@@ -154,8 +160,14 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
             title="Реквизиты выплат"
             description="Счёт, на который платформа переводит выручку за вычетом комиссии."
             action={
-              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/payouts')}>
-                <Pencil size={14} /> {payout?.hasDetails ? 'Изменить реквизиты' : 'Указать реквизиты'}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label={`${payout?.hasDetails ? 'Редактировать' : 'Добавить'} реквизиты выплат`}
+                onClick={() => onNavigate('/settings/payouts')}
+              >
+                <Pencil size={14} /> {payout?.hasDetails ? 'Редактировать' : 'Добавить'}
               </Button>
             }
           >

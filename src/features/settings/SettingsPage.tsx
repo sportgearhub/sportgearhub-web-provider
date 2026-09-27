@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { EmailAttachCard } from './EmailAttachCard';
-import { Globe2, Plus, Save, Trash2 } from 'lucide-react';
+import { EmailAttachDialog } from './EmailAttachDialog';
+import { Globe2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -581,13 +581,12 @@ function EmployeesSettings() {
   };
 
   return (
-    <SectionPage title="Сотрудники">
+    <SectionPage title="Сотрудники" error={pageError}>
       <div className="max-w-4xl">
-      <Card className="border-0 p-0 shadow-none">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-gray-500">Доступы команды к кабинету магазина.</p>
-          </div>
+      <SettingsCard
+        title="Доступы к кабинету"
+        description="Кто может входить в кабинет и что им разрешено. Приглашение уходит на номер телефона."
+        action={
           <Button
             type="button"
             variant="primary"
@@ -600,8 +599,8 @@ function EmployeesSettings() {
           >
             <Plus size={14} /> Пригласить
           </Button>
-        </div>
-
+        }
+      >
         <div className="mb-4 inline-flex rounded-md border bg-gray-50 p-0.5">
           <button
             type="button"
@@ -623,13 +622,11 @@ function EmployeesSettings() {
           </button>
         </div>
 
-        {pageError && <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{pageError}</p>}
-
         {loading ? (
           <div className="py-8 text-center text-sm text-gray-500">Загружаем сотрудников...</div>
         ) : view === 'staff' ? (
-          <div className="overflow-hidden border-y border-gray-100">
-            <table className="w-full table-fixed text-left text-sm">
+          <div className="-mx-5 overflow-x-auto border-y border-gray-100">
+            <table className="w-full min-w-[560px] table-fixed text-left text-sm">
               <thead className="bg-gray-50 text-xs font-medium text-gray-500">
                 <tr>
                   <th className="w-[38%] px-3 py-2">Сотрудник</th>
@@ -689,8 +686,8 @@ function EmployeesSettings() {
             )}
           </div>
         ) : (
-          <div className="overflow-hidden border-y border-gray-100">
-            <table className="w-full table-fixed text-left text-sm">
+          <div className="-mx-5 overflow-x-auto border-y border-gray-100">
+            <table className="w-full min-w-[560px] table-fixed text-left text-sm">
               <thead className="bg-gray-50 text-xs font-medium text-gray-500">
                 <tr>
                   <th className="w-[30%] px-3 py-2">Телефон</th>
@@ -730,7 +727,7 @@ function EmployeesSettings() {
             )}
           </div>
         )}
-      </Card>
+      </SettingsCard>
 
       <Modal
         open={inviteOpen}
@@ -778,19 +775,43 @@ function EmployeesSettings() {
 
 function AccountSettings() {
   const { user } = useAuth();
+  const [emailOpen, setEmailOpen] = useState(false);
+
+  const email = user?.email ?? '';
+  const emailVerified = Boolean(email) && user?.emailVerified !== false;
 
   return (
     <SectionPage title="Аккаунт">
-      <div className="max-w-3xl space-y-4">
+      <div className="max-w-3xl">
         <SettingsCard title="Ваши данные" description="Учётная запись, под которой вы вошли в кабинет.">
           <DetailList>
             <DetailRow label="Имя" value={user?.name} />
-            <DetailRow label="Телефон" value={user?.phone} />
-            <DetailRow label="Почта" value={user?.email} />
+            <DetailRow label="Телефон" value={user?.phone} hint="По нему выполняется вход" />
+            <DetailRow label="Почта" hint="Сюда приходят счета, акты и письма о заказах и выплатах">
+              <div className="flex flex-wrap items-center gap-2">
+                {email
+                  ? <span className="text-gray-900">{email}</span>
+                  : <span className="text-gray-400">Не указана</span>}
+                {email && (
+                  <Badge variant={emailVerified ? 'green' : 'yellow'}>
+                    {emailVerified ? 'Подтверждена' : 'Не подтверждена'}
+                  </Badge>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  aria-label={`${email ? 'Редактировать' : 'Добавить'} почту аккаунта`}
+                  onClick={() => setEmailOpen(true)}
+                >
+                  <Pencil size={13} /> {email ? 'Редактировать' : 'Добавить'}
+                </Button>
+              </div>
+            </DetailRow>
           </DetailList>
         </SettingsCard>
-        <EmailAttachCard />
       </div>
+      <EmailAttachDialog open={emailOpen} onClose={() => setEmailOpen(false)} />
     </SectionPage>
   );
 }

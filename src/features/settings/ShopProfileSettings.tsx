@@ -47,7 +47,13 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           description="Название, контакты и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."
           action={
             !loading && (
-              <Button type="button" variant="secondary" size="sm" onClick={() => onNavigate('/settings/shop/edit')}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label="Редактировать профиль проката"
+                onClick={() => onNavigate('/settings/shop/edit')}
+              >
                 <Pencil size={14} /> Редактировать
               </Button>
             )

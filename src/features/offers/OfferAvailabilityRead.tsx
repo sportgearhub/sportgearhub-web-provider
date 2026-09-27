@@ -62,7 +62,11 @@ export function OfferAvailabilityRead({ offer, onNavigate }: { offer: Offer; onN
               {availability?.status === 'active' ? 'Включено' : 'Не принимает брони'}
             </Badge>
           )}
-          <Button variant="secondary" onClick={() => onNavigate(`/offers/${offer.offerId}/availability/edit`)}>
+          <Button
+            variant="secondary"
+            aria-label="Редактировать доступность предложения"
+            onClick={() => onNavigate(`/offers/${offer.offerId}/availability/edit`)}
+          >
             <Pencil size={14} /> Редактировать
           </Button>
         </div>
