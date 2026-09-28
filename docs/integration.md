@@ -17,14 +17,31 @@ Copies of the API repo docs, fetched from `sportgearhub-api/docs`:
 
 ### Surface Changes This File Predates
 
-- **Variants are gone.** No `/resources/{id}/variants*`. Inventory is `/resources/{id}/units`, and
-  allocation moved to `/resources/{id}/allocation`.
-- **No resource availability calendar.** `/resources/{id}/availability-calendar` does not exist; schedule is
-  offer-level (`/offers/{id}/availability`, with `availability_windows` and `blocked_periods`) plus
-  `/resources/{id}/slots` for slot-based capacity.
+- **Variants are gone**, and so are units. Capacity is a single number, `quantity`, on the resource
+  itself: how many the provider can hand out at once. No `/resources/{id}/variants*`, no
+  `/resources/{id}/units*`, no `/resources/{id}/allocation`.
+- **No resource availability calendar.** `/resources/{id}/availability-calendar` does not exist, and
+  neither does `/offers/{id}/availability` on the console — offer availability settings were removed
+  and the public `GET /api/v1/offers/{id}/availability` derives the calendar from bookings and
+  `quantity`. `/resources/{id}/slots` remains for slot-based capacity.
 - **No resource-level pricing or policy write.** Both are offer-level
   (`/offers/{id}/pricing-policy`, `/offers/{id}/policy`); the resource exposes read-only
-  `*-diagnostics` endpoints only.
+  `pricing-diagnostics` only.
+
+### Routes This Client Still Calls That No Longer Exist
+
+An audit on 2026-09-28 compared every path in `src/lib/api-client.ts` against the API's generated
+specs. These nine 404 today, so the screens behind them are broken:
+
+| Call | What replaced it |
+|---|---|
+| `/resources/{id}/units`, `/units/{unitId}`, `/units/{unitId}/archive` | `quantity` on the resource |
+| `/resources/{id}/allocation` | nothing — allocation was never read by anything |
+| `/resources/{id}/inventory-summary` | `quantity`, read from the resource |
+| `/acquiring-connections/{id}`, `/acquiring-connections/{id}/routability` | the provider's payout destination; admin drives registration |
+| `/payout-contracts` | `GET/PUT …/payout` |
+| `/stock-balance`, `/stock-balance/preview` | nothing |
+| `/offers/{id}/availability` | never existed as a provider-scoped route |
 - **Rent duration left availability.** `min_rent_hours`/`max_rent_hours` are gone. Offer availability
   carries `slot_interval_minutes`; session length is the offer's own `duration_hours`, and rental
   pricing bands live in the pricing policy's `rental_tiers`.

@@ -1,5 +1,13 @@
 # Provider Console API Surface V1
 
+> Status: **historical product intent, not the current contract.** The endpoint tables below use an
+> `/api/v1/provider/...` prefix that never shipped; real console routes are path-scoped as
+> `/api/v1/providers/{providerId}/…`. Several surfaces here were built differently or not at all —
+> variants and units became a `quantity` on the resource, payout contracts became one payout
+> destination, and onboarding applications became seller profiles. For what exists today see
+> [`api/provider-api.md`](api/provider-api.md), which is generated against the OpenAPI specs, and
+> [`integration.md`](integration.md). This file is kept for the reasoning, not the routes.
+
 ## Purpose
 
 This document defines the first-pass provider-facing API surface for Sportgearhub.

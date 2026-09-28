@@ -154,8 +154,7 @@ business, and bank registration is a separate admin-driven step that already exi
 | `GET /internal/providers/{id}/reviews` | the full `ProviderReviews` history, newest first |
 | `POST /internal/providers/{id}/actions` | `{action: "approve" \| "request_changes" \| "reject" \| "reopen" \| "suspend" \| "activate" \| "archive", message?}` → `ProviderProfile`. One transition table (above); `409 provider.transition_not_allowed` otherwise. |
 
-Bank registration stays where it is: `/internal/providers/{id}/payout-contracts/…` and
-`/internal/providers/{id}/t-bank/shop/…`.
+Bank registration is `POST /internal/providers/{id}/payout/register`.
 
 ### Removed (14)
 

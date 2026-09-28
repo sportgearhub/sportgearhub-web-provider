@@ -1,8 +1,11 @@
 # Billing & Payout Model — Target Design (Draft)
 
-> Status: **partially implemented.** The keystone (Invoice, InvoiceLine, ProviderTariff,
-> PaymentMethod) is built and migrated. The accrual/payout layer is still design-only.
-> Production payment flow still uses `SettlementPlan` + residual-commission until retired.
+> Status: **design-only in effect.** `Invoice`, `InvoiceLine` and `PaymentMethod` exist as entities
+> with DbSets, but no service reads or writes them. `ProviderTariff` was **dropped** in migration
+> `20260922182237_RemoveCanonicalizationAndUnusedTables`. The accrual/payout layer is design-only.
+> Production payment flow uses `SettlementPlan` + residual commission, and that residual currently
+> equals the deposit amount — see
+> [payout-testing.v1.md](integrations/t-bank-acquiring/payout-testing.v1.md#payout-operating-model--today-vs-target).
 
 ## Scope decision: one booking = one provider
 
@@ -228,8 +231,10 @@ WHERE i.ProviderId=@A GROUP BY Sku;
 
 ## Status & next steps
 
-- **🟢 Built & migrated:** `Invoice` (single-provider), `InvoiceLine` (item-tagged),
-  `ProviderTariff`, `PaymentMethod` + 3 enums + DbContext + one forward migration.
+- **⚪ Schema only, unused:** `Invoice` (single-provider), `InvoiceLine` (item-tagged),
+  `PaymentMethod` + enums + DbContext. No service reads or writes them.
+- **🔴 Removed:** `ProviderTariff` — dropped in `20260922182237_RemoveCanonicalizationAndUnusedTables`.
+  The platform-fee rate has to be reintroduced before any tariff-based payout is possible.
 - **🟡 Next:** `PaymentIntent.InvoiceId`; then `ProviderDeal`/`DealAccrual`/`PayoutSchedule`/
   `PayoutBatch`; then the scheduled `BackgroundService`; then retire `SettlementPlan`.
 - **Invariants:** invoice immutable & single-provider; accruals append-only; balance is a

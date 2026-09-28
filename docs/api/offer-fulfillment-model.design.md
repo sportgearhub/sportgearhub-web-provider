@@ -55,6 +55,7 @@ Discovery → Offer        (one source)
 
 Warehouse (pure, off the offer path):
   ProviderResource ⊃ ResourceVariant ⊃ ProviderResourceUnit + VariantAllocation
+  (none of the three inner layers exists: capacity is ProviderResource.Quantity)
 ```
 
 | Aspect | Rental | Experience / Service |
@@ -85,7 +86,7 @@ Much of this already exists:
   is already redundant with it.
 - **`ResourceSlot` → `OfferSlot`** — re-key `ResourceId` → `OfferId`; already has
   start/end + `TotalCapacity`/`ReservedCapacity`. This is the experience/service backing.
-- **Keep as pure warehouse**: `ProviderResource`, `ResourceVariant`, `ProviderResourceUnit`,
+- **Keep as pure warehouse**: `ProviderResource` (the others below never existed),
   `VariantAllocation`. Referenced only via `OfferItem`.
 - **Booking resolution** changes from `offer→resource→variant` to `offer→OfferItem→variant→unit`
   (rental) or `offer→OfferSlot→seat` (experience/service).

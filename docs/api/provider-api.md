@@ -67,13 +67,11 @@ Only `active` providers are public.
 | `GET` | `…/resources/{resourceId}/images` | Resource images |
 | `POST` | `…/resources/{resourceId}/images` | Upload image |
 
-### Resource diagnostics (read-only, aggregate offer-level truth)
+### Resource diagnostics (read-only, aggregates offer-level truth)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `…/resources/{resourceId}/availability-diagnostics` | Availability readiness |
 | `GET` | `…/resources/{resourceId}/pricing-diagnostics` | Pricing readiness |
-| `GET` | `…/resources/{resourceId}/policy-diagnostics` | Policy readiness |
 
 ---
 
@@ -91,31 +89,16 @@ Only `active` providers are public.
 | `POST` | `…/offers/{offerId}/archive` | Archive |
 | `GET` | `…/offers/{offerId}/readiness` | Publishability readiness |
 
-### Offer-level configuration (availability, pricing, policy)
+### Offer-level configuration (pricing, policy)
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `…/offers/{offerId}/availability` | Availability settings (`status: not_configured` if unset) |
-| `PUT` | `…/offers/{offerId}/availability` | Upsert availability settings |
 | `GET` | `…/offers/{offerId}/pricing-policy` | Pricing policy |
 | `PUT` | `…/offers/{offerId}/pricing-policy` | Upsert pricing policy |
 | `POST` | `…/offers/{offerId}/pricing-summary-preview` | Preview pricing summary |
 | `GET` | `…/offers/{offerId}/policy` | Policy override |
 | `PUT` | `…/offers/{offerId}/policy` | Upsert policy override |
-| `POST` | `…/offers/{offerId}/policy-summary-preview` | Preview policy summary |
 | `GET` | `…/offers/{offerId}/routability` | Offer routability status |
-
----
-
-## Provider-level Policy
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `…/policy-profile` | Provider default policy |
-| `PUT` | `…/policy-profile` | Upsert provider policy |
-| `GET` | `…/resources/{resourceId}/policy` | Resource policy override |
-| `PUT` | `…/resources/{resourceId}/policy` | Upsert resource policy override |
-| `POST` | `…/policy/effective-preview` | Effective policy chain preview |
 
 ---
 
@@ -136,14 +119,13 @@ Only `active` providers are public.
 
 ## Acquiring & Payouts
 
+One resource per provider. There is no connection to create or contract to list: what the seller
+states goes to `…/payout`, and where the money actually goes is the payout destination.
+
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `…/acquiring-connections` | Acquiring connection list |
-| `POST` | `…/acquiring-connections` | Create acquiring connection |
-| `GET` | `…/acquiring-connections/{connectionId}` | Connection detail |
-| `GET` | `…/acquiring-connections/routability` | Payout routability |
-| `GET` | `…/payout-contracts` | Payout contracts |
-| `GET` | `…/recipient-routes` | Recipient routes |
+| `GET` | `…/payout` | Payout method, requisites, whether the bank has taken them |
+| `PUT` | `…/payout` | Save the requisites for the method the seller kind dictates |
 
 ---
 
