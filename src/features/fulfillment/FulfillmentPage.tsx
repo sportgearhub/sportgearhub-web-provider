@@ -121,7 +121,7 @@ export function FulfillmentPage() {
   }
 
   return (
-    <div className="space-y-5 px-6 pb-6">
+    <div className="space-y-5">
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
           <AlertCircle size={14} />

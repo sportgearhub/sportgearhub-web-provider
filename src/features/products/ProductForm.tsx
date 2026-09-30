@@ -192,18 +192,15 @@ export function ProductForm({
         title: draft.title.trim(),
         description: draft.description.trim() || null,
         fulfillmentLocationId: draft.fulfillmentLocationId || null,
+        category: draft.categorySlug,
+        groupName: draft.groupName.trim() || null,
+        quantity: Number(draft.quantity),
+        attributes: draft.attributes,
       };
+      // Create and patch take the same fields now, so there is one body rather than two shapes.
       const product = productId
         ? await productsApi.patch(productId, body)
-        : await productsApi.create({
-          ...body,
-          category: draft.categorySlug,
-          groupName: draft.groupName.trim() || null,
-          quantity: Number(draft.quantity),
-          attributes: draft.attributes,
-        });
-
-      if (productId) await productsApi.putAttributes(product.productId, draft.attributes);
+        : await productsApi.create(body);
       await productsApi.putPricing(product.productId, {
         pricingMode: draft.pricingMode,
         baseAmount: isTiered ? null : Number(draft.baseAmount),
@@ -259,8 +256,7 @@ export function ProductForm({
               value={draft.categorySlug}
               onChange={value => set('categorySlug', value)}
               error={errors.categorySlug}
-              disabled={isEdit}
-              hint={isEdit ? 'Категорию нельзя сменить после создания' : 'Определяет, какие характеристики нужно заполнить'}
+              hint="Определяет, какие характеристики нужно заполнить"
               searchable
             />
             <FloatingTextarea
@@ -282,15 +278,13 @@ export function ProductForm({
                 value={draft.quantity}
                 onChange={event => set('quantity', event.target.value)}
                 error={errors.quantity}
-                disabled={isEdit}
-                hint={isEdit ? 'Меняется отдельно' : undefined}
+                hint="Сколько можно сдать одновременно"
               />
               <FloatingInput
                 label="Группа"
                 value={draft.groupName}
                 onChange={event => set('groupName', event.target.value)}
                 hint="Один размер из линейки — клиент увидит варианты вместе"
-                disabled={isEdit}
               />
             </FieldRow>
             <PickerRow

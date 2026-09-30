@@ -9,7 +9,9 @@ import { cn } from '../../lib/utils';
  * of a wide screen away from everything else.
  */
 export function FormPage({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cn('w-full px-6 pb-28 pt-2', wide ? 'max-w-3xl' : 'max-w-xl', className)}>{children}</div>;
+  // No horizontal padding of its own: SectionPage already sets the page's gutter, and adding a
+  // second one pushed the fields in from the heading above them.
+  return <div className={cn('w-full pb-28 pt-2', wide ? 'max-w-3xl' : 'max-w-xl', className)}>{children}</div>;
 }
 
 export function FormSection({
@@ -40,10 +42,10 @@ export function FormSection({
 }
 
 /**
- * «1 Информация о товаре · 2 Характеристики · 3 Медиа» — the steps of a long form, numbered, the
- * current one filled and the finished ones ticked. Every step stays reachable: editing is not a
- * wizard, and someone who came back to fix the price should not have to walk past the description
- * to reach it.
+ * The steps of a long form, as a segmented control: the sections of one page, not a queue to be
+ * marched through. Every step stays reachable — editing is not a wizard, and someone who came back
+ * to fix the price should not have to walk past the description — and a step holding an error says
+ * so on the toggle itself.
  */
 export function FormStepper({
   steps,
@@ -55,40 +57,32 @@ export function FormStepper({
   onSelect: (index: number) => void;
 }) {
   return (
-    <ol className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+    <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
       {steps.map((step, index) => {
         const isCurrent = index === current;
         return (
-          <li key={step.label}>
-            <button
-              type="button"
-              onClick={() => onSelect(index)}
-              aria-current={isCurrent ? 'step' : undefined}
-              className={cn(
-                'flex items-center gap-2 text-sm transition-colors',
-                isCurrent ? 'text-gray-950' : 'text-gray-500 hover:text-gray-900'
-              )}
-            >
-              <span
-                className={cn(
-                  'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors',
-                  step.invalid
-                    ? 'bg-red-600 text-white'
-                    : isCurrent
-                      ? 'bg-gray-950 text-white'
-                      : step.done
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-100 text-gray-500'
-                )}
-              >
-                {step.invalid ? '!' : step.done && !isCurrent ? <Check size={13} strokeWidth={3} /> : index + 1}
-              </span>
-              <span className={cn(isCurrent && 'font-medium')}>{step.label}</span>
-            </button>
-          </li>
+          <button
+            key={step.label}
+            type="button"
+            onClick={() => onSelect(index)}
+            aria-current={isCurrent ? 'step' : undefined}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm transition-colors',
+              isCurrent
+                ? 'bg-white font-medium text-gray-950 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            {step.label}
+            {step.invalid ? (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">!</span>
+            ) : step.done && !isCurrent ? (
+              <Check size={14} className="text-emerald-600" />
+            ) : null}
+          </button>
         );
       })}
-    </ol>
+    </div>
   );
 }
 

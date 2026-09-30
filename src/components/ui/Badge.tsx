@@ -5,7 +5,9 @@ import { cn } from '../../lib/utils';
 type Variant = 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'orange' | 'teal';
 
 const badgeVariants = cva(
-  'inline-flex items-center rounded-md border font-medium transition-colors',
+  // A pill with a fixed height, so a status sits level with the buttons beside it instead of
+  // shrinking to the height of its own text.
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-medium leading-none transition-colors',
   {
     variants: {
       variant: {
@@ -18,8 +20,8 @@ const badgeVariants = cva(
         teal: 'border-teal-200 bg-teal-50 text-teal-700',
       },
       size: {
-        sm: 'px-2 py-0.5 text-xs',
-        md: 'px-2.5 py-1 text-sm',
+        sm: 'h-6 px-2.5 text-xs',
+        md: 'h-7 px-3 text-sm',
       },
     },
     defaultVariants: {

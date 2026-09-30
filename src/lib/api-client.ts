@@ -1028,9 +1028,18 @@ export const productsApi = {
     fulfillmentLocationId?: string | null;
   }) => providerRequest<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
 
+  /** Everything about a card that can change after it exists — category and stock included. */
   patch: (
     productId: string,
-    data: { title?: string; description?: string | null; fulfillmentLocationId?: string | null }
+    data: {
+      title?: string;
+      description?: string | null;
+      category?: string | null;
+      groupName?: string | null;
+      quantity?: number | null;
+      attributes?: Record<string, string | null> | null;
+      fulfillmentLocationId?: string | null;
+    }
   ) => providerRequest<Product>(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   remove: (productId: string) => providerRequest<void>(`/products/${productId}`, { method: 'DELETE' }),

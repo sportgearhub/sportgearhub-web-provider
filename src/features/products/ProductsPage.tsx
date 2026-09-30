@@ -213,7 +213,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </Button>
       }
     >
-      <div className="space-y-3 px-6 pb-6">
+      <div className="space-y-3">
         <SegmentedTabs
           items={PRODUCT_TABS.map(item => ({ ...item, count: tabCounts[item.value] }))}
           value={tab}
