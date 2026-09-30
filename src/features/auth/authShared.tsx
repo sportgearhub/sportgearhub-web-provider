@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { BrandWordmark } from '../../components/layout/BrandWordmark';
 import { cn } from '../../lib/utils';
@@ -98,22 +98,6 @@ export function IconInput({ icon: Icon, className = '', ...props }: React.Compon
       <Input {...props} className={cn(authControlClass, 'pl-10', className)} />
       <Icon size={16} className="pointer-events-none absolute bottom-[14px] left-3.5 text-muted-foreground" />
     </div>
-  );
-}
-
-/** A message, not a panel: the text itself carries the colour and an icon marks what kind it is. */
-export function Notice({ kind, children }: { kind: 'error' | 'success'; children: ReactNode }) {
-  const isError = kind === 'error';
-  const Icon = isError ? AlertCircle : CheckCircle2;
-
-  return (
-    <p
-      role={isError ? 'alert' : 'status'}
-      className={cn('flex items-start gap-2 text-sm leading-5', isError ? 'text-destructive' : 'text-emerald-600')}
-    >
-      <Icon size={16} className="mt-px shrink-0" />
-      <span>{children}</span>
-    </p>
   );
 }
 

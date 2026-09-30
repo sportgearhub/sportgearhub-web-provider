@@ -3,7 +3,8 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthLink, AuthShell, LoadingNotice, Notice, authControlClass } from './authShared';
+import { AuthLink, AuthShell, LoadingNotice, authControlClass } from './authShared';
+import { useToast } from '../../components/ui/Toast';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
 import { authPath, type Navigate } from './authUtils';
@@ -16,7 +17,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [started, setStarted] = useState<VerificationStarted | null>(null);
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
@@ -32,7 +33,6 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     onNavigate(`${authPath('/complete-registration')}?token=${encodeURIComponent(registrationToken)}`);
 
   const begin = async () => {
-    setError('');
     setLoading(true);
     try {
       const result = await authApi.requestPhoneCode(e164);
@@ -42,7 +42,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
       // and unless it falls back to SMS.
       setStep(result.stage === 'pending' ? 'waiting' : 'code');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось отправить код. Попробуйте ещё раз.');
+      toast.show(err instanceof ApiError ? err.message : 'Не удалось отправить код. Попробуйте ещё раз.');
     } finally {
       setLoading(false);
     }
@@ -51,14 +51,13 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   const handlePhoneSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (digits.length !== 10) {
-      setError('Укажите корректный номер телефона.');
+      toast.show('Укажите корректный номер телефона.');
       return;
     }
     await begin();
   };
 
   const submitCode = async (value: string) => {
-    setError('');
     setLoading(true);
     try {
       const result = await verifyPhoneCode(e164, value);
@@ -66,7 +65,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
       onProven();
     } catch (err) {
       setCode('');
-      setError(err instanceof ApiError ? err.message || 'Неверный код.' : 'Ошибка в работе сервиса.');
+      toast.show(err instanceof ApiError ? err.message || 'Неверный код.' : 'Ошибка в работе сервиса.');
     } finally {
       setLoading(false);
     }
@@ -83,12 +82,11 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
         onRestart={notice => {
           setStep('phone');
           setStarted(null);
-          setError(notice);
+          toast.show(notice);
         }}
         onBack={() => {
           setStep('phone');
           setStarted(null);
-          setError('');
         }}
       />
     );
@@ -106,15 +104,13 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
           </>
         }
       >
-        {error && <Notice kind="error">{error}</Notice>}
-
+        {toast.node}
         <PasscodeInput
           label="Код из SMS"
           value={code}
           onChange={next => {
             setCode(next);
-            setError('');
-            if (next.length === (started?.codeLength ?? 6)) void submitCode(next);
+                  if (next.length === (started?.codeLength ?? 6)) void submitCode(next);
           }}
           length={started?.codeLength ?? 6}
           autoFocus
@@ -131,8 +127,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
       title="Кабинет продавца"
       subtitle="Войдите по номеру телефона — пришлём код в SMS. Пароль не нужен."
     >
-      {error && <Notice kind="error">{error}</Notice>}
-
+      {toast.node}
       <form onSubmit={handlePhoneSubmit} className="space-y-5">
         <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
 
@@ -232,7 +227,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
   const { passcodeSignIn } = useAuth();
   const [passcode, setPasscode] = useState('');
   const [length, setLength] = useState(4);
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -247,7 +242,6 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
   // The last digit is the whole instruction. Asking for a button press afterwards adds a step that
   // says nothing the code did not already say.
   const submit = async (code: string) => {
-    setError('');
     setLoading(true);
     try {
       await passcodeSignIn(code);
@@ -258,12 +252,12 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
       // Device revoked or forgotten: the only way back is a fresh code by email.
       if (err instanceof ApiError
         && (err.code === 'auth.device_not_trusted' || err.code === 'auth.passcode_locked')) {
-        setError(err.message);
+        toast.show(err.message);
         window.setTimeout(() => onNavigate(authPath('/sign-in'), true), 2500);
         return;
       }
 
-      setError(err instanceof ApiError ? err.message || 'Неверный код доступа.' : 'Ошибка в работе сервиса.');
+      toast.show(err instanceof ApiError ? err.message || 'Неверный код доступа.' : 'Ошибка в работе сервиса.');
     } finally {
       setLoading(false);
     }
@@ -271,7 +265,6 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
   const handleChange = (next: string) => {
     setPasscode(next);
-    setError('');
     if (next.length === length) void submit(next);
   };
 
@@ -290,8 +283,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
         </AuthLink>
       }
     >
-      {error && <Notice kind="error">{error}</Notice>}
-
+      {toast.node}
       <PasscodeInput label="Код доступа" value={passcode} onChange={handleChange} length={length} autoFocus disabled={loading} />
 
       {loading && <LoadingNotice>Проверяем код…</LoadingNotice>}
@@ -307,7 +299,7 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
   const [passcode, setPasscode] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [length, setLength] = useState(4);
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -315,7 +307,6 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
   }, []);
 
   const save = async (code: string) => {
-    setError('');
     setLoading(true);
     try {
       await authApi.enrolDevice(code, navigator.userAgent.slice(0, 100));
@@ -331,18 +322,16 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
     setPasscode('');
     setConfirmation('');
     setStep('create');
-    setError(message);
+    toast.show(message);
   };
 
   const handleCreate = (next: string) => {
     setPasscode(next);
-    setError('');
     if (next.length === length) setStep('repeat');
   };
 
   const handleRepeat = (next: string) => {
     setConfirmation(next);
-    setError('');
     if (next.length < length) return;
     if (next !== passcode) {
       restart('Коды не совпали. Попробуйте ещё раз.');
@@ -374,8 +363,7 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
         </>
       }
     >
-      {error && <Notice kind="error">{error}</Notice>}
-
+      {toast.node}
       <PasscodeInput
         key={step}
         label={step === 'create' ? 'Придумайте код' : 'Повторите код'}

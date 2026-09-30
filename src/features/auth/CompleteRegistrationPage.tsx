@@ -3,7 +3,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
-import { AuthShell, Notice, authControlClass } from './authShared';
+import { AuthShell, authControlClass } from './authShared';
+import { useToast } from '../../components/ui/Toast';
 import type { Navigate } from './authUtils';
 
 type FieldErrors = { name?: string; surname?: string };
@@ -15,7 +16,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
   const { completePhoneRegistration } = useAuth();
   const [form, setForm] = useState({ name: '', surname: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [error, setError] = useState('');
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   if (!token) {
@@ -40,12 +41,10 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
 
     if (Object.keys(next).length > 0) {
       setFieldErrors(next);
-      setError('');
       return;
     }
 
     setFieldErrors({});
-    setError('');
     setLoading(true);
     try {
       await completePhoneRegistration({
@@ -62,11 +61,11 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
         };
         const hasFieldError = Object.values(mapped).some(Boolean);
         setFieldErrors(mapped);
-        setError(hasFieldError ? '' : err.message || 'Не удалось завершить регистрацию.');
+        toast.show(hasFieldError ? '' : err.message || 'Не удалось завершить регистрацию.');
         return;
       }
 
-      setError('Не удалось завершить регистрацию.');
+      toast.show('Не удалось завершить регистрацию.');
     } finally {
       setLoading(false);
     }
@@ -74,8 +73,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
 
   return (
     <AuthShell title="Как вас зовут?" subtitle="Имя видят сотрудники кабинета и поддержка.">
-      {error && <Notice kind="error">{error}</Notice>}
-
+      {toast.node}
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <Input
           label="Имя"

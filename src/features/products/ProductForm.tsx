@@ -271,6 +271,12 @@ export function ProductForm({
               hint="Определяет, какие характеристики нужно заполнить"
               searchable
             />
+            <FloatingInput
+              label="Группа"
+              value={draft.groupName}
+              onChange={event => set('groupName', event.target.value)}
+              hint="Один размер из линейки — клиент увидит варианты вместе"
+            />
             <FloatingTextarea
               label="Описание"
               rows={4}
@@ -281,24 +287,16 @@ export function ProductForm({
           </FormSection>
 
           <FormSection title="Наличие" description="Сколько единиц вы сдаёте и откуда их забирают.">
-            <FieldRow>
-              <FloatingInput
-                label="Количество"
-                required
-                type="number"
-                min="1"
-                value={draft.quantity}
-                onChange={event => set('quantity', event.target.value)}
-                error={errors.quantity}
-                hint="Сколько можно сдать одновременно"
-              />
-              <FloatingInput
-                label="Группа"
-                value={draft.groupName}
-                onChange={event => set('groupName', event.target.value)}
-                hint="Один размер из линейки — клиент увидит варианты вместе"
-              />
-            </FieldRow>
+            <FloatingInput
+              label="Количество"
+              required
+              type="number"
+              min="1"
+              value={draft.quantity}
+              onChange={event => set('quantity', event.target.value)}
+              error={errors.quantity}
+              hint="Сколько можно сдать одновременно"
+            />
             <PickerRow
               label="Пункт проката"
               items={locationItems}
