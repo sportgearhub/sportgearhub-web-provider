@@ -3,7 +3,7 @@ import { AlertCircle, Check, Image as ImageIcon, Pencil, Plus, RotateCw, Trash2,
 import { Button } from '../../components/ui/Button';
 import { TopSheet } from '../../components/ui/TopSheet';
 import { SettingsCard } from '../../components/layout/SettingsCard';
-import { ApiError, productsApi } from '../../lib/api-client';
+import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
 import type { ProductImage } from '../../types';
 
 const MAX_IMAGES = 10;
@@ -96,7 +96,7 @@ export function ProductImagesSection({ productId }: { productId: string }) {
                 key={image.imageId}
                 className="relative block aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
               >
-                <img src={image.url} alt="" className="h-full w-full object-cover" />
+                <img src={mediaUrl(image.url)} alt="" className="h-full w-full object-cover" />
                 {index === 0 && (
                   <span className="absolute inset-x-0 bottom-0 bg-gray-950/55 py-0.5 text-center text-[10px] font-medium text-white">
                     Главное
@@ -564,7 +564,7 @@ function ImageTile({
         dragOver ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
       } ${dragging ? 'opacity-40' : ''}`}
     >
-      <img src={image.url} alt={title} className="h-full w-full object-cover" />
+      <img src={mediaUrl(image.url)} alt={title} className="h-full w-full object-cover" />
 
       {index === 0 && (
         <span className="absolute inset-x-0 bottom-0 bg-gray-950/55 py-0.5 text-center text-[10px] font-medium text-white">

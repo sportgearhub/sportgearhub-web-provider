@@ -1,22 +1,17 @@
-import { AlertTriangle, Check, CircleDashed } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import { SettingsCard } from '../../components/layout/SettingsCard';
-import type { ProductRoutability } from '../../types';
-
-const CHECKS: { key: keyof ProductRoutability; label: string; fix: string }[] = [
-  { key: 'pricingReady', label: 'Цена указана', fix: 'Добавьте цену в карточке товара.' },
-  { key: 'policyReady', label: 'Правила аренды заданы', fix: 'Заполните правила: отмена, залог, запас времени.' },
-  { key: 'inventoryReady', label: 'Есть в наличии', fix: 'Укажите количество больше нуля.' },
-  { key: 'resolutionReady', label: 'Пункт проката выбран', fix: 'Укажите, откуда клиент забирает снаряжение.' },
-  { key: 'capabilityValid', label: 'Категория заполнена', fix: 'Заполните обязательные характеристики категории.' },
-];
+import type { ProductSection } from '../../types';
 
 /**
- * Why a product does or does not take bookings. The API answers with a flag per facet and issues
- * in plain words; this shows the failures first, because a seller opens this only when something
- * is wrong.
+ * What is still missing before the card can be sent for review.
+ *
+ * The API decides this and says it in finished Russian: one entry per part of the card, with
+ * `is_complete` and a `missing` sentence. It is rendered as sent rather than re-derived from flags
+ * here — this is the same computation `submit-for-review` runs, and a checklist that disagrees
+ * with the endpoint refusing the card is worse than no checklist at all.
  */
-export function ProductReadinessCard({ routability }: { routability: ProductRoutability | null }) {
-  if (!routability) {
+export function ProductReadinessCard({ sections }: { sections: ProductSection[] }) {
+  if (sections.length === 0) {
     return (
       <SettingsCard title="Готовность к продаже" description="Проверка платформы.">
         <p className="text-sm text-gray-500">Проверка пока не выполнялась.</p>
@@ -24,47 +19,42 @@ export function ProductReadinessCard({ routability }: { routability: ProductRout
     );
   }
 
-  const failing = CHECKS.filter(check => routability[check.key] === false);
-  const passing = CHECKS.filter(check => routability[check.key] === true);
+  const missing = sections.filter(section => !section.isComplete);
+  const done = sections.length - missing.length;
 
   return (
     <SettingsCard
       title="Готовность к продаже"
       description={
-        routability.routable
-          ? 'Товар можно бронировать.'
-          : 'Пока клиенты не смогут забронировать этот товар.'
+        missing.length === 0
+          ? 'Карточку можно отправить на проверку.'
+          : `Заполнено ${done} из ${sections.length}.`
       }
     >
-      {failing.length === 0 ? (
+      {missing.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-emerald-700">
-          <Check size={15} /> Всё готово — блокеров нет.
+          <Check size={15} /> Всё заполнено.
         </p>
       ) : (
         <ul className="space-y-2.5">
-          {failing.map(check => (
-            <li key={String(check.key)} className="flex items-start gap-2">
+          {missing.map(section => (
+            <li key={section.key} className="flex items-start gap-2">
               <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-600" />
               <span>
-                <span className="block text-sm font-medium text-gray-950">{check.label}</span>
-                <span className="block text-xs leading-5 text-gray-500">{check.fix}</span>
+                <span className="block text-sm font-medium text-gray-950">{section.title}</span>
+                {section.missing && (
+                  <span className="block text-xs leading-5 text-gray-500">{section.missing}</span>
+                )}
               </span>
             </li>
           ))}
         </ul>
       )}
 
-      {routability.issues.length > 0 && (
-        <ul className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
-          {routability.issues.map((issue, index) => (
-            <li key={index} className="text-xs leading-5 text-gray-600">{issue.message || issue.code}</li>
-          ))}
-        </ul>
-      )}
-
-      {passing.length > 0 && failing.length > 0 && (
+      {missing.length > 0 && done > 0 && (
         <p className="mt-3 flex items-center gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
-          <CircleDashed size={13} /> Готово: {passing.map(check => check.label.toLowerCase()).join(', ')}.
+          <Check size={13} className="text-emerald-600" />
+          Готово: {sections.filter(section => section.isComplete).map(section => section.title.toLowerCase()).join(', ')}.
         </p>
       )}
     </SettingsCard>

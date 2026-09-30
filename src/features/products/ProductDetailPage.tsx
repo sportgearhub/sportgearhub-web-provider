@@ -12,6 +12,7 @@ import { ProductQuoteCalculator } from './ProductQuoteCalculator';
 import { ProductReadinessCard } from './ProductReadinessCard';
 import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { infoSectionLabel } from './infoSections';
 import type {
   OfferInfoSection,
@@ -19,7 +20,6 @@ import type {
   ProductPolicy,
   ProductPricingPolicy,
   ProductPricingSummary,
-  ProductRoutability,
 } from '../../types';
 import { formatPrice, productStatus } from './productStatus';
 
@@ -28,6 +28,16 @@ import { formatPrice, productStatus } from './productStatus';
  * between: what the product is, what it costs, what the rules are and what it looks like are all
  * facets of the same card, and on a phone they simply stack.
  */
+type DetailTab = 'about' | 'price' | 'policy' | 'included';
+
+/** The card's parts, as siblings rather than a column to scroll. */
+const DETAIL_TABS = [
+  { value: 'about' as const, label: 'О товаре' },
+  { value: 'price' as const, label: 'Цена' },
+  { value: 'policy' as const, label: 'Правила' },
+  { value: 'included' as const, label: 'Что входит' },
+];
+
 export function ProductDetailPage({ productId, onNavigate }: { productId: string; onNavigate: (path: string) => void }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [pricing, setPricing] = useState<ProductPricingPolicy | null>(null);
@@ -37,8 +47,8 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [busy, setBusy] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
+  const [tab, setTab] = useState<DetailTab>('about');
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
-  const [routability, setRoutability] = useState<ProductRoutability | null>(null);
   const [priceSummary, setPriceSummary] = useState<ProductPricingSummary | null>(null);
 
   const load = async () => {
@@ -47,17 +57,15 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     try {
       const next = await productsApi.get(productId);
       setProduct(next);
-      const [nextPricing, nextPolicy, nextInfo, nextRoutability, nextSummary] = await Promise.all([
+      const [nextPricing, nextPolicy, nextInfo, nextSummary] = await Promise.all([
         productsApi.getPricing(productId).catch(() => null),
         productsApi.getPolicy(productId).catch(() => null),
         productsApi.getInfoSections(productId).catch(() => null),
-        productsApi.routability(productId).catch(() => null),
         productsApi.pricingSummary(productId).catch(() => null),
       ]);
       setPricing(nextPricing);
       setPolicy(nextPolicy);
       setInfoSections(nextInfo ?? []);
-      setRoutability(nextRoutability);
       setPriceSummary(nextSummary);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 404
@@ -129,7 +137,9 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="space-y-4">
-          <SettingsCard
+          <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="inline-flex max-w-full" />
+
+          {tab === 'about' && <SettingsCard
             title="О товаре"
             description="То, что клиент видит в карточке."
           >
@@ -141,11 +151,11 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
                 hint="Карточки одной группы клиент видит как варианты одного товара"
               />
               <DetailRow label="Количество" value={`${product.quantity} шт`} hint="Сколько можно сдать одновременно" />
-              <DetailRow label="Описание" value={product.description} />
+              <DetailRow label="Описание" value={product.description} multiline />
             </DetailList>
-          </SettingsCard>
+          </SettingsCard>}
 
-          <SettingsCard
+          {tab === 'price' && <SettingsCard
             title="Цена"
             description="Сколько стоит аренда."
           >
@@ -179,9 +189,9 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             )}
 
             {pricing && <div className="mt-3"><ProductQuoteCalculator productId={productId} /></div>}
-          </SettingsCard>
+          </SettingsCard>}
 
-          <SettingsCard
+          {tab === 'policy' && <SettingsCard
             title="Правила аренды"
             description="Отмена, залог и запас времени до выдачи."
             action={
@@ -207,8 +217,9 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             ) : (
               <p className="text-sm text-gray-500">Правила не заданы — действуют условия платформы.</p>
             )}
-          </SettingsCard>
-          <SettingsCard
+          </SettingsCard>}
+
+          {tab === 'included' && <SettingsCard
             title="Что входит"
             description="Комплект, что взять с собой и что нужно знать заранее."
             action={
@@ -231,11 +242,11 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
                 ))}
               </div>
             )}
-          </SettingsCard>
+          </SettingsCard>}
         </div>
 
         <div className="space-y-4">
-          <ProductReadinessCard routability={routability} />
+          <ProductReadinessCard sections={product.sections ?? []} />
           <ProductImagesSection productId={productId} />
         </div>
       </div>

@@ -14,16 +14,19 @@ export function DetailRow({
   value,
   children,
   hint,
+  multiline = false,
 }: {
   label: string;
   value?: string | null;
   children?: ReactNode;
   hint?: string;
+  /** Keeps the line breaks the seller typed, for a description or an address. */
+  multiline?: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 gap-1 border-b border-gray-100 py-2.5 text-sm last:border-b-0 sm:grid-cols-[minmax(160px,220px)_1fr] sm:gap-6">
       <dt className="text-gray-500">{label}</dt>
-      <dd className="text-gray-900">
+      <dd className={multiline ? 'whitespace-pre-line text-gray-900' : 'text-gray-900'}>
         {children ?? (value ? value : <span className="text-gray-400">Не указано</span>)}
         {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
       </dd>

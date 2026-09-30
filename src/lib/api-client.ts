@@ -49,6 +49,19 @@ import { camelToSnake, keysToCamel, keysToSnake } from './case-convert';
 import { providerUrl } from './active-provider';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+/**
+ * A media path as the browser can fetch it.
+ *
+ * Uploaded files live on the API host, and the API returns them as a path. Rendered as-is, the
+ * browser resolves that against the console's own origin — crm.sportgearhub.ru — and gets a 404
+ * for a file that exists. An absolute URL is already answerable and passes through untouched.
+ */
+export function mediaUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 const AUTH_CLIENT_ID = import.meta.env.VITE_AUTH_CLIENT_ID || 'sportgearhub-provider';
 const PROVIDER_AUTH_SCOPE = import.meta.env.VITE_PROVIDER_AUTH_SCOPE || 'openid profile email roles offline_access provider_api';
 const TOKEN_STORAGE_KEY = 'sportgearhub.provider.oidc';

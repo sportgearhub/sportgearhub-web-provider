@@ -610,9 +610,39 @@ export interface ProductSummary {
   updatedAt: string;
 }
 
-export interface Product extends ProductSummary {
+/**
+ * One part of the card, as the API judges it. `missing` is a finished Russian sentence and
+ * `is_complete` is the same computation submit-for-review runs, so this is rendered as sent rather
+ * than re-derived here — a checklist that disagrees with the endpoint refusing the card is worse
+ * than no checklist.
+ */
+export interface ProductSection {
+  key: string;
+  title: string;
+  isComplete: boolean;
+  missing: string | null;
+}
+
+/**
+ * GET /products/{id}. Not the list row: the detail carries description, booking approval, the info
+ * sections and the readiness breakdown, and it does not carry the list's grouping counters.
+ */
+export interface Product {
+  productId: string;
+  status: ProductStatus;
+  title: string;
   description: string | null;
-  infoSections?: OfferInfoSection[];
+  category: ProductCategoryRef | null;
+  quantity: number;
+  price: number | null;
+  mediaPreviewUrl: string | null;
+  fulfillmentLocationId: string | null;
+  groupName: string | null;
+  bookingApproval: string;
+  infoSections: OfferInfoSection[];
+  sections: ProductSection[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductCategory {

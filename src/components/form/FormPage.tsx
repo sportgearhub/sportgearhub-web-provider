@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SegmentedTabs } from '../ui/SegmentedTabs';
 import { cn } from '../../lib/utils';
 
 /**
@@ -41,13 +42,11 @@ export function FormSection({
 }
 
 /**
- * The steps of a long form, as a segmented control: the sections of one page, not a queue to be
- * marched through. Every step stays reachable — editing is not a wizard, and someone who came back
- * to fix the price should not have to walk past the description.
- *
- * State is the toggle's own colour rather than a badge stuck to its label. A tick beside every
- * finished step turns a row of five words into a row of five words and five icons, and the one
- * thing worth noticing — a step with a problem — stops standing out.
+ * The steps of a long form, as the console's one segmented control: the sections of one page, not
+ * a queue to be marched through. Every step stays reachable — editing is not a wizard, and someone
+ * who came back to fix the price should not have to walk past the description. State is the
+ * toggle's colour, green when the step has what it needs and red when something in it does not
+ * validate, rather than a badge stuck to its label.
  */
 export function FormStepper({
   steps,
@@ -59,30 +58,16 @@ export function FormStepper({
   onSelect: (index: number) => void;
 }) {
   return (
-    <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
-      {steps.map((step, index) => {
-        const isCurrent = index === current;
-        return (
-          <button
-            key={step.label}
-            type="button"
-            onClick={() => onSelect(index)}
-            aria-current={isCurrent ? 'step' : undefined}
-            className={cn(
-              'shrink-0 rounded-lg px-3.5 py-1.5 text-sm transition-colors',
-              isCurrent && 'bg-white font-medium shadow-sm',
-              step.invalid
-                ? isCurrent ? 'text-red-700' : 'text-red-600 hover:text-red-700'
-                : step.done
-                  ? isCurrent ? 'text-emerald-700' : 'text-emerald-600 hover:text-emerald-700'
-                  : isCurrent ? 'text-gray-950' : 'text-gray-600 hover:text-gray-900'
-            )}
-          >
-            {step.label}
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedTabs
+      className="mb-6 inline-flex max-w-full"
+      value={String(current)}
+      onChange={value => onSelect(Number(value))}
+      items={steps.map((step, index) => ({
+        value: String(index),
+        label: step.label,
+        tone: step.invalid ? ('invalid' as const) : step.done ? ('done' as const) : ('default' as const),
+      }))}
+    />
   );
 }
 

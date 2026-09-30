@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -274,57 +274,6 @@ export function ColumnSettings({
         </ul>
       </AnchoredPopover>
     </>
-  );
-}
-
-// ─── Status toggles ───────────────────────────────────────────────────────────
-
-/** Tabs where the highlight slides to whichever one is chosen, rather than blinking between them. */
-export function SegmentedTabs<T extends string>({
-  items,
-  value,
-  onChange,
-}: {
-  items: Array<{ value: T; label: string; count?: number }>;
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const active = listRef.current?.querySelector<HTMLElement>(`[data-value="${value}"]`);
-    if (!active) return;
-    setPill({ left: active.offsetLeft, width: active.offsetWidth });
-  }, [value, items]);
-
-  return (
-    <div ref={listRef} className="relative flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
-      {pill && (
-        <span
-          aria-hidden="true"
-          style={{ transform: `translateX(${pill.left - 4}px)`, width: pill.width }}
-          className="pointer-events-none absolute inset-y-1 left-1 rounded-lg bg-white shadow-sm transition-transform duration-200 ease-out"
-        />
-      )}
-      {items.map(item => (
-        <button
-          key={item.value}
-          type="button"
-          data-value={item.value}
-          onClick={() => onChange(item.value)}
-          className={cn(
-            'relative z-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors',
-            item.value === value ? 'font-medium text-gray-950' : 'text-gray-600 hover:text-gray-900'
-          )}
-        >
-          {item.label}
-          {item.count !== undefined && (
-            <span className={cn('text-xs', item.value === value ? 'text-gray-500' : 'text-gray-400')}>{item.count}</span>
-          )}
-        </button>
-      ))}
-    </div>
   );
 }
 

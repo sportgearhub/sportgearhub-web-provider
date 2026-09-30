@@ -7,11 +7,11 @@ import {
   ColumnHeader,
   ColumnSettings,
   Pagination,
-  SegmentedTabs,
   type ColumnSetting,
   type SortState,
 } from '../../components/table/TableControls';
-import { ApiError, productCategoriesApi, productsApi } from '../../lib/api-client';
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
+import { ApiError, mediaUrl, productCategoriesApi, productsApi } from '../../lib/api-client';
 import type { Pagination as PageInfo, ProductCategory, ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusMeta } from './productStatus';
 
@@ -322,7 +322,7 @@ function Thumb({ url, title }: { url: string | null; title: string }) {
       </span>
     );
   }
-  return <img src={url} alt={title} className="h-10 w-10 rounded-lg border border-gray-200 object-cover" />;
+  return <img src={mediaUrl(url)} alt={title} className="h-10 w-10 rounded-lg border border-gray-200 object-cover" />;
 }
 
 function Cell({
