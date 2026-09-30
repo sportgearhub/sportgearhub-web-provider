@@ -14,9 +14,6 @@ const pageConfig: Record<string, PageConfig> = {
   '/': { title: '' },
   '/bookings': { title: 'Заказы', subtitle: 'Бронирования клиентов' },
   '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
-  '/resources': { title: 'Каталог', subtitle: 'Прокатные позиции, модели и инвентарь' },
-  '/resources/create': { title: 'Создание позиции' },
-  '/offers': { title: 'Предложения', subtitle: 'Пакеты и условия проката для клиентов' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },
@@ -28,9 +25,8 @@ const pageConfig: Record<string, PageConfig> = {
 };
 
 function pageFor(relativePath: string): PageConfig {
-  if (/^\/resources\/[^/]+\/offers\/new$/.test(relativePath)) return { title: 'Создание предложения' };
-  if (/^\/resources\/[^/]+\/edit$/.test(relativePath)) return { title: 'Редактирование позиции' };
-  if (/^\/resources\/[^/]+$/.test(relativePath)) return { title: 'Позиция' };
+  // Product pages carry their own headings, breadcrumb included.
+  if (relativePath.startsWith('/products')) return { title: '' };
   return pageConfig[relativePath] ?? { title: '' };
 }
 

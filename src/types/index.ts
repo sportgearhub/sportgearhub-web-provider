@@ -1079,3 +1079,87 @@ export interface AcquiringOnboardingPayload {
     displayBankName?: string;
   };
 }
+
+// ─── Product ──────────────────────────────────────────────────────────────────
+// The catalogue unit. Resource, variant and offer collapsed into this on 2026-09-30; a booking
+// points straight at a product, and a "variant" is now just a group name several products share.
+
+export type ProductStatus = 'draft' | 'pending_review' | 'active' | 'inactive' | 'archived' | string;
+
+export interface ProductCategoryRef {
+  categoryId?: string;
+  slug: string;
+  name?: string;
+}
+
+export interface ProductSummary {
+  productId: string;
+  status: ProductStatus;
+  title: string;
+  category: ProductCategoryRef | null;
+  quantity: number;
+  price: number | null;
+  mediaPreviewUrl: string | null;
+  fulfillmentLocationId: string | null;
+  updatedAt: string;
+}
+
+export interface Product extends ProductSummary {
+  description: string | null;
+  groupName?: string | null;
+  infoSections?: OfferInfoSection[];
+  createdAt?: string;
+}
+
+export interface ProductCategory {
+  categoryId: string;
+  slug: string;
+  name: string;
+  activities: { slug: string; name: string }[];
+  status: string;
+  sortOrder: number;
+  /** Tree position, when the API sends one. */
+  parentId?: string | null;
+}
+
+export interface ProductAttributes {
+  productId: string;
+  attributes: Record<string, string>;
+}
+
+export interface ProductImage {
+  imageId: string;
+  productId: string;
+  originalFileName: string | null;
+  contentType: string | null;
+  sizeBytes: number | null;
+  url: string;
+  sortOrder: number;
+  createdAt?: string;
+}
+
+export interface ProductPricingPolicy {
+  pricingPolicyId?: string;
+  productId?: string;
+  pricingMode: string;
+  baseAmount: number | null;
+  rentalTiers: RentalTier[] | null;
+  status: string;
+}
+
+export interface ProductPolicy {
+  productPolicyId?: string;
+  productId?: string;
+  leadTimeHours: number | null;
+  cancellationTiers: { hoursBefore: number; refundPercent: number }[] | null;
+  isCancellationAllowed: boolean;
+  noShowChargePercent: number | null;
+  deposit: number | null;
+  updatedAt?: string;
+}
+
+export interface ProductAuthoringOptions {
+  bookingFlowTypes: OfferAuthoringOption[];
+  pricingModes: OfferAuthoringOption[];
+  defaults: { bookingFlowType?: string };
+}

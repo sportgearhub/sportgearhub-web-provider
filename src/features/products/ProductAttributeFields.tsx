@@ -28,7 +28,7 @@ export function attributeLabel(attribute: EquipmentAttribute) {
 }
 
 /** The category's own fields, two to a row like Ozon's «Габариты и вес». */
-export function ResourceAttributeBuilder({
+export function ProductAttributeFields({
   attributes,
   values,
   errors = {},
@@ -46,7 +46,7 @@ export function ResourceAttributeBuilder({
   return (
     <FieldRow>
       {attributes.map(attribute => (
-        <ResourceAttributeField
+        <ProductAttributeField
           key={attribute.key}
           attribute={attribute}
           value={values[attribute.key] ?? ''}
@@ -58,7 +58,7 @@ export function ResourceAttributeBuilder({
   );
 }
 
-function ResourceAttributeField({
+function ProductAttributeField({
   attribute,
   value,
   error,

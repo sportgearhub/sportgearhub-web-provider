@@ -1,5 +1,14 @@
 import type {
+  Product,
+  ProductAttributes,
+  ProductAuthoringOptions,
+  ProductCategory,
+  ProductImage,
+  ProductPolicy,
+  ProductPricingPolicy,
+  ProductSummary,
   Provider,
+  RentalTier,
   AuthUser,
   ProviderSummary,
   PendingInvitation,
@@ -15,23 +24,11 @@ import type {
   ProviderMemberInvitationResult,
   ProviderMemberOptions,
   ProviderInvitation,
-  CatalogCity,
   ProviderLocation,
   DashboardResponse,
-  Resource,
-  ResourceImage,
-  PricingPolicy,
-  PricingQuotePreview,
-  PricingDiagnostics,
-  OfferPolicy,
-  OfferPolicyInput,
-  Offer,
-  OfferReadiness,
   OfferRoutability,
-  OfferPublishability,
   OfferInfoSection,
   OfferInfoSections,
-  OfferAuthoringOptions,
   BookingListItem,
   BookingDetail,
   BookingStatus,
@@ -83,44 +80,6 @@ type ApiUser = {
   emailVerified?: boolean;
   providers?: ProviderSummary[];
   pendingInvitations?: PendingInvitation[];
-};
-
-type ApiResource = {
-  resourceId?: string;
-  providerId?: string;
-  resourceType?: string;
-  status?: string;
-  capacityMode?: string;
-  category?: {
-    slug?: string | null;
-    title?: string | null;
-  } | null;
-  title?: string | null;
-  mediaPreviewUrl?: string | null;
-  readiness?: unknown;
-  publishabilityImpact?: unknown;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-type ApiOffer = {
-  offerId?: string;
-  offerType?: string;
-  status?: string;
-  primaryResourceId?: string;
-  bookingFlowType?: string;
-  title?: string | null;
-  description?: string | null;
-  price?: number | null;
-  currency?: string | null;
-  mediaPreviewUrl?: string | null;
-  publishability?: OfferPublishability | null;
-  executionLink?: Record<string, unknown> | null;
-  locationRef?: Offer['locationRef'];
-  fulfillmentLocationId?: string | null;
-  meetupLocation?: Record<string, unknown> | null;
-  createdAt?: string;
-  updatedAt?: string;
 };
 
 export type ResourceCategory = {
@@ -336,95 +295,6 @@ function normalizeSession(raw: ApiUser): Session {
 }
 
 const loadSession = async () => normalizeSession(await request<ApiUser>('/api/v1/auth/me'));
-
-function normalizeResource(resource: ApiResource): Resource {
-  const resourceId = resource.resourceId ?? '';
-  const title = resource.title ?? 'Untitled resource';
-  const status = ['active', 'inactive', 'archived', 'draft'].includes(resource.status ?? '')
-    ? resource.status as ResourceStatus
-    : 'draft';
-  const updatedAt = resource.updatedAt ?? new Date().toISOString();
-  const resourceType = resource.resourceType ?? 'equipment';
-  const category = resource.category?.slug
-    ? {
-      slug: resource.category.slug,
-      title: resource.category.title ?? resource.category.slug,
-    }
-    : null;
-
-  return {
-    resourceId,
-    providerId: resource.providerId,
-    resourceType,
-    capacityMode: resource.capacityMode,
-    category,
-    status,
-    title,
-    readiness: (resource.readiness ?? {
-      availabilityStatus: 'unknown',
-      pricingStatus: 'unknown',
-      policyStatus: 'unknown',
-      inventoryStatus: 'unknown',
-      offerAuthoringStatus: 'unknown',
-    }) as Resource['readiness'],
-    publishabilityImpact: (resource.publishabilityImpact ?? {
-      status: 'unknown',
-      reason: 'not_checked',
-    }) as Resource['publishabilityImpact'],
-    createdAt: resource.createdAt,
-    updatedAt,
-    id: resourceId,
-    slug: resourceId,
-    categoryId: category?.slug ?? resourceType,
-    categoryName: category?.title ?? (resourceType === 'equipment' ? 'Equipment' : resourceType),
-    mediaPreviewUrl: resource.mediaPreviewUrl ?? null,
-    variantCount: 0,
-  };
-}
-
-function normalizeOffer(offer: ApiOffer): Offer {
-  const offerId = offer.offerId ?? '';
-  const status = ['draft', 'active', 'paused', 'suspended', 'archived'].includes(offer.status ?? '')
-    ? offer.status as OfferStatus
-    : 'draft';
-  const title = offer.title ?? 'Новое предложение';
-  const publishability = offer.publishability ?? {
-    status: 'not_publishable',
-    reason: 'publishability_not_checked',
-  };
-  const price = typeof offer.price === 'number' ? offer.price : undefined;
-
-  return {
-    offerId,
-    offerType: offer.offerType ?? 'equipment_rental',
-    status,
-    primaryResourceId: offer.primaryResourceId ?? '',
-    bookingFlowType: offer.bookingFlowType ?? 'standard_rental',
-    title,
-    description: offer.description ?? undefined,
-    locationRef: offer.locationRef ?? undefined,
-    // The пункт проката the offer hands over at, straight from the API. Null means the seller has
-    // not chosen one — the form leaves the picker empty rather than picking the first location.
-    fulfillmentLocationId: offer.fulfillmentLocationId ?? null,
-    meetupLocation: offer.meetupLocation ?? null,
-    price: offer.price ?? null,
-    currency: offer.currency ?? 'RUB',
-    mediaPreviewUrl: offer.mediaPreviewUrl ?? null,
-    publishability,
-    executionLink: offer.executionLink ?? undefined,
-    createdAt: offer.createdAt,
-    updatedAt: offer.updatedAt ?? new Date().toISOString(),
-    id: offerId,
-    slug: offerId,
-    resourceId: offer.primaryResourceId ?? '',
-    resourceTitle: offer.primaryResourceId ?? '',
-    basePrice: price,
-    durationUnit: 'day',
-    durationValue: 1,
-    isPublishable: publishability.status === 'publishable',
-    publishabilityIssues: publishability.status === 'publishable' ? [] : [publishability.reason].filter(Boolean),
-  };
-}
 
 
 function loadStoredToken(): StoredOidcToken | null {
@@ -706,6 +576,8 @@ function providerRequest<T>(path: string, options: RequestInit = {}) {
   return request<T>(providerUrl(path), options);
 }
 
+// The two /public/suggestions/… calls below are app-audience endpoints: they are absent from
+// seller.json by design and documented in app.json. Verified present on 2026-09-30.
 const lookupRuBankByBic = (bic: string) =>
   request<RuBankLookupResponse>('/api/v1/public/suggestions/bank-by-bic', {
     method: 'POST',
@@ -932,9 +804,6 @@ export const providerApi = {
 
 // ─── Cities & Provider Locations ─────────────────────────────────────────────
 
-export const catalogApi = {
-  cities: () => request<CatalogCity[]>('/api/v1/catalog/cities'),
-};
 
 // What the seller selected — a registry id or a pin — never free text; the API resolves the rest.
 export type LocationPayload = {
@@ -989,115 +858,7 @@ export const providerMembersApi = {
 
 // ─── Resources ────────────────────────────────────────────────────────────────
 
-export const resourcesApi = {
-  list: async () => (await providerRequest<ApiResource[]>('/resources')).map(normalizeResource),
 
-  create: (data: {
-    resourceType: string;
-    capacityMode: string;
-    category?: string;
-    title: string;
-    attributes?: Record<string, string>;
-  }) => providerRequest<ApiResource>('/resources', { method: 'POST', body: JSON.stringify(data) }).then(normalizeResource),
-
-  get: (resourceId: string) => providerRequest<ApiResource>(`/resources/${resourceId}`).then(normalizeResource),
-
-  patch: (
-    resourceId: string,
-    data: { status?: ResourceStatus; title?: string; category?: string }
-  ) =>
-    providerRequest<ApiResource>(`/resources/${resourceId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }).then(normalizeResource),
-
-  archive: (resourceId: string, reasonCode: string) =>
-    providerRequest<ApiResource>(`/resources/${resourceId}/archive`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode }),
-    }).then(normalizeResource),
-
-  remove: (resourceId: string) =>
-    providerRequest<void>(`/resources/${resourceId}`, {
-      method: 'DELETE',
-    }),
-
-  getAttributes: (resourceId: string) =>
-    providerRequest<ResourceAttributes>(`/resources/${resourceId}/attributes`),
-
-  putAttributes: (resourceId: string, attributes: Record<string, string>) =>
-    providerRequest<ResourceAttributes>(`/resources/${resourceId}/attributes`, {
-      method: 'PUT',
-      body: JSON.stringify({ attributes }),
-    }),
-
-  images: {
-    list: (resourceId: string) =>
-      providerRequest<ResourceImage[]>(`/resources/${resourceId}/images`),
-
-    upload: (resourceId: string, files: File[]) => {
-      const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
-
-      return providerRequest<ResourceImage[]>(`/resources/${resourceId}/images`, {
-        method: 'POST',
-        body: formData,
-      });
-    },
-
-    delete: (resourceId: string, imageId: string) =>
-      providerRequest<void>(`/resources/${resourceId}/images/${imageId}`, { method: 'DELETE' }),
-
-    reorder: (resourceId: string, imageIds: string[]) =>
-      providerRequest<ResourceImage[]>(`/resources/${resourceId}/images/order`, {
-        method: 'PUT',
-        body: JSON.stringify({ imageIds }),
-      }),
-  },
-
-  getRoutabilityImpact: (resourceId: string) =>
-    providerRequest<{
-      downstreamOfferCount: number;
-      impactedOfferCount: number;
-      status: string;
-      dominantReasonCodes: string[];
-      warnings: string[];
-      issues: string[];
-    }>(`/resources/${resourceId}/routability-impact`),
-};
-
-export const equipmentApi = {
-  resourceCategories: (resourceType?: string, locale = 'ru-RU') => {
-    const params = new URLSearchParams({ locale });
-    if (resourceType) params.set('resourceType', resourceType);
-    return providerRequest<ResourceCategory[]>(`/resource-categories?${params.toString()}`);
-  },
-
-  resourceCategoryAttributes: (resourceType: string, categorySlug: string, locale = 'ru-RU') =>
-    providerRequest<EquipmentAttributeSchema>(
-      `/resource-categories/${encodeURIComponent(resourceType)}/${encodeURIComponent(categorySlug)}/attributes?locale=${encodeURIComponent(locale)}`
-    ),
-
-  categories: (locale = 'ru-RU') =>
-    providerRequest<EquipmentCategory[]>(`/equipment-categories?locale=${encodeURIComponent(locale)}`),
-
-  categoryAttributes: (categorySlug: string, locale = 'ru-RU') =>
-    providerRequest<EquipmentAttributeSchema>(
-      `/equipment-categories/${encodeURIComponent(categorySlug)}/attributes?locale=${encodeURIComponent(locale)}`
-    ),
-
-  brandSuggestions: (query: string, category?: string) => {
-    const params = new URLSearchParams({ query });
-    if (category) params.set('category', category);
-    return providerRequest<{ items: EquipmentBrandSuggestion[] }>(`/equipment-brands/suggestions?${params}`);
-  },
-
-  createBrand: (data: { name: string; category?: string | null; website?: string | null; countryCode?: string | null }) =>
-    providerRequest<CreateEquipmentBrandResponse>('/equipment-brands', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-};
 
 // ─── Availability ─────────────────────────────────────────────────────────────
 
@@ -1105,141 +866,12 @@ export const equipmentApi = {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
-export const pricingApi = {
-  quotePreview: (data: {
-    offerId?: string;
-    resourceId?: string | null;
-    selectionContext: {
-      startAt: string;
-      endAt: string;
-      quantity: number;
-    };
-  }) =>
-    providerRequest<PricingQuotePreview>('/pricing/quote-preview', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  getOfferPolicy: (offerId: string) =>
-    providerRequest<PricingPolicy>(`/offers/${offerId}/pricing-policy`),
-
-  putOfferPolicy: (
-    offerId: string,
-    data: {
-      pricingMode: string;
-      currency: string;
-      baseAmount?: number | null;
-      rentalTiers?: PricingPolicy['rentalTiers'];
-      minParticipants?: number | null;
-      maxParticipants?: number | null;
-      groupDiscountPercent?: number | null;
-      groupDiscountMinParticipants?: number | null;
-      status: string;
-    }
-  ) =>
-    providerRequest<PricingPolicy>(`/offers/${offerId}/pricing-policy`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  offerPricingSummaryPreview: (offerId: string) =>
-    providerRequest<Record<string, unknown>>(`/offers/${offerId}/pricing-summary-preview`, {
-      method: 'POST',
-    }),
-
-  getResourceDiagnostics: (resourceId: string) =>
-    providerRequest<PricingDiagnostics>(`/resources/${resourceId}/pricing-diagnostics`),
-};
 
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
-export const policyApi = {
-  getOfferPolicy: (offerId: string) =>
-    providerRequest<OfferPolicy>(`/offers/${offerId}/policy`),
-
-  putOfferPolicy: (offerId: string, data: OfferPolicyInput) =>
-    providerRequest<OfferPolicy>(`/offers/${offerId}/policy`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-};
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
-export const offersApi = {
-  list: async () => (await providerRequest<ApiOffer[]>('/offers')).map(normalizeOffer),
-
-  authoringOptions: (primaryResourceId?: string) => {
-    const params = new URLSearchParams();
-    if (primaryResourceId) params.set('primaryResourceId', primaryResourceId);
-    const suffix = params.size > 0 ? `?${params.toString()}` : '';
-    return providerRequest<OfferAuthoringOptions>(`/offers/authoring-options${suffix}`);
-  },
-
-  create: (data: {
-    primaryResourceId: string;
-    offerType: string;
-    bookingFlowType: string;
-    title: string;
-    description?: string;
-    /** Fixed session length for slot-based offers; null for open-ended rentals. */
-    durationHours?: number | null;
-    fulfillmentLocationId?: string | null;
-    meetupLocation?: Record<string, unknown> | null;
-    locationRef?: Offer['locationRef'];
-  }) => providerRequest<ApiOffer>('/offers', { method: 'POST', body: JSON.stringify(data) }).then(normalizeOffer),
-
-  get: (offerId: string) => providerRequest<ApiOffer>(`/offers/${offerId}`).then(normalizeOffer),
-
-  patch: (
-    offerId: string,
-    data: {
-      title?: string;
-      description?: string;
-      fulfillmentLocationId?: string | null;
-      meetupLocation?: Record<string, unknown> | null;
-      locationRef?: Offer['locationRef'];
-    }
-  ) => providerRequest<ApiOffer>(`/offers/${offerId}`, { method: 'PATCH', body: JSON.stringify(data) }).then(normalizeOffer),
-
-  activate: (offerId: string) =>
-    providerRequest<ApiOffer>(`/offers/${offerId}/activate`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode: 'provider_requested' }),
-    }).then(normalizeOffer),
-
-  deactivate: (offerId: string) =>
-    providerRequest<ApiOffer>(`/offers/${offerId}/deactivate`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode: 'provider_requested' }),
-    }).then(normalizeOffer),
-
-  archive: (offerId: string, reasonCode: string) =>
-    providerRequest<ApiOffer>(`/offers/${offerId}/archive`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode }),
-    }).then(normalizeOffer),
-
-  getRoutability: (offerId: string) =>
-    providerRequest<OfferRoutability>(`/offers/${offerId}/routability`),
-
-  listRoutability: () => providerRequest<OfferRoutability[]>('/offers/routability'),
-
-  getReadiness: (offerId: string) =>
-    providerRequest<OfferReadiness>(`/offers/${offerId}/readiness`),
-
-  listReadiness: () => providerRequest<OfferReadiness[]>('/offers/readiness'),
-
-
-  getInfoSections: (offerId: string) =>
-    providerRequest<OfferInfoSections>(`/offers/${offerId}/info-sections`),
-
-  putInfoSections: (offerId: string, sections: OfferInfoSection[]) =>
-    providerRequest<OfferInfoSections>(`/offers/${offerId}/info-sections`, {
-      method: 'PUT',
-      body: JSON.stringify({ sections }),
-    }),
-};
 
 // ─── Offer Availability ───────────────────────────────────────────────────────
 
@@ -1327,17 +959,6 @@ export const fulfillmentApi = {
 
 // ─── Activity Options ─────────────────────────────────────────────────────────
 
-export const activityOptionsApi = {
-  list: () =>
-    providerRequest<Array<{
-      activityId: string;
-      slug: string;
-      title: string;
-      titles: Record<string, string>;
-      status: string;
-      sortOrder: number;
-    }>>('/activity-options'),
-};
 
 // ─── Stock Balance ────────────────────────────────────────────────────────────
 
@@ -1346,4 +967,91 @@ export type {
   Provider,
   ResourceStatus,
   OfferStatus,
+};
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+// One object for the whole catalogue unit. Everything a product owns — attributes, images, price,
+// rules, what's included — hangs off /products/{id}/… rather than a second object it links to.
+
+export const productsApi = {
+  list: () => providerRequest<ProductSummary[]>('/products'),
+
+  get: (productId: string) => providerRequest<Product>(`/products/${productId}`),
+
+  create: (data: {
+    title: string;
+    description?: string | null;
+    category: string;
+    groupName?: string | null;
+    quantity: number;
+    attributes?: Record<string, string>;
+    fulfillmentLocationId?: string | null;
+  }) => providerRequest<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
+
+  patch: (
+    productId: string,
+    data: { title?: string; description?: string | null; fulfillmentLocationId?: string | null }
+  ) => providerRequest<Product>(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  remove: (productId: string) => providerRequest<void>(`/products/${productId}`, { method: 'DELETE' }),
+
+  activate: (productId: string) => providerRequest<Product>(`/products/${productId}/activate`, { method: 'POST' }),
+  deactivate: (productId: string) => providerRequest<Product>(`/products/${productId}/deactivate`, { method: 'POST' }),
+  archive: (productId: string) => providerRequest<Product>(`/products/${productId}/archive`, { method: 'POST' }),
+  submitForReview: (productId: string) =>
+    providerRequest<Product>(`/products/${productId}/submit-for-review`, { method: 'POST' }),
+
+  authoringOptions: () => providerRequest<ProductAuthoringOptions>('/products/authoring-options'),
+
+  getAttributes: (productId: string) => providerRequest<ProductAttributes>(`/products/${productId}/attributes`),
+  putAttributes: (productId: string, attributes: Record<string, string>) =>
+    providerRequest<ProductAttributes>(`/products/${productId}/attributes`, {
+      method: 'PUT',
+      body: JSON.stringify({ attributes }),
+    }),
+
+  getPricing: (productId: string) => providerRequest<ProductPricingPolicy>(`/products/${productId}/pricing-policy`),
+  putPricing: (
+    productId: string,
+    data: { pricingMode: string; baseAmount: number | null; rentalTiers: RentalTier[] | null; status: string }
+  ) => providerRequest<ProductPricingPolicy>(`/products/${productId}/pricing-policy`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
+  getPolicy: (productId: string) => providerRequest<ProductPolicy>(`/products/${productId}/policy`),
+  putPolicy: (productId: string, data: Omit<ProductPolicy, 'productPolicyId' | 'productId' | 'updatedAt'>) =>
+    providerRequest<ProductPolicy>(`/products/${productId}/policy`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  getInfoSections: (productId: string) =>
+    providerRequest<OfferInfoSections>(`/products/${productId}/info-sections`),
+  putInfoSections: (productId: string, sections: OfferInfoSection[]) =>
+    providerRequest<OfferInfoSections>(`/products/${productId}/info-sections`, {
+      method: 'PUT',
+      body: JSON.stringify({ sections }),
+    }),
+
+  images: {
+    list: (productId: string) => providerRequest<ProductImage[]>(`/products/${productId}/images`),
+    upload: (productId: string, file: File) => {
+      const body = new FormData();
+      body.append('file', file);
+      return providerRequest<ProductImage>(`/products/${productId}/images`, { method: 'POST', body });
+    },
+    reorder: (productId: string, imageIds: string[]) =>
+      providerRequest<ProductImage[]>(`/products/${productId}/images/order`, {
+        method: 'PUT',
+        body: JSON.stringify({ imageIds }),
+      }),
+    remove: (productId: string, imageId: string) =>
+      providerRequest<void>(`/products/${productId}/images/${imageId}`, { method: 'DELETE' }),
+  },
+
+  routability: (productId: string) => providerRequest<OfferRoutability>(`/products/${productId}/routability`),
+};
+
+export const productCategoriesApi = {
+  list: () => providerRequest<ProductCategory[]>('/product-categories'),
+  attributes: (categorySlug: string) =>
+    providerRequest<EquipmentAttributeSchema>(`/product-categories/${encodeURIComponent(categorySlug)}/attributes`),
 };

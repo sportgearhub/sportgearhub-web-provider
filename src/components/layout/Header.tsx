@@ -23,8 +23,7 @@ const navItems: { label: string; path: string }[] = [
   { label: 'Дашборд', path: '/' },
   { label: 'Заказы', path: '/bookings' },
   { label: 'Выдача', path: '/fulfillment' },
-  { label: 'Каталог', path: '/resources' },
-  { label: 'Предложения', path: '/offers' },
+  { label: 'Каталог', path: '/products' },
 ];
 
 // Settings live in the profile menu, grouped as they are in the settings sidebar.
@@ -52,7 +51,7 @@ const profileMenuGroups: { title: string; items: { label: string; path: string; 
 ];
 
 interface HeaderProps {
-  /** Console-relative path, e.g. "/resources". */
+  /** Console-relative path, e.g. "/products". */
   currentPath: string;
   onNavigate: (path: string) => void;
   actions?: React.ReactNode;

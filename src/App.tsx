@@ -9,18 +9,9 @@ import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/Co
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { FulfillmentPage } from './features/fulfillment/FulfillmentPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
-import { ResourcesPage } from './features/resources/ResourcePage';
-import { ResourceCreatePage } from './features/resources/ResourceCreatePage';
-import { ResourceDetailPage } from './features/resources/ResourceDetailPage';
-import { ResourceEditPage } from './features/resources/ResourceEditPage';
-import { OffersPage } from './features/offers/OffersPage';
-import { OfferCreatePage } from './features/offers/OfferCreatePage';
-import {
-  OfferCreateRoute as OfferCreateStandaloneRoute,
-  OfferDetailRoute,
-  OfferEditRoute,
-  OfferPolicyRoute,
-} from './features/offers/OfferRoutes';
+import { ProductsPage } from './features/products/ProductsPage';
+import { ProductDetailPage } from './features/products/ProductDetailPage';
+import { ProductForm } from './features/products/ProductForm';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
 
@@ -88,61 +79,26 @@ function DashboardRoute() {
   return <DashboardPage onNavigate={navigateTo} />;
 }
 
-function ResourcesRoute() {
-  const { navigateTo, setHeaderContent } = useConsole();
-  return <ResourcesPage onHeaderContentChange={setHeaderContent} onNavigate={navigateTo} />;
-}
-
-function ResourceCreateRoute() {
-  const { navigateTo, setHeaderContent } = useConsole();
-  return <ResourceCreatePage onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-}
-
-function ResourceDetailRoute() {
-  const { navigateTo, setHeaderContent } = useConsole();
-  const { resourceId = '' } = useParams();
-  return <ResourceDetailPage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-}
-
-function ResourceEditRoute() {
-  const { navigateTo, setHeaderContent } = useConsole();
-  const { resourceId = '' } = useParams();
-  return <ResourceEditPage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-}
-
-function OfferCreateRoute() {
-  const { navigateTo, setHeaderContent } = useConsole();
-  const { resourceId = '' } = useParams();
-  return <OfferCreatePage resourceId={resourceId} onNavigate={navigateTo} onHeaderContentChange={setHeaderContent} />;
-}
-
 function BookingsRoute() {
   const { navigateTo } = useConsole();
   return <BookingsPage onNavigate={navigateTo} />;
 }
 
-function OffersListRoute() {
+function ProductsRoute() {
   const { navigateTo } = useConsole();
-  return <OffersPage onNavigate={navigateTo} />;
+  return <ProductsPage onNavigate={navigateTo} />;
 }
 
-/** One component per offer page, each reading the id from the URL. */
-function OfferCreateStandalone() {
+function ProductDetailRoute() {
   const { navigateTo } = useConsole();
-  return <OfferCreateStandaloneRoute onNavigate={navigateTo} />;
+  const { productId = '' } = useParams();
+  return <ProductDetailPage productId={productId} onNavigate={navigateTo} />;
 }
 
-function OfferRoute({ page }: { page: 'detail' | 'edit' | 'policy' }) {
+function ProductFormRoute({ mode }: { mode: 'create' | 'edit' }) {
   const { navigateTo } = useConsole();
-  const { offerId = '' } = useParams();
-  switch (page) {
-    case 'edit':
-      return <OfferEditRoute offerId={offerId} onNavigate={navigateTo} />;
-    case 'policy':
-      return <OfferPolicyRoute offerId={offerId} onNavigate={navigateTo} />;
-    default:
-      return <OfferDetailRoute offerId={offerId} onNavigate={navigateTo} />;
-  }
+  const { productId } = useParams();
+  return <ProductForm productId={mode === 'edit' ? productId : undefined} onNavigate={navigateTo} />;
 }
 
 function SettingsRoute({ tab }: { tab: SettingsTab }) {
@@ -169,16 +125,13 @@ const router = createBrowserRouter([
           { index: true, element: <DashboardRoute /> },
           { path: 'bookings', element: <BookingsRoute /> },
           { path: 'fulfillment', element: <FulfillmentPage /> },
-          { path: 'resources', element: <ResourcesRoute /> },
-          { path: 'resources/create', element: <ResourceCreateRoute /> },
-          { path: 'resources/:resourceId', element: <ResourceDetailRoute /> },
-          { path: 'resources/:resourceId/edit', element: <ResourceEditRoute /> },
-          { path: 'resources/:resourceId/offers/new', element: <OfferCreateRoute /> },
-          { path: 'offers', element: <OffersListRoute /> },
-          { path: 'offers/new', element: <OfferCreateStandalone /> },
-          { path: 'offers/:offerId', element: <OfferRoute page="detail" /> },
-          { path: 'offers/:offerId/edit', element: <OfferRoute page="edit" /> },
-          { path: 'offers/:offerId/policy', element: <OfferRoute page="policy" /> },
+          { path: 'products', element: <ProductsRoute /> },
+          { path: 'products/new', element: <ProductFormRoute mode="create" /> },
+          { path: 'products/:productId', element: <ProductDetailRoute /> },
+          { path: 'products/:productId/edit', element: <ProductFormRoute mode="edit" /> },
+          // The catalogue was two sections until the API collapsed them into one product.
+          { path: 'resources/*', element: <Navigate to="/products" replace /> },
+          { path: 'offers/*', element: <Navigate to="/products" replace /> },
           { path: 'settings', element: <Navigate to="shop" replace /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
           { path: 'settings/shop/edit', element: <SettingsRoute tab="shop-edit" /> },
