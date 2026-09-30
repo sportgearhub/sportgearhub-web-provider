@@ -105,38 +105,21 @@ export type EquipmentCategory = ResourceCategory & {
 };
 
 export type EquipmentAttributeAllowedValue = {
-  allowedValueId: string;
   valueKey: string;
-  valueString?: string | null;
-  valueDecimal?: number | null;
-  valueInt?: number | null;
-  valueBool?: boolean | null;
-  label: string;
-  labels: Record<string, string>;
+  name: string;
   sortOrder: number;
-};
-
-export type EquipmentAttributeVisibilityCondition = {
-  attributeKey: string;
-  allowedValueKeys: string[];
 };
 
 export type EquipmentAttribute = {
   attributeId: string;
   key: string;
-  label: string;
-  labels: Record<string, string>;
+  /** The field's label. The API calls it `name`; there is no separate localised map. */
+  name: string;
+  hint?: string | null;
   valueType: string;
   unit?: string | null;
   unitLabel?: string | null;
-  referenceType?: string | null;
-  requiredOn: string[];
-  helpText?: string | null;
-  helpTexts?: Record<string, string>;
-  visibleWhen: EquipmentAttributeVisibilityCondition[];
   filterable: boolean;
-  comparable: boolean;
-  searchable: boolean;
   sortOrder: number;
   allowedValues: EquipmentAttributeAllowedValue[];
 };

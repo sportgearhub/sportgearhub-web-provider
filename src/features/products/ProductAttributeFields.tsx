@@ -1,4 +1,4 @@
-import { FieldRow, FloatingInput, FloatingSelect } from '../../components/form';
+import { FloatingInput, FloatingSelect } from '../../components/form';
 import type { EquipmentAttribute } from '../../lib/api-client';
 
 function inputTypeFor(valueType: string) {
@@ -8,26 +8,18 @@ function inputTypeFor(valueType: string) {
   return 'text';
 }
 
-export function isAttributeVisible(attribute: EquipmentAttribute, values: Record<string, string>) {
-  const conditions = attribute.visibleWhen ?? [];
-  if (conditions.length === 0) return true;
-
-  return conditions.every(condition => {
-    const selectedValue = values[condition.attributeKey];
-    return selectedValue ? condition.allowedValueKeys.includes(selectedValue) : false;
-  });
-}
-
-export function isAttributeRequired(attribute: EquipmentAttribute) {
-  return (attribute.requiredOn ?? []).some(scope => scope === 'resource' || scope === 'create');
-}
-
+/** «Длина, фут» — the unit belongs in the label, where it is read before the field is filled. */
 export function attributeLabel(attribute: EquipmentAttribute) {
   const unit = attribute.unitLabel ?? attribute.unit;
-  return unit ? `${attribute.label}, ${unit}` : attribute.label;
+  return unit ? `${attribute.name}, ${unit}` : attribute.name;
 }
 
-/** The category's own fields, two to a row like Ozon's «Габариты и вес». */
+/**
+ * The category's own fields.
+ *
+ * One per row, full width. Two to a row halves the space a label has, and these labels carry their
+ * unit — «Грузоподъёмность, кг» in a column 180px wide is not a label, it is a puzzle.
+ */
 export function ProductAttributeFields({
   attributes,
   values,
@@ -40,21 +32,24 @@ export function ProductAttributeFields({
   onChange: (key: string, value: string) => void;
 }) {
   if (attributes.length === 0) {
-    return <p className="px-1 text-sm text-gray-500">У этой категории нет дополнительных характеристик.</p>;
+    return <p className="text-sm text-gray-500">У этой категории нет дополнительных характеристик.</p>;
   }
 
   return (
-    <FieldRow>
-      {attributes.map(attribute => (
-        <ProductAttributeField
-          key={attribute.key}
-          attribute={attribute}
-          value={values[attribute.key] ?? ''}
-          error={errors[attribute.key]}
-          onChange={value => onChange(attribute.key, value)}
-        />
-      ))}
-    </FieldRow>
+    <div className="space-y-4">
+      {attributes
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(attribute => (
+          <ProductAttributeField
+            key={attribute.key}
+            attribute={attribute}
+            value={values[attribute.key] ?? ''}
+            error={errors[attribute.key]}
+            onChange={value => onChange(attribute.key, value)}
+          />
+        ))}
+    </div>
   );
 }
 
@@ -70,20 +65,18 @@ function ProductAttributeField({
   onChange: (value: string) => void;
 }) {
   const label = attributeLabel(attribute);
-  const required = isAttributeRequired(attribute);
 
   if ((attribute.allowedValues?.length ?? 0) > 0) {
     return (
       <FloatingSelect
         label={label}
-        required={required}
         value={value}
         onChange={onChange}
         options={attribute.allowedValues
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(option => ({ value: option.valueKey, label: option.label }))}
-        hint={attribute.helpText}
+          .map(option => ({ value: option.valueKey, label: option.name }))}
+        hint={attribute.hint}
         error={error}
       />
     );
@@ -92,11 +85,10 @@ function ProductAttributeField({
   return (
     <FloatingInput
       label={label}
-      required={required}
       type={inputTypeFor(attribute.valueType)}
       value={value}
       onChange={event => onChange(event.target.value)}
-      hint={attribute.helpText}
+      hint={attribute.hint}
       error={error}
     />
   );

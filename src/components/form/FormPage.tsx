@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 /**
@@ -38,30 +39,51 @@ export function FormSection({
   );
 }
 
-/** Ozon's «1 Информация о товаре · 2 Предварительный просмотр»: numbered, the current one filled. */
-export function FormStepper({ steps, current, onSelect }: { steps: string[]; current: number; onSelect?: (index: number) => void }) {
+/**
+ * «1 Информация о товаре · 2 Характеристики · 3 Медиа» — the steps of a long form, numbered, the
+ * current one filled and the finished ones ticked. Every step stays reachable: editing is not a
+ * wizard, and someone who came back to fix the price should not have to walk past the description
+ * to reach it.
+ */
+export function FormStepper({
+  steps,
+  current,
+  onSelect,
+}: {
+  steps: Array<{ label: string; done?: boolean; invalid?: boolean }>;
+  current: number;
+  onSelect: (index: number) => void;
+}) {
   return (
-    <ol className="mb-2 flex flex-wrap items-center gap-x-6 gap-y-2">
-      {steps.map((label, index) => {
-        const state = index === current ? 'current' : index < current ? 'done' : 'todo';
-        const clickable = Boolean(onSelect) && index < current;
+    <ol className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+      {steps.map((step, index) => {
+        const isCurrent = index === current;
         return (
-          <li key={label}>
+          <li key={step.label}>
             <button
               type="button"
-              disabled={!clickable}
-              onClick={() => clickable && onSelect?.(index)}
-              className={cn('flex items-center gap-2 text-sm', state === 'todo' ? 'text-gray-400' : 'text-gray-950', clickable && 'hover:text-blue-700')}
+              onClick={() => onSelect(index)}
+              aria-current={isCurrent ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-2 text-sm transition-colors',
+                isCurrent ? 'text-gray-950' : 'text-gray-500 hover:text-gray-900'
+              )}
             >
               <span
                 className={cn(
-                  'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
-                  state === 'current' ? 'bg-gray-950 text-white' : state === 'done' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                  'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors',
+                  step.invalid
+                    ? 'bg-red-600 text-white'
+                    : isCurrent
+                      ? 'bg-gray-950 text-white'
+                      : step.done
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-100 text-gray-500'
                 )}
               >
-                {index + 1}
+                {step.invalid ? '!' : step.done && !isCurrent ? <Check size={13} strokeWidth={3} /> : index + 1}
               </span>
-              <span className={cn(state === 'current' && 'font-medium')}>{label}</span>
+              <span className={cn(isCurrent && 'font-medium')}>{step.label}</span>
             </button>
           </li>
         );

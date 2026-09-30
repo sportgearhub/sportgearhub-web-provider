@@ -437,6 +437,8 @@ function MediaSheet({
           )}
         </div>
 
+        <VideoPrototype />
+
         <PhotoTips />
       </div>
     </TopSheet>
@@ -579,6 +581,77 @@ function ImageTile({
         <Trash2 size={13} />
       </button>
     </div>
+  );
+}
+
+// ─── Video (prototype) ────────────────────────────────────────────────────────
+
+const VIDEO_SLOTS = 5;
+
+/**
+ * Video, as a prototype.
+ *
+ * There is no endpoint for it yet — /products/{id}/images is the whole media API — so nothing here
+ * is sent anywhere and a chosen file lives until the sheet closes. It is built now so the shape of
+ * the screen is settled before the API arrives; the badge says so plainly rather than letting a
+ * seller believe a video was saved.
+ */
+function VideoPrototype() {
+  const [picked, setPicked] = useState<{ name: string; url: string }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => { picked.forEach(item => URL.revokeObjectURL(item.url)); }, [picked]);
+
+  return (
+    <section>
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900">Видео</h3>
+          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+            Скоро
+          </span>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => inputRef.current?.click()}>
+          <Plus size={13} /> Добавить видео
+        </Button>
+      </div>
+      <p className="mb-3 text-xs text-gray-500">
+        Короткий ролик показывает снаряжение в деле. Загрузка ещё не подключена — выбранное здесь не сохраняется.
+      </p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/mp4,video/quicktime"
+        multiple
+        className="sr-only"
+        onChange={event => {
+          const files = Array.from(event.target.files ?? []).slice(0, VIDEO_SLOTS - picked.length);
+          setPicked(current => [...current, ...files.map(file => ({ name: file.name, url: URL.createObjectURL(file) }))]);
+          event.target.value = '';
+        }}
+      />
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+        {Array.from({ length: VIDEO_SLOTS }, (_, index) => {
+          const item = picked[index];
+          if (!item) {
+            return <div key={index} className="aspect-video rounded-lg border border-dashed border-gray-200 bg-gray-50/70" />;
+          }
+          return (
+            <div key={item.url} className="group relative aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-900">
+              <video src={item.url} className="h-full w-full object-cover" muted />
+              <button
+                type="button"
+                onClick={() => setPicked(current => current.filter((_, i) => i !== index))}
+                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-gray-600 opacity-0 transition hover:text-red-600 group-hover:opacity-100"
+                aria-label={`Убрать ${item.name}`}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

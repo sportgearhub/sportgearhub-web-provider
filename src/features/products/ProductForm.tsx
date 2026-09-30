@@ -7,6 +7,7 @@ import {
   FloatingTextarea,
   FormPage,
   FormSection,
+  FormStepper,
   PickerRow,
 } from '../../components/form';
 import { Button } from '../../components/ui/Button';
@@ -16,6 +17,16 @@ import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-op
 import type { EquipmentAttribute } from '../../lib/api-client';
 import type { ProductCategory, ProviderLocation, RentalTier } from '../../types';
 import { ProductAttributeFields } from './ProductAttributeFields';
+import { ProductImagesSection } from './ProductImagesSection';
+
+type StepKey = 'about' | 'attributes' | 'price' | 'media';
+
+/** Which step a validation error belongs to, so a failed save lands on the field it is about. */
+function stepFor(errorKey: string): StepKey {
+  if (errorKey.startsWith('attr:')) return 'attributes';
+  if (errorKey === 'pricing') return 'price';
+  return 'about';
+}
 
 const STANDARD_TIERS: RentalTier[] = [
   { upToHours: 1, price: 0, label: '1 час' },
@@ -70,6 +81,7 @@ export function ProductForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [step, setStep] = useState(0);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft(current => ({ ...current, [key]: value }));
@@ -138,19 +150,32 @@ export function ProductForm({
   );
   const isTiered = draft.pricingMode === 'rental_tiers';
 
+  // The form is long enough that all of it at once buries the price under the characteristics.
+  // Photos need a product to belong to, so that step exists only once there is one.
+  const steps = useMemo(() => {
+    const list: Array<{ key: StepKey; label: string }> = [{ key: 'about', label: 'О товаре' }];
+    if (attributes.length > 0) list.push({ key: 'attributes', label: 'Характеристики' });
+    list.push({ key: 'price', label: 'Цена' });
+    if (productId) list.push({ key: 'media', label: 'Фото' });
+    return list;
+  }, [attributes.length, productId]);
+
+  const stepIndex = Math.min(step, steps.length - 1);
+  const currentStep = steps[stepIndex]?.key ?? 'about';
+
   const validate = () => {
     const next: Record<string, string> = {};
     if (!draft.title.trim()) next.title = 'Укажите название.';
     if (!draft.categorySlug) next.categorySlug = 'Выберите категорию.';
     if (!(Number(draft.quantity) > 0)) next.quantity = 'Количество должно быть больше нуля.';
-    attributes
-      .filter(attribute => (attribute.requiredOn ?? []).length > 0)
-      .forEach(attribute => {
-        if (!draft.attributes[attribute.key]) next[`attr:${attribute.key}`] = 'Заполните поле.';
-      });
     if (isTiered && !draft.tiers.some(tier => tier.price > 0)) next.pricing = 'Укажите цену хотя бы для одной ступени.';
     if (!isTiered && !(Number(draft.baseAmount) > 0)) next.pricing = 'Укажите цену.';
     setErrors(next);
+    const firstBad = Object.keys(next)[0];
+    if (firstBad) {
+      const target = steps.findIndex(item => item.key === stepFor(firstBad));
+      if (target >= 0) setStep(target);
+    }
     return Object.keys(next).length === 0;
   };
 
@@ -202,6 +227,18 @@ export function ProductForm({
         <p className="text-sm text-gray-500">Загружаем...</p>
       ) : (
         <FormPage>
+          <FormStepper
+            steps={steps.map((item, index) => ({
+              label: item.label,
+              done: index < stepIndex,
+              invalid: Object.keys(errors).some(key => errors[key] && stepFor(key) === item.key),
+            }))}
+            current={stepIndex}
+            onSelect={setStep}
+          />
+
+          {currentStep === 'about' && (
+          <>
           <FormSection title="О товаре" description="Как клиент увидит карточку в каталоге.">
             <FloatingInput
               label="Название"
@@ -261,9 +298,11 @@ export function ProductForm({
               emptyText="Пунктов проката пока нет."
             />
           </FormSection>
+          </>
+          )}
 
-          {attributes.length > 0 && (
-            <FormSection title="Характеристики" description="Клиенты ищут и фильтруют по ним.">
+          {currentStep === 'attributes' && (
+            <FormSection title="Характеристики" description="Клиенты ищут и фильтруют по ним. Незаполненное просто не покажем.">
               <ProductAttributeFields
                 attributes={attributes}
                 values={draft.attributes}
@@ -276,6 +315,7 @@ export function ProductForm({
             </FormSection>
           )}
 
+          {currentStep === 'price' && (
           <FormSection title="Цена" description="Используется при расчёте стоимости брони.">
             <ChoiceCards
               options={PRICING_MODE_OPTIONS.map(option => ({ value: option.value, title: option.label }))}
@@ -317,12 +357,31 @@ export function ProductForm({
               />
             )}
           </FormSection>
+          )}
+
+          {currentStep === 'media' && productId && (
+            <FormSection title="Фото" description="Первое фото — главное: его видно в каталоге и в списках.">
+              <ProductImagesSection productId={productId} />
+            </FormSection>
+          )}
 
           <ActionBar
             left={
-              <Button variant="secondary" disabled={saving} onClick={() => onNavigate(productId ? `/products/${productId}` : '/products')}>
-                Отмена
-              </Button>
+              <>
+                <Button variant="ghost" disabled={saving} onClick={() => onNavigate(productId ? `/products/${productId}` : '/products')}>
+                  Отмена
+                </Button>
+                {stepIndex > 0 && (
+                  <Button variant="secondary" disabled={saving} onClick={() => setStep(stepIndex - 1)}>
+                    Назад
+                  </Button>
+                )}
+                {stepIndex < steps.length - 1 && (
+                  <Button variant="secondary" disabled={saving} onClick={() => setStep(stepIndex + 1)}>
+                    Далее
+                  </Button>
+                )}
+              </>
             }
             right={
               <Button variant="primary" loading={saving} onClick={() => void save()}>
