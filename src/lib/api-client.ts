@@ -6,6 +6,7 @@ import type {
   ProductImage,
   ProductPolicy,
   ProductPricingPolicy,
+  ProductRoutability,
   ProductSummary,
   Provider,
   RentalTier,
@@ -29,7 +30,6 @@ import type {
   ScheduleException,
   WorkingHours,
   DashboardResponse,
-  OfferRoutability,
   OfferInfoSection,
   OfferInfoSections,
   BookingListItem,
@@ -1063,7 +1063,10 @@ export const productsApi = {
       providerRequest<void>(`/products/${productId}/images/${imageId}`, { method: 'DELETE' }),
   },
 
-  routability: (productId: string) => providerRequest<OfferRoutability>(`/products/${productId}/routability`),
+  routability: (productId: string) => providerRequest<ProductRoutability>(`/products/${productId}/routability`),
+
+  /** Every product's routability in one call — what the catalogue needs to flag blocked rows. */
+  allRoutability: () => providerRequest<ProductRoutability[]>('/products/routability'),
 };
 
 export const productCategoriesApi = {

@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { ApiError, productsApi } from '../../lib/api-client';
-import type { ProductSummary } from '../../types';
+import type { ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusFilterOptions } from './productStatus';
 
 /**
@@ -18,6 +18,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
+  const [blocked, setBlocked] = useState<Record<string, ProductRoutability>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -31,6 +32,14 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Не удалось загрузить каталог.');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
+
+    // One call answers "which of these can actually be booked" for the whole list.
+    productsApi.allRoutability()
+      .then(all => {
+        if (cancelled) return;
+        setBlocked(Object.fromEntries(all.filter(item => !item.routable).map(item => [item.productId, item])));
+      })
+      .catch(() => { /* the list is still useful without it */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -90,8 +99,9 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                     <span className="mt-0.5 block truncate text-xs text-gray-500">
                       {product.category?.name ?? '—'} · {product.quantity} шт
                     </span>
-                    <span className="mt-1.5 flex items-center gap-2">
+                    <span className="mt-1.5 flex flex-wrap items-center gap-2">
                       <Badge variant={productStatus(product.status).variant}>{productStatus(product.status).label}</Badge>
+                      {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
                       <span className="text-xs font-medium text-gray-900">{formatPrice(product.price) ?? 'Цены нет'}</span>
                     </span>
                   </span>
@@ -125,7 +135,10 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                     <td className="px-3 py-2 text-right text-gray-900">{product.quantity}</td>
                     <td className="px-3 py-2 text-right text-gray-900">{formatPrice(product.price) ?? '—'}</td>
                     <td className="px-3 py-2">
-                      <Badge variant={productStatus(product.status).variant}>{productStatus(product.status).label}</Badge>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={productStatus(product.status).variant}>{productStatus(product.status).label}</Badge>
+                        {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
+                      </span>
                     </td>
                   </tr>
                 ))}

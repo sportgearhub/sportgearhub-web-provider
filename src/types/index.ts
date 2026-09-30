@@ -1196,3 +1196,30 @@ export interface LocationSchedule {
   workingHours: WorkingHours[];
   exceptions: ScheduleException[];
 }
+
+export interface RoutabilityIssue {
+  code: string;
+  severity: string;
+  domain: string;
+  message: string;
+  affectedProductId?: string | null;
+}
+
+/** Whether a product can actually take a booking, and what is stopping it if not. */
+export interface ProductRoutability {
+  productId: string;
+  sellerId: string;
+  publishable: boolean;
+  productStatus: string;
+  status: string;
+  routable: boolean;
+  resolutionReady: boolean;
+  pricingReady: boolean;
+  policyReady: boolean;
+  capabilityValid: boolean;
+  inventoryReady: boolean;
+  reasonCodes: string[];
+  warnings: string[];
+  issues: RoutabilityIssue[];
+  checkedAt: string;
+}

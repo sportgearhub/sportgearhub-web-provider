@@ -8,10 +8,11 @@ import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, productsApi } from '../../lib/api-client';
 import { ProductImagesSection } from './ProductImagesSection';
+import { ProductReadinessCard } from './ProductReadinessCard';
 import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
 import { infoSectionLabel } from './infoSections';
-import type { OfferInfoSection, Product, ProductPolicy, ProductPricingPolicy } from '../../types';
+import type { OfferInfoSection, Product, ProductPolicy, ProductPricingPolicy, ProductRoutability } from '../../types';
 import { formatPrice, productStatus } from './productStatus';
 
 /**
@@ -29,6 +30,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [editingPolicy, setEditingPolicy] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
+  const [routability, setRoutability] = useState<ProductRoutability | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -36,14 +38,16 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     try {
       const next = await productsApi.get(productId);
       setProduct(next);
-      const [nextPricing, nextPolicy, nextInfo] = await Promise.all([
+      const [nextPricing, nextPolicy, nextInfo, nextRoutability] = await Promise.all([
         productsApi.getPricing(productId).catch(() => null),
         productsApi.getPolicy(productId).catch(() => null),
         productsApi.getInfoSections(productId).catch(() => null),
+        productsApi.routability(productId).catch(() => null),
       ]);
       setPricing(nextPricing);
       setPolicy(nextPolicy);
       setInfoSections(nextInfo?.sections ?? []);
+      setRoutability(nextRoutability);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 404
         ? 'Товар не найден — возможно, он удалён.'
@@ -212,8 +216,11 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
           </SettingsCard>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white">
-          <ProductImagesSection productId={productId} />
+        <div className="space-y-4">
+          <ProductReadinessCard routability={routability} />
+          <div className="rounded-lg border border-gray-200 bg-white">
+            <ProductImagesSection productId={productId} />
+          </div>
         </div>
       </div>
 
