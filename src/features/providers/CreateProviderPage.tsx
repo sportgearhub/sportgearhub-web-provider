@@ -51,7 +51,7 @@ export function CreateProviderPage() {
         description: description.trim() || undefined,
       });
       await reloadSession();
-      selectProvider(provider.providerId);
+      selectProvider(provider.sellerId);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось создать кабинет.');

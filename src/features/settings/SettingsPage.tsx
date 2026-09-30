@@ -316,7 +316,7 @@ function EmployeesSettings() {
                         <p className="truncate font-medium text-gray-900">{memberName(member)}</p>
                       </td>
                       <td className="min-w-0 px-3 py-3">
-                        <p className="truncate text-gray-600">{member.phone ?? member.email ?? '—'}</p>
+                        <p className="truncate text-gray-600">{member.email ?? '—'}</p>
                       </td>
                       <td className="px-3 py-3">
                         {owner ? (
@@ -496,7 +496,7 @@ function isOwnerRole(role: string) {
 
 function memberName(member: ProviderMember) {
   const fullName = [member.name, member.surname].filter(Boolean).join(' ').trim();
-  return fullName || member.phone || member.email || member.userId;
+  return fullName || member.email || member.userId;
 }
 
 function invitationStatusLabel(status: string) {

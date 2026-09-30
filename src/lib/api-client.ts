@@ -31,17 +31,17 @@ import type {
   ProviderMemberOptions,
   ProviderInvitation,
   ProviderLocation,
-  SellerInvitation,
+  PendingSellerInvitation,
   LocationSchedule,
   ScheduleException,
   WorkingHours,
   DashboardResponse,
   OfferInfoSection,
-  OfferInfoSections,
   BookingListItem,
   BookingDetail,
   BookingStatus,
   FulfillmentCommandResult,
+  FulfillmentDetail,
   FulfillmentItem,
 } from '../types';
 
@@ -665,7 +665,7 @@ export const authApi = {
    * Invitations waiting for the signed-in phone. The session carries a copy, but this is the live
    * one: it knows an invitation that was revoked or expired since sign-in.
    */
-  pendingInvitations: () => request<SellerInvitation[]>('/api/v1/seller-invitations/pending'),
+  pendingInvitations: () => request<PendingSellerInvitation[]>('/api/v1/seller-invitations/pending'),
 
   // Invitations are addressed to a phone, not delivered to it: the signed-in account that proved
   // the number accepts by id.
@@ -923,7 +923,7 @@ export const bookingsApi = {
   get: (bookingId: string) => providerRequest<BookingDetail>(`/bookings/${bookingId}`),
 
   getFulfillment: (bookingId: string) =>
-    providerRequest<Record<string, unknown>>(`/bookings/${bookingId}/fulfillment`),
+    providerRequest<FulfillmentDetail>(`/bookings/${bookingId}/fulfillment`),
 
   handover: (
     bookingId: string,
@@ -1074,10 +1074,11 @@ export const productsApi = {
   putPolicy: (productId: string, data: ProductPolicyInput) =>
     providerRequest<ProductPolicy>(`/products/${productId}/policy`, { method: 'PUT', body: JSON.stringify(data) }),
 
+  // Reads and writes an array; only the request wraps it in `{ sections }`.
   getInfoSections: (productId: string) =>
-    providerRequest<OfferInfoSections>(`/products/${productId}/info-sections`),
+    providerRequest<OfferInfoSection[]>(`/products/${productId}/info-sections`),
   putInfoSections: (productId: string, sections: OfferInfoSection[]) =>
-    providerRequest<OfferInfoSections>(`/products/${productId}/info-sections`, {
+    providerRequest<OfferInfoSection[]>(`/products/${productId}/info-sections`, {
       method: 'PUT',
       body: JSON.stringify({ sections }),
     }),

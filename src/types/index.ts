@@ -48,24 +48,24 @@ export interface ProviderMemberOptions {
   roles: ProviderMemberRoleOption[];
 }
 
+/** A person in the cabinet. The API identifies them by e-mail; it does not send a phone. */
 export interface ProviderMember {
   membershipId: string;
   userId: string;
-  providerId: string;
+  sellerId: string;
   name: string;
   surname: string;
-  phone: string | null;
   email: string | null;
   role: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export type ProviderInvitationStatus = 'pending' | 'accepted' | 'expired' | string;
 
+/** The cabinet's outbox: whom we invited, and where each one stands. */
 export interface ProviderInvitation {
   invitationId: string;
-  providerId: string;
+  sellerId: string;
   phone: string;
   role: string;
   status: ProviderInvitationStatus;
@@ -77,7 +77,6 @@ export interface ProviderInvitation {
   acceptedByUserId: string | null;
   acceptedAt: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface ProviderMemberInvitationResult {
@@ -112,7 +111,7 @@ export interface ProviderReviewSummary {
 }
 
 export interface Provider {
-  providerId: string;
+  sellerId: string;
   displayName: string;
   description: string | null;
   address: string | null;
@@ -134,7 +133,7 @@ export interface ProviderReadinessItem {
 }
 
 export interface ProviderReadiness {
-  providerId: string;
+  sellerId: string;
   status: ProviderStatus;
   canSubmit: boolean;
   isPublic: boolean;
@@ -163,14 +162,23 @@ export interface SellerBusinessDetails {
 }
 
 /** One shape switched on `kind`: `person` for a самозанятый, `business` for ИП and organisations, `company` on top for organisations. */
+/**
+ * The seller's legal identity.
+ *
+ * The spec documents only `legal_identity_id`, `inn` and `kind` — but it also documents the PUT
+ * with no request body at all, which cannot be right, so this entry is treated as incomplete
+ * rather than as the whole truth. The registry-derived blocks are optional here: the pages that
+ * show them already guard each one, so a response without them loses rows instead of breaking,
+ * and a response with them keeps working.
+ */
 export interface SellerProfile {
-  sellerProfileId: string;
+  legalIdentityId: string;
   kind: SellerKind;
   inn: string;
-  person: SellerPerson | null;
-  business: SellerBusinessDetails | null;
-  company: { kpp: string } | null;
-  updatedAt: string;
+  person?: SellerPerson | null;
+  business?: SellerBusinessDetails | null;
+  company?: { kpp: string } | null;
+  updatedAt?: string;
 }
 
 export interface SellerProfileInput {
@@ -202,6 +210,7 @@ export interface Agreement {
 
 export type PayoutMethod = 'sbp' | 'bank_account' | string;
 
+/** GET/PUT /payout. */
 export interface PayoutDetails {
   method: PayoutMethod;
   hasDetails: boolean;
@@ -214,7 +223,6 @@ export interface PayoutDetails {
   account: string | null;
   bik: string | null;
   correspondentAccount: string | null;
-  updatedAt: string | null;
 }
 
 export interface PayoutDetailsInput {
@@ -255,7 +263,7 @@ export interface DashboardAlert {
 }
 
 export interface DashboardResponse {
-  providerId: string;
+  sellerId: string;
   displayName: string;
   readiness: ProviderReadiness;
   counts: DashboardCounts;
@@ -281,10 +289,6 @@ export interface RentalTier {
 export interface OfferInfoSection {
   kind: string;
   items: string[];
-}
-
-export interface OfferInfoSections {
-  sections: OfferInfoSection[];
 }
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
@@ -433,18 +437,16 @@ export interface BookingDetail {
   bookingId: string;
   bookingNumber: string;
   status: BookingStatus;
-  statusReason?: string;
-  customerSummary: CustomerSummary | null;
-  schedule?: Record<string, unknown>;
-  selectionSummary?: Record<string, unknown>;
-  assuranceSummary?: Record<string, unknown>;
-  fulfillment?: {
-    status: string;
-    completionAllowed: boolean;
-    issueReportingAllowed: boolean;
-    notes: string | null;
-  };
-  support?: { correlationRef: string };
+  statusReason: string | null;
+  product: BookingProductSummary;
+  customer: CustomerSummary | null;
+  schedule: Record<string, unknown> | null;
+  selectionSummary: Record<string, unknown> | null;
+  fulfillment: FulfillmentSummary;
+  sellerPolicySummary: Record<string, unknown> | null;
+  support: { correlationRef: string } | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Fulfillment ──────────────────────────────────────────────────────────────
@@ -478,6 +480,40 @@ export interface FulfillmentItem {
   startAt: string;
   endAt: string;
   quantity: number;
+  updatedAt: string;
+}
+
+/** GET /bookings/{id}/fulfillment — the full state of one booking's handover and return. */
+export interface FulfillmentDetail {
+  bookingId: string;
+  bookingNumber: string;
+  productId: string;
+  fulfillmentStage: FulfillmentStage;
+  handover: {
+    handoverAllowed: boolean;
+    handedOverAt: string | null;
+    handedOverBy: string | null;
+    note: string | null;
+  };
+  return: {
+    returnAllowed: boolean;
+    returnedAt: string | null;
+    returnedBy: string | null;
+    conditionSummary: Array<{ key: string; value: string }>;
+    note: string | null;
+  };
+  completion: {
+    completionAllowed: boolean;
+    completedAt: string | null;
+  };
+  issueSummary: {
+    reasonCode: string;
+    description: string | null;
+    evidenceRefs: string[];
+    reportedAt: string;
+    reportedBy: string | null;
+  } | null;
+  support: { correlationRef: string };
   updatedAt: string;
 }
 
@@ -728,16 +764,18 @@ export interface QuotePreview {
  * An invitation as /seller-invitations/pending reports it: authoritative about status and expiry,
  * and it names who sent it — but not the cabinet, which the session carries.
  */
-export interface SellerInvitation {
+/**
+ * Two questions, two shapes (api 53a30bf). This is «who invited me», from
+ * /seller-invitations/pending: which cabinet, as whom, from whom, until when. Every row it
+ * returns is open by definition, so it carries no status — see ProviderInvitation for the
+ * cabinet's own outbox, where a row can also be accepted or spent.
+ */
+export interface PendingSellerInvitation {
   invitationId: string;
   sellerId: string;
   sellerDisplayName: string;
-  phone: string;
   role: string;
-  status: string;
   invitedByName: string | null;
-  invitedByPhone: string | null;
-  sentAt: string;
   expiresAt: string;
 }
 

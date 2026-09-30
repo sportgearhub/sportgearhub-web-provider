@@ -56,7 +56,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       ]);
       setPricing(nextPricing);
       setPolicy(nextPolicy);
-      setInfoSections(nextInfo?.sections ?? []);
+      setInfoSections(nextInfo ?? []);
       setRoutability(nextRoutability);
       setPriceSummary(nextSummary);
     } catch (err) {

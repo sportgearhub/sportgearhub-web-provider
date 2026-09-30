@@ -10,7 +10,7 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi } from '../../lib/api-client';
 import { selectProvider, selectedProviderId } from '../../lib/active-provider';
 import { kindLabel, roleLabel, statusMeta } from './providerStatus';
-import type { SellerInvitation } from '../../types';
+import type { PendingSellerInvitation } from '../../types';
 
 /**
  * «Выберите кабинет» — the first screen after sign-in. Zero cabinets and nothing waiting: straight
@@ -23,7 +23,7 @@ export function ProviderPickerPage() {
   // they are fetched here, where "signed in, now where do I go" is actually decided. Until the
   // answer is in, nothing is redirected: an invited person with no cabinets of their own would
   // otherwise be sent off to create one before their invitation ever loaded.
-  const [invitations, setInvitations] = useState<SellerInvitation[] | null>(null);
+  const [invitations, setInvitations] = useState<PendingSellerInvitation[] | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const deniedProviderId = (location.state as { deniedProviderId?: string } | null)?.deniedProviderId;
@@ -40,7 +40,9 @@ export function ProviderPickerPage() {
   useEffect(() => {
     let cancelled = false;
     authApi.pendingInvitations()
-      .then(next => { if (!cancelled) setInvitations(next.filter(invitation => invitation.status === 'pending')); })
+      // Every row this endpoint returns is open by definition — it has no status to filter on, and
+      // filtering by one it does not send is how a real invitation becomes an invisible one.
+      .then(next => { if (!cancelled) setInvitations(next); })
       // An invitation we cannot read is better treated as absent than as a reason to block sign-in.
       .catch(() => { if (!cancelled) setInvitations([]); });
     return () => { cancelled = true; };

@@ -43,7 +43,7 @@ export function ProductInfoSectionsDialog({
         .map(({ kind }) => ({ kind, items: (items[kind] ?? []).map(item => item.trim()).filter(Boolean) }))
         .filter(section => section.items.length > 0);
       const next = await productsApi.putInfoSections(productId, payload);
-      onSaved(next.sections ?? payload);
+      onSaved(next ?? payload);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить.');
     } finally {
