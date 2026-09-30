@@ -310,6 +310,9 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
 // Offered right after a one-time-code sign-in: remember this browser so the next visit needs only a passcode.
 export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
+  // Two steps rather than two fields: a code you are inventing should be typed once, then proved
+  // from memory. Both on screen at the same time invites copying the first row into the second.
+  const [step, setStep] = useState<'create' | 'repeat'>('create');
   const [passcode, setPasscode] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [length, setLength] = useState(4);
@@ -320,56 +323,78 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
     void authApi.passcodePolicy().then(policy => setLength(policy.length)).catch(() => undefined);
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (passcode !== confirmation) {
-      setError('Коды не совпадают.');
-      setConfirmation('');
-      return;
-    }
-
+  const save = async (code: string) => {
     setError('');
     setLoading(true);
     try {
-      await authApi.enrolDevice(passcode, navigator.userAgent.slice(0, 100));
+      await authApi.enrolDevice(code, navigator.userAgent.slice(0, 100));
       onNavigate('/');
     } catch (err) {
-      setPasscode('');
-      setConfirmation('');
-      setError(err instanceof ApiError ? err.message || 'Не удалось сохранить код доступа.' : 'Ошибка в работе сервиса.');
+      restart(err instanceof ApiError ? err.message || 'Не удалось сохранить код доступа.' : 'Ошибка в работе сервиса.');
     } finally {
       setLoading(false);
     }
   };
 
+  const restart = (message: string) => {
+    setPasscode('');
+    setConfirmation('');
+    setStep('create');
+    setError(message);
+  };
+
+  const handleCreate = (next: string) => {
+    setPasscode(next);
+    setError('');
+    if (next.length === length) setStep('repeat');
+  };
+
+  const handleRepeat = (next: string) => {
+    setConfirmation(next);
+    setError('');
+    if (next.length < length) return;
+    if (next !== passcode) {
+      restart('Коды не совпали. Попробуйте ещё раз.');
+      return;
+    }
+    void save(next);
+  };
+
   return (
     <AuthShell title="Быстрый вход">
       {error && <Notice kind="error">{error}</Notice>}
-      <p className="mb-4 text-xs text-gray-500">
-        Задайте код доступа из {length} цифр, чтобы в следующий раз входить без письма. Код работает только
-        на этом устройстве.
+      <p className="mb-5 text-xs leading-5 text-gray-500">
+        {step === 'create'
+          ? `Придумайте код из ${length} цифр, чтобы в следующий раз входить без письма. Код работает только на этом устройстве.`
+          : 'Введите код ещё раз, чтобы не ошибиться.'}
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <PasscodeInput label="Код доступа" value={passcode} onChange={setPasscode} length={length} autoFocus disabled={loading} />
-        <PasscodeInput label="Повторите код" value={confirmation} onChange={setConfirmation} length={length} disabled={loading} />
+      <PasscodeInput
+        key={step}
+        label={step === 'create' ? 'Придумайте код' : 'Повторите код'}
+        value={step === 'create' ? passcode : confirmation}
+        onChange={step === 'create' ? handleCreate : handleRepeat}
+        length={length}
+        autoFocus
+        disabled={loading}
+      />
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="md"
-          loading={loading}
-          disabled={passcode.length < length || confirmation.length < length}
-          className="w-full justify-center"
-        >
-          Сохранить
-        </Button>
-      </form>
-
-      <div className="mt-4 border-t border-gray-100 pt-4 text-xs">
-        <button type="button" onClick={() => onNavigate('/')} className="font-medium text-blue-700 hover:text-blue-800">
-          Пропустить
-        </button>
+      <div className="mt-5 flex items-center justify-between text-xs">
+        {step === 'repeat' ? (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => restart('')}
+            className="font-medium text-gray-600 hover:text-gray-900"
+          >
+            Ввести другой код
+          </button>
+        ) : (
+          <button type="button" onClick={() => onNavigate('/')} className="font-medium text-blue-700 hover:text-blue-800">
+            Пропустить
+          </button>
+        )}
+        {loading && <span className="text-gray-500">Сохраняем...</span>}
       </div>
     </AuthShell>
   );

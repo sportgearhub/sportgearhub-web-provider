@@ -25,7 +25,7 @@ export function PasscodeInput({
 
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-medium text-gray-700">{label}</label>
+      <label className="mb-2 block text-center text-xs font-medium text-gray-700">{label}</label>
       <div className="relative">
         <input
           ref={inputRef}
@@ -37,11 +37,13 @@ export function PasscodeInput({
           aria-label={label}
           className="absolute inset-0 h-full w-full cursor-default text-transparent caret-transparent opacity-0"
         />
-        <div className="pointer-events-none flex gap-2">
+        {/* Capped rather than fixed: a row of dots stretched edge to edge reads as an input
+            missing something, but six cells still have to fit a 320px phone. */}
+        <div className="pointer-events-none flex justify-center gap-2 sm:gap-2.5">
           {Array.from({ length }, (_, index) => (
             <div
               key={index}
-              className={`flex h-12 flex-1 items-center justify-center rounded-lg border text-lg font-semibold ${
+              className={`flex h-12 min-w-0 max-w-[2.75rem] flex-1 items-center justify-center rounded-lg border text-xl leading-none ${
                 index === value.length && !disabled
                   ? 'border-blue-500 bg-white ring-2 ring-blue-100'
                   : 'border-gray-200 bg-gray-50'
