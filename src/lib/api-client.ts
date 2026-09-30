@@ -1000,10 +1000,13 @@ export type { Provider };
 
 export const productsApi = {
   /**
-   * The catalogue, filtered and paged by the server. `filter` is RSQL — `status==active` or
-   * `title=contains="велосипед"`, joined with `;` — and the endpoint validates field names against
-   * its own allowlist (title, status, quantity, group_name, category, fulfillment_location_id,
-   * created_at, updated_at), so an unknown one is a 400 rather than a parameter that does nothing.
+   * The catalogue, filtered and paged by the server.
+   *
+   * `filter` is RSQL — `status==active` or `title=contains="велосипед"`, joined with `;`. `sort`
+   * takes the field name, prefixed with `-` for descending: `-updated_at`, not `updated_at,desc`.
+   * Both validate field names against the endpoint's allowlist (title, status, quantity,
+   * group_name, category, fulfillment_location_id, created_at, updated_at), so an unknown one is a
+   * 400 rather than a parameter that quietly does nothing.
    */
   list: (params: { tab?: string; filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
     const qs = new URLSearchParams();

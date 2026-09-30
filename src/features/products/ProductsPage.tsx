@@ -122,10 +122,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     return parts.join(';');
   }, [debouncedQuery, columnFilters]);
 
+  // The endpoint's sort syntax is a `-` prefix for descending — `-updated_at` — not Spring Data's
+  // `updated_at,desc`, which it rejects without saying which half it disliked.
   const sortParam = useMemo(() => {
     if (!sort) return '';
     const field = COLUMNS.find(column => column.key === sort.key)?.field;
-    return field ? `${field},${sort.direction}` : '';
+    if (!field) return '';
+    return sort.direction === 'desc' ? `-${field}` : field;
   }, [sort]);
 
   // Any change to what is being asked for starts again from the first page.
