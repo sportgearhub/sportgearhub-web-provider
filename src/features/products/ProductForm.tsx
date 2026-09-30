@@ -163,6 +163,14 @@ export function ProductForm({
   const stepIndex = Math.min(step, steps.length - 1);
   const currentStep = steps[stepIndex]?.key ?? 'about';
 
+  // Green means the step has what it needs, not that it has been walked past.
+  const isStepComplete = (key: StepKey) => {
+    if (key === 'about') return Boolean(draft.title.trim() && draft.categorySlug && Number(draft.quantity) > 0);
+    if (key === 'attributes') return attributes.every(attribute => !attributeError(attribute, draft.attributes[attribute.key] ?? ''));
+    if (key === 'price') return isTiered ? draft.tiers.some(tier => tier.price > 0) : Number(draft.baseAmount) > 0;
+    return false;
+  };
+
   const validate = () => {
     const next: Record<string, string> = {};
     if (!draft.title.trim()) next.title = 'Укажите название.';
@@ -229,9 +237,9 @@ export function ProductForm({
       ) : (
         <FormPage>
           <FormStepper
-            steps={steps.map((item, index) => ({
+            steps={steps.map(item => ({
               label: item.label,
-              done: index < stepIndex,
+              done: isStepComplete(item.key),
               invalid: Object.keys(errors).some(key => errors[key] && stepFor(key) === item.key),
             }))}
             current={stepIndex}

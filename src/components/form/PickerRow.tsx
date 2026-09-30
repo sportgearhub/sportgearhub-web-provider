@@ -75,7 +75,7 @@ export function PickerRow({
         <span
           className={cn(
             'pointer-events-none absolute left-3.5 text-gray-500 transition-all',
-            hasValue ? 'top-2 text-[11px]' : 'top-1/2 -translate-y-1/2 text-sm'
+            hasValue ? 'top-2 text-xs' : 'top-1/2 -translate-y-1/2 text-sm'
           )}
         >
           {label}

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 /**
@@ -44,8 +43,11 @@ export function FormSection({
 /**
  * The steps of a long form, as a segmented control: the sections of one page, not a queue to be
  * marched through. Every step stays reachable — editing is not a wizard, and someone who came back
- * to fix the price should not have to walk past the description — and a step holding an error says
- * so on the toggle itself.
+ * to fix the price should not have to walk past the description.
+ *
+ * State is the toggle's own colour rather than a badge stuck to its label. A tick beside every
+ * finished step turns a row of five words into a row of five words and five icons, and the one
+ * thing worth noticing — a step with a problem — stops standing out.
  */
 export function FormStepper({
   steps,
@@ -67,18 +69,16 @@ export function FormStepper({
             onClick={() => onSelect(index)}
             aria-current={isCurrent ? 'step' : undefined}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm transition-colors',
-              isCurrent
-                ? 'bg-white font-medium text-gray-950 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+              'shrink-0 rounded-lg px-3.5 py-1.5 text-sm transition-colors',
+              isCurrent && 'bg-white font-medium shadow-sm',
+              step.invalid
+                ? isCurrent ? 'text-red-700' : 'text-red-600 hover:text-red-700'
+                : step.done
+                  ? isCurrent ? 'text-emerald-700' : 'text-emerald-600 hover:text-emerald-700'
+                  : isCurrent ? 'text-gray-950' : 'text-gray-600 hover:text-gray-900'
             )}
           >
             {step.label}
-            {step.invalid ? (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">!</span>
-            ) : step.done && !isCurrent ? (
-              <Check size={14} className="text-emerald-600" />
-            ) : null}
           </button>
         );
       })}
