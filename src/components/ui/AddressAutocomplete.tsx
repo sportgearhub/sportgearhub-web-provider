@@ -107,9 +107,9 @@ export function AddressAutocomplete({
               }}
               className="w-full px-3 py-2 text-left transition hover:bg-blue-50"
             >
-              <span className="block truncate text-sm font-medium text-gray-900">{suggestion.value}</span>
+              <span className="block text-sm font-medium leading-5 text-gray-900">{suggestion.value}</span>
               {suggestion.unrestrictedValue && suggestion.unrestrictedValue !== suggestion.value && (
-                <span className="mt-0.5 block truncate text-[11px] text-gray-500">{suggestion.unrestrictedValue}</span>
+                <span className="mt-0.5 block text-[11px] leading-4 text-gray-500">{suggestion.unrestrictedValue}</span>
               )}
             </button>
           ))}
