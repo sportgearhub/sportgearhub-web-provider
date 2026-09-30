@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { MapPin, Plus, Save } from 'lucide-react';
+import { Clock, MapPin, Plus, Save } from 'lucide-react';
 import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { ApiError, locationsApi } from '../../lib/api-client';
-import type { ProviderLocation } from '../../types';
+import type { LocationSchedule, ProviderLocation } from '../../types';
+import { LocationScheduleDialog } from './LocationScheduleDialog';
 import { OpenStreetMapPicker } from './OpenStreetMapPicker';
 
 type LocationForm = {
@@ -32,6 +33,9 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
   const [saving, setSaving] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [error, setError] = useState('');
+  const [scheduling, setScheduling] = useState<ProviderLocation | null>(null);
+  // The API has no GET for a schedule, so the console can only remember what it just wrote.
+  const [schedules, setSchedules] = useState<Record<string, LocationSchedule>>({});
 
   const load = async () => {
     setLoading(true);
@@ -185,24 +189,47 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
             ) : (
               <div className="divide-y divide-gray-100">
                 {locations.map(location => (
-                  <button
-                    key={location.locationId}
-                    type="button"
-                    onClick={() => startEdit(location)}
-                    className="flex w-full items-start justify-between gap-4 py-3 text-left transition hover:bg-gray-50"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-gray-900">{location.name}</span>
+                  <div key={location.locationId} className="flex flex-wrap items-start justify-between gap-2 py-3">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(location)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="block text-sm font-medium text-gray-900">{location.name}</span>
+                        {location.latitude !== null && location.latitude !== undefined && <MapPin size={13} className="shrink-0 text-gray-400" />}
+                      </span>
                       <span className="mt-0.5 block text-xs text-gray-500">{location.cityName ? `${location.cityName} · ` : ''}{location.address}</span>
-                    </span>
-                    {location.latitude !== null && location.latitude !== undefined && <MapPin size={14} className="mt-1 shrink-0 text-gray-400" />}
-                  </button>
+                    </button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      aria-label={`Часы работы — ${location.name}`}
+                      onClick={() => setScheduling(location)}
+                    >
+                      <Clock size={13} /> Часы работы
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
           </Card>
         )}
       </div>
+
+      {scheduling && (
+        <LocationScheduleDialog
+          open
+          locationId={scheduling.fulfillmentLocationId || scheduling.locationId}
+          locationName={scheduling.name}
+          known={schedules[scheduling.fulfillmentLocationId || scheduling.locationId] ?? null}
+          onClose={() => setScheduling(null)}
+          onSaved={schedule => {
+            setSchedules(current => ({ ...current, [schedule.fulfillmentLocationId]: schedule }));
+            setScheduling(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -25,6 +25,9 @@ import type {
   ProviderMemberOptions,
   ProviderInvitation,
   ProviderLocation,
+  LocationSchedule,
+  ScheduleException,
+  WorkingHours,
   DashboardResponse,
   OfferRoutability,
   OfferInfoSection,
@@ -815,6 +818,18 @@ export type LocationPayload = {
 };
 
 export const locationsApi = {
+  /**
+   * The week is written whole — a day left out is a day closed. There is no GET for it: the API
+   * only returns the schedule from this call, so the console cannot show what is already set.
+   */
+  setSchedule: (
+    fulfillmentLocationId: string,
+    data: { workingHours: WorkingHours[]; exceptions: ScheduleException[] }
+  ) => providerRequest<LocationSchedule>(`/fulfillment-locations/${fulfillmentLocationId}/schedule`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
   list: async () => (await providerRequest<Array<Omit<ProviderLocation, 'locationId'> & { locationId?: string }>>('/fulfillment-locations'))
     .map(location => ({
       ...location,

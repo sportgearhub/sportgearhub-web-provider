@@ -1174,3 +1174,25 @@ export interface ProductAuthoringOptions {
   pricingModes: OfferAuthoringOption[];
   defaults: { bookingFlowType?: string };
 }
+
+/** A pickup point's week. A day absent from `workingHours` is a day closed. */
+export interface WorkingHours {
+  day: string;
+  opensAt: string;
+  closesAt: string;
+}
+
+/** A dated override: no times means closed for the whole range. */
+export interface ScheduleException {
+  from: string;
+  to: string;
+  opensAt?: string | null;
+  closesAt?: string | null;
+  reason?: string | null;
+}
+
+export interface LocationSchedule {
+  fulfillmentLocationId: string;
+  workingHours: WorkingHours[];
+  exceptions: ScheduleException[];
+}
