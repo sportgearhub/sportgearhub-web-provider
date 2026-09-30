@@ -242,9 +242,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
 
         <div className="space-y-4">
           <ProductReadinessCard routability={routability} />
-          <div className="rounded-lg border border-gray-200 bg-white">
-            <ProductImagesSection productId={productId} />
-          </div>
+          <ProductImagesSection productId={productId} />
         </div>
       </div>
 

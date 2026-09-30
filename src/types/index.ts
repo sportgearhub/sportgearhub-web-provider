@@ -32,19 +32,10 @@ export interface ProviderSummary {
   role: string;
 }
 
-export interface PendingInvitation {
-  invitationId: string;
-  providerId: string;
-  providerDisplayName: string;
-  role: string;
-  expiresAt: string;
-}
-
-/** Everything the console needs to decide where to land, from the one bootstrap call. */
+/** Who is signed in and which cabinets they belong to. Invitations are fetched separately. */
 export interface Session {
   user: AuthUser;
   providers: ProviderSummary[];
-  pendingInvitations: PendingInvitation[];
 }
 
 export interface ProviderMemberRoleOption {
@@ -675,6 +666,7 @@ export interface QuotePreview {
 export interface SellerInvitation {
   invitationId: string;
   sellerId: string;
+  sellerDisplayName: string;
   phone: string;
   role: string;
   status: string;

@@ -86,16 +86,6 @@ type ApiUser = {
   // The API says "seller"; the console says «кабинет» and calls it a provider internally, so the
   // two vocabularies meet here and nowhere else.
   sellers?: Array<{ sellerId: string; displayName: string; kind: ProviderSummary['kind']; status: ProviderSummary['status']; role: string }>;
-  pendingInvitations?: Array<{
-    invitationId: string;
-    sellerId?: string;
-    sellerDisplayName?: string;
-    providerId?: string;
-    providerDisplayName?: string;
-    role: string;
-    expiresAt: string;
-  }>;
-  providers?: ProviderSummary[];
 };
 
 export type ResourceCategory = {
@@ -301,7 +291,11 @@ function normalizeUser(user: ApiUser): AuthUser {
   };
 }
 
-// One call answers who is signed in, which providers they belong to and what awaits their phone.
+/**
+ * Who is signed in and which cabinets they belong to. Invitations are not here: they are addressed
+ * to a phone number rather than to a cabinet, so they live on the seller surface
+ * (/seller-invitations/pending) and the picker asks for them itself.
+ */
 function normalizeSession(raw: ApiUser): Session {
   return {
     user: normalizeUser(raw),
@@ -311,13 +305,6 @@ function normalizeSession(raw: ApiUser): Session {
       kind: seller.kind,
       status: seller.status,
       role: seller.role,
-    })),
-    pendingInvitations: (raw.pendingInvitations ?? []).map(invitation => ({
-      invitationId: invitation.invitationId,
-      providerId: invitation.sellerId ?? invitation.providerId ?? '',
-      providerDisplayName: invitation.sellerDisplayName ?? invitation.providerDisplayName ?? 'Кабинет',
-      role: invitation.role,
-      expiresAt: invitation.expiresAt,
     })),
   };
 }

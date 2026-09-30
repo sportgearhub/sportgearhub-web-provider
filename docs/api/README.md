@@ -6,6 +6,8 @@
   not breaking
 - [`api/openapi/`](api/openapi/) — the **API contract**: three generated documents, one per surface,
   plus how to regenerate them
+- [`api/errors.md`](api/errors.md) — every error code a client can receive, with its message. Branch
+  on `code`, not on the text. Generated from the source and guarded by a test
 - [`catalog-categories.md`](catalog-categories.md) — what the platform rents: the category tree,
   its slugs, and what is deliberately absent
 

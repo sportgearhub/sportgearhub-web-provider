@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { GripVertical, Plus, Trash2, Upload, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { AlertCircle, Check, Image as ImageIcon, Pencil, Plus, RotateCw, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Modal';
+import { TopSheet } from '../../components/ui/TopSheet';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, productsApi } from '../../lib/api-client';
 import type { ProductImage } from '../../types';
 
-interface ProductImagesSectionProps {
-  productId: string;
-  compact?: boolean;
-}
-
 const MAX_IMAGES = 10;
+const MAX_FILE_MB = 5;
+const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
+/** How many thumbnails the card shows before it collapses the rest into a «+N» tile. */
+const PREVIEW_TILES = 5;
 
 function reorder<T>(items: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0) return items;
@@ -20,17 +20,21 @@ function reorder<T>(items: T[], from: number, to: number): T[] {
   return next;
 }
 
-// ─── Uploaded images section ──────────────────────────────────────────────────
-
-export function ProductImagesSection({ productId }: ProductImagesSectionProps) {
+/**
+ * Photos on the product page.
+ *
+ * The card is a read state — how many there are and what they look like — because a drop zone and
+ * a column of advice are an editing tool, and the page is not in editing mode until it is asked to
+ * be. Everything that changes the gallery lives in the sheet behind «Редактировать», which is also
+ * the only place with room for it: this card sits in a ~360px sidebar.
+ */
+export function ProductImagesSection({ productId }: { productId: string }) {
   const [images, setImages] = useState<ProductImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [editing, setEditing] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -41,478 +45,569 @@ export function ProductImagesSection({ productId }: ProductImagesSectionProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
 
-  useEffect(() => { void load(); }, [productId]);
+  useEffect(() => { void load(); }, [load]);
 
-  const handleUpload = async () => {
-    if (pendingFiles.length === 0) return;
-    setUploading(true);
-    setError('');
+  return (
+    <>
+      <SettingsCard
+        title="Фото"
+        description={
+          images.length > 0
+            ? `${images.length} из ${MAX_IMAGES} · первое — главное`
+            : 'Карточку без фото почти не открывают.'
+        }
+        action={
+          images.length > 0 ? (
+            <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+              <Pencil size={13} /> Редактировать
+            </Button>
+          ) : null
+        }
+      >
+        {loading ? (
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="aspect-square animate-pulse rounded-lg bg-gray-100" />
+            ))}
+          </div>
+        ) : images.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <ImageIcon size={20} />
+            </span>
+            <p className="text-xs leading-5 text-gray-500">
+              Добавьте до {MAX_IMAGES} фото — витрину, детали и снаряжение в деле.
+            </p>
+            <Button size="sm" variant="primary" onClick={() => setEditing(true)}>
+              <Plus size={13} /> Добавить фото
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="grid w-full grid-cols-3 gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+            aria-label="Редактировать фото"
+          >
+            {images.slice(0, PREVIEW_TILES).map((image, index) => (
+              <span
+                key={image.imageId}
+                className="relative block aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+              >
+                <img src={image.url} alt="" className="h-full w-full object-cover" />
+                {index === 0 && (
+                  <span className="absolute inset-x-0 bottom-0 bg-gray-950/55 py-0.5 text-center text-[10px] font-medium text-white">
+                    Главное
+                  </span>
+                )}
+              </span>
+            ))}
+            {images.length > PREVIEW_TILES && (
+              <span className="flex aspect-square items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-500">
+                +{images.length - PREVIEW_TILES}
+              </span>
+            )}
+          </button>
+        )}
+
+        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+      </SettingsCard>
+
+      <MediaSheet
+        open={editing}
+        onClose={() => setEditing(false)}
+        productId={productId}
+        images={images}
+        onImagesChange={setImages}
+        onReload={() => void load()}
+      />
+    </>
+  );
+}
+
+// ─── Upload queue ─────────────────────────────────────────────────────────────
+
+type QueueItem = {
+  id: string;
+  file: File;
+  preview: string;
+  status: 'queued' | 'uploading' | 'done' | 'error';
+  error?: string;
+};
+
+let queueSeq = 0;
+
+/**
+ * Files are sent one at a time rather than in a single batch.
+ *
+ * The endpoint takes many at once, but then ten files share one outcome: a single reject loses the
+ * nine that were fine, and there is nothing to retry but the whole set. One request per file gives
+ * every row its own state and its own second chance, which is what a person dropping a folder of
+ * photos over a hotel wifi actually needs.
+ */
+function useUploadQueue(productId: string, onUploaded: () => void) {
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  // The pump reads the queue between awaits, and it must see the newest one — files can arrive
+  // while it is working — so state is mirrored into a ref rather than captured in a closure.
+  const queueRef = useRef<QueueItem[]>([]);
+  const running = useRef(false);
+
+  const write = useCallback((update: (current: QueueItem[]) => QueueItem[]) => {
+    queueRef.current = update(queueRef.current);
+    setQueue(queueRef.current);
+  }, []);
+
+  const patch = useCallback((id: string, changes: Partial<QueueItem>) => {
+    write(current => current.map(item => (item.id === id ? { ...item, ...changes } : item)));
+  }, [write]);
+
+  // Object URLs are released when their row goes away, and whatever is left over on unmount.
+  useEffect(() => () => { queueRef.current.forEach(item => URL.revokeObjectURL(item.preview)); }, []);
+
+  const pump = useCallback(async () => {
+    if (running.current) return;
+    running.current = true;
     try {
-      await productsApi.images.upload(productId, pendingFiles);
-      setPendingFiles([]);
-      setUploadOpen(false);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? `Ошибка загрузки: ${err.message}` : 'Ошибка загрузки.');
+      for (;;) {
+        const next = queueRef.current.find(item => item.status === 'queued');
+        if (!next) break;
+
+        patch(next.id, { status: 'uploading', error: undefined });
+        try {
+          await productsApi.images.upload(productId, [next.file]);
+          patch(next.id, { status: 'done' });
+          onUploaded();
+        } catch (err) {
+          patch(next.id, {
+            status: 'error',
+            error: err instanceof ApiError ? err.message : 'Не удалось загрузить',
+          });
+        }
+      }
     } finally {
-      setUploading(false);
+      running.current = false;
     }
+  }, [productId, onUploaded, patch]);
+
+  const add = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    write(current => [
+      ...current,
+      ...files.map(file => ({
+        id: `q${++queueSeq}`,
+        file,
+        preview: URL.createObjectURL(file),
+        status: 'queued' as const,
+      })),
+    ]);
+    void pump();
+  }, [write, pump]);
+
+  const retry = useCallback((id: string) => {
+    patch(id, { status: 'queued', error: undefined });
+    void pump();
+  }, [patch, pump]);
+
+  const release = (items: QueueItem[]) => items.forEach(item => URL.revokeObjectURL(item.preview));
+
+  const drop = useCallback((id: string) => {
+    write(current => {
+      release(current.filter(item => item.id === id));
+      return current.filter(item => item.id !== id);
+    });
+  }, [write]);
+
+  const clearFinished = useCallback(() => {
+    write(current => {
+      release(current.filter(item => item.status === 'done'));
+      return current.filter(item => item.status !== 'done');
+    });
+  }, [write]);
+
+  return {
+    queue,
+    add,
+    retry,
+    drop,
+    clearFinished,
+    busy: queue.some(item => item.status === 'uploading' || item.status === 'queued'),
   };
+}
 
-  const openUpload = () => { setPendingFiles([]); setUploadOpen(true); };
-  const remaining = MAX_IMAGES - images.length;
+/** Splits a drop or a file picker into what we can take and a sentence about what we cannot. */
+function sift(files: File[], slots: number) {
+  const wrongType = files.filter(file => !ACCEPTED.includes(file.type));
+  const right = files.filter(file => ACCEPTED.includes(file.type));
+  const tooBig = right.filter(file => file.size > MAX_FILE_MB * 1024 * 1024);
+  const fits = right.filter(file => file.size <= MAX_FILE_MB * 1024 * 1024);
+  const accepted = fits.slice(0, Math.max(slots, 0));
 
-  const handleDelete = async (imageId: string) => {
+  const problems: string[] = [];
+  if (wrongType.length > 0) problems.push(`${wrongType.length} не в JPEG, PNG или WebP`);
+  if (tooBig.length > 0) problems.push(`${tooBig.length} тяжелее ${MAX_FILE_MB} МБ`);
+  if (fits.length > accepted.length) problems.push(`свободных мест осталось ${Math.max(slots, 0)}`);
+
+  return { accepted, problem: problems.length > 0 ? `Пропустили: ${problems.join(', ')}.` : '' };
+}
+
+// ─── The sheet ────────────────────────────────────────────────────────────────
+
+function MediaSheet({
+  open,
+  onClose,
+  productId,
+  images,
+  onImagesChange,
+  onReload,
+}: {
+  open: boolean;
+  onClose: () => void;
+  productId: string;
+  images: ProductImage[];
+  onImagesChange: (next: ProductImage[]) => void;
+  onReload: () => void;
+}) {
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { queue, add, retry, drop, clearFinished, busy } = useUploadQueue(productId, onReload);
+  const waiting = queue.filter(item => item.status !== 'done').length;
+  const slots = MAX_IMAGES - images.length - waiting;
+  const full = slots <= 0;
+
+  const accept = useCallback((files: File[]) => {
+    const { accepted, problem } = sift(files, MAX_IMAGES - images.length - waiting);
+    setNotice(problem);
+    add(accepted);
+  }, [images.length, waiting, add]);
+
+  // Screenshots go to the clipboard, not to a folder — pasting one straight in saves a round trip
+  // through the file system.
+  useEffect(() => {
+    if (!open) return;
+    const onPaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.files ?? []);
+      if (files.length > 0) accept(files);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [open, accept]);
+
+  useEffect(() => { if (!open) { setNotice(''); setError(''); clearFinished(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const remove = async (imageId: string) => {
     setError('');
+    const previous = images;
+    onImagesChange(images.filter(image => image.imageId !== imageId).map((image, i) => ({ ...image, sortOrder: i + 1 })));
     try {
       await productsApi.images.remove(productId, imageId);
-      setImages(cur => cur.filter(img => img.imageId !== imageId).map((img, i) => ({ ...img, sortOrder: i + 1 })));
     } catch (err) {
+      onImagesChange(previous);
       setError(err instanceof ApiError ? `Не удалось удалить: ${err.message}` : 'Не удалось удалить фото.');
     }
   };
 
+  // Dragging a tile settles quickly, so the order is saved once the user stops, not on every hop.
   const saveOrderRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleReorder = useCallback((from: number, to: number) => {
-    setImages(cur => {
-      const next = reorder(cur, from, to).map((img, i) => ({ ...img, sortOrder: i + 1 }));
-      if (saveOrderRef.current) clearTimeout(saveOrderRef.current);
-      saveOrderRef.current = setTimeout(() => {
-        void productsApi.images.reorder(productId, next.map(img => img.imageId)).catch(() => {});
-      }, 600);
-      return next;
-    });
-  }, [productId]);
+  useEffect(() => () => { if (saveOrderRef.current) clearTimeout(saveOrderRef.current); }, []);
 
-  return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Фото</h3>
-          <p className="mt-0.5 text-xs text-gray-500">{images.length} из {MAX_IMAGES} · первое фото — главное</p>
-        </div>
-        <Button size="sm" variant="primary" onClick={openUpload} disabled={images.length >= MAX_IMAGES}>
-          <Plus size={13} /> Добавить фото
-        </Button>
-      </div>
+  const move = (from: number, to: number) => {
+    const next = reorder(images, from, to).map((image, i) => ({ ...image, sortOrder: i + 1 }));
+    onImagesChange(next);
+    if (saveOrderRef.current) clearTimeout(saveOrderRef.current);
+    saveOrderRef.current = setTimeout(() => {
+      void productsApi.images.reorder(productId, next.map(image => image.imageId))
+        .catch(() => setError('Не удалось сохранить порядок. Попробуйте ещё раз.'));
+    }, 600);
+  };
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-2 gap-0 divide-x divide-gray-100">
-        {/* Left — gallery */}
-        <div className="px-6 py-5">
-          {loading ? (
-            <div className="flex h-48 items-center justify-center text-sm text-gray-500">Загружаем фото...</div>
-          ) : images.length === 0 ? (
-            <DropZonePlaceholder onFiles={files => { setPendingFiles(files); setUploadOpen(true); }} />
-          ) : (
-            <PhotoGallery
-              images={images}
-              onReorder={handleReorder}
-              onDelete={imageId => void handleDelete(imageId)}
-              onAddClick={openUpload}
-              canAdd={images.length < MAX_IMAGES}
-            />
-          )}
-          {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-        </div>
-
-        {/* Right — tips */}
-        <div className="px-6 py-5">
-          <PhotoTips count={images.length} max={MAX_IMAGES} />
-        </div>
-      </div>
-
-      {/* Upload modal */}
-      <Modal open={uploadOpen} onClose={() => !uploading && setUploadOpen(false)} title="Добавить фото" size="md">
-        <UploadPanel
-          existingImages={images}
-          pendingFiles={pendingFiles}
-          remaining={remaining}
-          uploading={uploading}
-          error={error}
-          onFilesChange={setPendingFiles}
-          onUpload={() => void handleUpload()}
-          onCancel={() => setUploadOpen(false)}
-        />
-      </Modal>
-    </div>
-  );
-}
-
-// ─── Photo gallery — hero + grid ──────────────────────────────────────────────
-
-function PhotoGallery({
-  images,
-  onReorder,
-  onDelete,
-  onAddClick,
-  canAdd,
-}: {
-  images: ProductImage[];
-  onReorder: (from: number, to: number) => void;
-  onDelete: (imageId: string) => void;
-  onAddClick: () => void;
-  canAdd: boolean;
-}) {
-  const [main, ...rest] = images;
-  const slots = Array.from({ length: MAX_IMAGES - 1 });
-
-  return (
-    <div className="grid grid-cols-[2fr_repeat(4,1fr)] grid-rows-2 gap-2" style={{ height: '280px' }}>
-      {/* Hero — first image, spans 2 rows */}
-      <div className="row-span-2">
-        <ImageTile
-          index={0}
-          src={main.url}
-          title={main.originalFileName ?? 'Фото'}
-          imageId={main.imageId}
-          isMain
-          onReorder={onReorder}
-          onDelete={onDelete}
-        />
-      </div>
-
-      {/* Rest — 4 columns × 2 rows = 8 slots */}
-      {slots.map((_, i) => {
-        const img = rest[i];
-        if (img) {
-          return (
-            <ImageTile
-              key={img.imageId}
-              index={i + 1}
-              src={img.url}
-              title={img.originalFileName ?? 'Фото'}
-              imageId={img.imageId}
-              onReorder={onReorder}
-              onDelete={onDelete}
-            />
-          );
-        }
-        if (i === rest.length && canAdd) {
-          return (
-            <button
-              key={`add-${i}`}
-              type="button"
-              onClick={onAddClick}
-              className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500"
-            >
-              <Plus size={20} />
-              <span className="mt-1 text-[11px] font-medium">Добавить</span>
-            </button>
-          );
-        }
-        return (
-          <div key={`empty-${i}`} className="rounded-lg border border-dashed border-gray-100 bg-gray-50/50" />
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Drop zone placeholder (no images yet) ────────────────────────────────────
-
-function DropZonePlaceholder({ onFiles }: { onFiles: (files: File[]) => void }) {
-  const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const accept = (files: FileList | null) => {
-    if (!files) return;
-    onFiles(Array.from(files).filter(f => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type)).slice(0, MAX_IMAGES));
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    if (!full) accept(Array.from(event.dataTransfer.files));
   };
 
   return (
-    <div
-      className={`flex h-52 flex-col items-center justify-center rounded-xl border-2 border-dashed transition ${
-        dragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50'
-      } cursor-pointer`}
-      onClick={() => inputRef.current?.click()}
-      onDragOver={e => { e.preventDefault(); setDragging(true); }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={e => { e.preventDefault(); setDragging(false); accept(e.dataTransfer.files); }}
+    <TopSheet
+      open={open}
+      onClose={onClose}
+      title="Фото товара"
+      description={`До ${MAX_IMAGES} фото · JPEG, PNG или WebP · до ${MAX_FILE_MB} МБ каждое`}
+      footer={
+        <Button variant={busy ? 'secondary' : 'primary'} onClick={onClose}>
+          {busy ? 'Свернуть' : 'Готово'}
+        </Button>
+      }
     >
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only"
-        onChange={e => accept(e.target.files)} />
-      <Upload size={32} className={dragging ? 'text-blue-500' : 'text-gray-400'} />
-      <p className="mt-3 text-sm font-medium text-gray-700">Перетащите фото или нажмите для выбора</p>
-      <p className="mt-1 text-xs text-gray-500">JPEG, PNG, WebP · до {MAX_IMAGES} фото · макс. 5 МБ каждое</p>
-      <p className="mt-1 text-xs text-gray-400">Первое фото станет главным</p>
-    </div>
-  );
-}
-
-// ─── Upload modal panel ───────────────────────────────────────────────────────
-
-function UploadPanel({
-  existingImages,
-  pendingFiles,
-  remaining,
-  uploading,
-  error,
-  onFilesChange,
-  onUpload,
-  onCancel,
-}: {
-  existingImages: ProductImage[];
-  pendingFiles: File[];
-  remaining: number;
-  uploading: boolean;
-  error: string;
-  onFilesChange: (files: File[]) => void;
-  onUpload: () => void;
-  onCancel: () => void;
-}) {
-  const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const addFiles = (fileList: FileList | null) => {
-    if (!fileList) return;
-    const valid = Array.from(fileList)
-      .filter(f => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type))
-      .slice(0, Math.max(remaining - pendingFiles.length, 0));
-    if (valid.length > 0) onFilesChange([...pendingFiles, ...valid]);
-  };
-
-  const removeFile = (index: number) => {
-    onFilesChange(pendingFiles.filter((_, i) => i !== index));
-  };
-
-  const canUpload = pendingFiles.length > 0 && pendingFiles.length <= remaining;
-
-  return (
-    <div className="space-y-4">
-      {/* Drop zone */}
+      {/* The whole sheet is the drop target, not just the dashed box — a file let go anywhere in
+          here plainly means "take this". */}
       <div
-        className={`flex h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition ${
-          dragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-gray-400'
-        }`}
-        onClick={() => inputRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+        onDragOver={event => { event.preventDefault(); if (!full) setDragging(true); }}
+        onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }}
+        onDrop={onDrop}
+        className={`relative space-y-5 rounded-xl transition ${dragging ? 'ring-2 ring-blue-400 ring-offset-4' : ''}`}
       >
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only"
-          onChange={(e: ChangeEvent<HTMLInputElement>) => addFiles(e.target.files)} />
-        <Upload size={22} className={dragging ? 'text-blue-500' : 'text-gray-400'} />
-        <p className="mt-2 text-sm font-medium text-gray-700">Выберите или перетащите файлы</p>
-        <p className="mt-0.5 text-xs text-gray-500">Осталось слотов: {remaining - pendingFiles.length} · JPEG, PNG, WebP</p>
-      </div>
-
-      {/* Pending file previews */}
-      {pendingFiles.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-medium text-gray-700">Выбрано для загрузки: {pendingFiles.length}</p>
-          <div className="flex flex-wrap gap-2">
-            {pendingFiles.map((file, i) => (
-              <PendingThumb key={`${file.name}-${file.size}`} file={file} onRemove={() => removeFile(i)} />
-            ))}
+        {dragging && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-blue-50/85">
+            <p className="text-sm font-medium text-blue-700">Отпустите, чтобы загрузить</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Existing images strip */}
-      {existingImages.length > 0 && (
+        <div
+          role="button"
+          tabIndex={full ? -1 : 0}
+          aria-disabled={full}
+          onClick={() => !full && inputRef.current?.click()}
+          onKeyDown={event => {
+            if (full) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-9 text-center transition ${
+            full
+              ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-70'
+              : 'cursor-pointer border-gray-300 bg-gray-50/70 hover:border-blue-300 hover:bg-blue-50/40'
+          }`}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPTED.join(',')}
+            multiple
+            className="sr-only"
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              accept(Array.from(event.target.files ?? []));
+              event.target.value = '';
+            }}
+          />
+          <Upload size={26} className="text-gray-400" />
+          <p className="mt-2.5 text-sm font-medium text-gray-800">
+            {full ? `Достигнут предел в ${MAX_IMAGES} фото` : 'Перетащите фото сюда или нажмите, чтобы выбрать'}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {full
+              ? 'Удалите лишнее, чтобы добавить новое.'
+              : `Можно вставить из буфера — Ctrl+V · свободных мест: ${slots}`}
+          </p>
+        </div>
+
+        {queue.length > 0 && <UploadQueue items={queue} onRetry={retry} onDrop={drop} onClearFinished={clearFinished} />}
+
+        {notice && (
+          <p className="flex items-start gap-2 text-xs text-amber-700">
+            <AlertCircle size={14} className="mt-px shrink-0" /> {notice}
+          </p>
+        )}
+        {error && (
+          <p className="flex items-start gap-2 text-xs text-red-600">
+            <AlertCircle size={14} className="mt-px shrink-0" /> {error}
+          </p>
+        )}
+
         <div>
-          <p className="mb-2 text-xs font-medium text-gray-500">Уже загружено: {existingImages.length}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {existingImages.map(img => (
-              <img key={img.imageId} src={img.url} alt={img.originalFileName ?? ''}
-                className="h-12 w-12 rounded-md border border-gray-200 object-cover" />
-            ))}
+          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {images.length > 0 ? `Загружено: ${images.length} из ${MAX_IMAGES}` : 'Пока ничего не загружено'}
+            </h3>
+            {images.length > 1 && <p className="text-xs text-gray-500">Перетащите, чтобы изменить порядок</p>}
           </div>
+
+          {images.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-gray-200 px-4 py-10 text-center text-xs text-gray-500">
+              Первое загруженное фото станет главным — его видно в каталоге и в списках.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-6">
+              {images.map((image, index) => (
+                <ImageTile
+                  key={image.imageId}
+                  index={index}
+                  image={image}
+                  onReorder={move}
+                  onDelete={() => void remove(image.imageId)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
-
-      <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-        <Button variant="secondary" onClick={onCancel} disabled={uploading}>Отмена</Button>
-        <Button variant="primary" onClick={onUpload} loading={uploading} disabled={!canUpload}>
-          Загрузить {pendingFiles.length > 0 ? `(${pendingFiles.length})` : ''}
-        </Button>
+        <PhotoTips />
       </div>
-    </div>
+    </TopSheet>
   );
 }
 
-// ─── Pending file thumbnail (with preview) ────────────────────────────────────
+// ─── Queue list ───────────────────────────────────────────────────────────────
 
-function PendingThumb({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const [src, setSrc] = useState('');
-
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setSrc(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+function UploadQueue({
+  items,
+  onRetry,
+  onDrop,
+  onClearFinished,
+}: {
+  items: QueueItem[];
+  onRetry: (id: string) => void;
+  onDrop: (id: string) => void;
+  onClearFinished: () => void;
+}) {
+  const done = items.filter(item => item.status === 'done').length;
+  const failed = items.filter(item => item.status === 'error').length;
 
   return (
-    <div className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-      {src && <img src={src} alt={file.name} className="h-full w-full object-cover" />}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm opacity-0 transition group-hover:opacity-100 hover:text-red-600"
-      >
-        <X size={11} />
-      </button>
-      <div className="absolute inset-x-0 bottom-0 bg-black/40 px-1 py-0.5 text-[9px] text-white truncate opacity-0 group-hover:opacity-100 transition">
-        {(file.size / 1024).toFixed(0)} КБ
+    <div className="rounded-xl border border-gray-200">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5">
+        <p className="text-xs font-medium text-gray-700">
+          Загрузка: {done} из {items.length}
+          {failed > 0 && <span className="ml-2 text-red-600">· с ошибкой: {failed}</span>}
+        </p>
+        {done > 0 && (
+          <Button size="sm" variant="ghost" onClick={onClearFinished}>Скрыть готовые</Button>
+        )}
       </div>
+      <ul className="divide-y divide-gray-50">
+        {items.map(item => (
+          <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
+            <img src={item.preview} alt="" className="h-10 w-10 shrink-0 rounded-md border border-gray-200 object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-gray-800">{item.file.name}</p>
+              <p className="text-[11px] text-gray-500">
+                {(item.file.size / 1024 / 1024).toFixed(1)} МБ
+                {item.status === 'error' && item.error && <span className="text-red-600"> · {item.error}</span>}
+              </p>
+            </div>
+            <QueueStatus status={item.status} />
+            {item.status === 'error' && (
+              <button
+                type="button"
+                onClick={() => onRetry(item.id)}
+                className="rounded-md p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Повторить"
+              >
+                <RotateCw size={14} />
+              </button>
+            )}
+            {item.status !== 'uploading' && (
+              <button
+                type="button"
+                onClick={() => onDrop(item.id)}
+                className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Убрать из списка"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-// ─── Draggable image tile ─────────────────────────────────────────────────────
+function QueueStatus({ status }: { status: QueueItem['status'] }) {
+  if (status === 'uploading') {
+    return <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />;
+  }
+  if (status === 'done') {
+    return <Check size={16} className="shrink-0 text-emerald-600" />;
+  }
+  if (status === 'error') {
+    return <AlertCircle size={16} className="shrink-0 text-red-600" />;
+  }
+  return <span className="shrink-0 text-[11px] text-gray-400">в очереди</span>;
+}
+
+// ─── Tiles ────────────────────────────────────────────────────────────────────
 
 function ImageTile({
   index,
-  src,
-  title,
-  imageId,
-  isMain = false,
+  image,
   onReorder,
   onDelete,
 }: {
   index: number;
-  src: string;
-  title: string;
-  imageId: string;
-  isMain?: boolean;
+  image: ProductImage;
   onReorder: (from: number, to: number) => void;
-  onDelete: (imageId: string) => void;
+  onDelete: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const title = image.originalFileName ?? 'Фото';
 
   return (
     <div
       draggable
-      onDragStart={e => {
-        e.dataTransfer.setData('text/plain', String(index));
-        e.dataTransfer.effectAllowed = 'move';
+      onDragStart={event => {
+        event.dataTransfer.setData('text/plain', String(index));
+        event.dataTransfer.effectAllowed = 'move';
         setDragging(true);
       }}
       onDragEnd={() => { setDragging(false); setDragOver(false); }}
-      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(true); }}
+      onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={e => {
-        e.preventDefault();
+      onDrop={event => {
+        event.preventDefault();
+        event.stopPropagation();
         setDragOver(false);
-        const from = Number(e.dataTransfer.getData('text/plain'));
+        const from = Number(event.dataTransfer.getData('text/plain'));
         if (!Number.isNaN(from)) onReorder(from, index);
       }}
-      className={`group relative h-full w-full overflow-hidden rounded-lg border bg-gray-100 transition
-        ${dragOver ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}
-        ${dragging ? 'opacity-40' : ''}
-        cursor-grab active:cursor-grabbing`}
       title={title}
+      className={`group relative aspect-square cursor-grab overflow-hidden rounded-lg border bg-gray-100 transition active:cursor-grabbing ${
+        dragOver ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
+      } ${dragging ? 'opacity-40' : ''}`}
     >
-      <img src={src} alt={title} className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+      <img src={image.url} alt={title} className="h-full w-full object-cover" />
 
-      {/* Main badge */}
-      {isMain && (
-        <span className="absolute left-2 top-2 rounded-md bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-gray-800 shadow-sm">
+      {index === 0 && (
+        <span className="absolute inset-x-0 bottom-0 bg-gray-950/55 py-0.5 text-center text-[10px] font-medium text-white">
           Главное
         </span>
       )}
 
-      {/* Delete button */}
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); onDelete(imageId); }}
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md bg-white/90 text-gray-500 shadow-sm opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
-        aria-label="Удалить фото"
+        onClick={event => { event.stopPropagation(); onDelete(); }}
+        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-white/90 text-gray-500 opacity-0 shadow-sm transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100"
+        aria-label={`Удалить ${title}`}
       >
         <Trash2 size={13} />
       </button>
-
-      {/* Drag handle */}
-      <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-md bg-white/90 text-gray-500 opacity-0 shadow-sm transition group-hover:opacity-100">
-        <GripVertical size={14} />
-      </div>
-
-      {/* Filename overlay */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-2 pt-6 opacity-0 transition group-hover:opacity-100">
-        <p className="truncate pl-8 text-[11px] text-white">{title}</p>
-      </div>
     </div>
   );
 }
 
-// ─── Photo tips sidebar ───────────────────────────────────────────────────────
+// ─── Advice ───────────────────────────────────────────────────────────────────
 
-function PhotoTips({ count, max }: { count: number; max: number }) {
-  const tips = [
-    {
-      title: 'Первое фото — главное',
-      body: 'Оно отображается в списках и каталоге. Перетащите лучшее фото на первое место.',
-    },
-    {
-      title: 'Рекомендуемое соотношение сторон',
-      body: '4:3 или квадрат. Горизонтальные фото смотрятся лучше на большинстве устройств.',
-    },
-    {
-      title: 'Качество важно',
-      body: 'Минимум 800×600 px. Хорошее освещение, без водяных знаков и лишнего фона.',
-    },
-    {
-      title: 'Покажите товар с разных сторон',
-      body: 'Добавьте фото спереди, сбоку, деталей и в использовании — это повышает доверие.',
-    },
-  ];
+const TIPS = [
+  ['Первое фото — главное', 'Его видно в каталоге и в списках. Перетащите лучшее на первое место.'],
+  ['Горизонтальные кадры', '4:3 или квадрат, минимум 800 × 600 px.'],
+  ['Снаряжение в деле', 'Общий план, детали и кадр в использовании — так меньше вопросов при выдаче.'],
+];
 
-  const pct = Math.round((count / max) * 100);
-  const pctColor = count === 0 ? 'text-gray-400' : count < 3 ? 'text-amber-600' : 'text-emerald-600';
-
+/** Advice belongs with the tool it is about, so it lives in the sheet and not on the page. */
+function PhotoTips() {
   return (
-    <div className="space-y-5">
-      {/* Progress */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between text-xs">
-          <span className="font-medium text-gray-700">Заполненность</span>
-          <span className={`font-semibold ${pctColor}`}>{pct}%</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-          <div
-            className={`h-full rounded-full transition-all ${count === 0 ? 'bg-gray-200' : count < 3 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="mt-1 text-xs text-gray-400">{count} из {max} фото добавлено</p>
-      </div>
-
-      {/* Tips */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Рекомендации</p>
-        {tips.map(tip => (
-          <div key={tip.title} className="flex gap-2.5">
-            <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
-            <div>
-              <p className="text-xs font-medium text-gray-800">{tip.title}</p>
-              <p className="mt-0.5 text-xs leading-4 text-gray-500">{tip.body}</p>
-            </div>
-          </div>
+    <details className="rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-3">
+      <summary className="cursor-pointer text-xs font-medium text-gray-700 marker:text-gray-400">
+        Как снять хорошее фото
+      </summary>
+      <ul className="mt-3 space-y-2.5">
+        {TIPS.map(([title, body]) => (
+          <li key={title} className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+            <span>
+              <span className="block text-xs font-medium text-gray-800">{title}</span>
+              <span className="mt-0.5 block text-xs leading-4 text-gray-500">{body}</span>
+            </span>
+          </li>
         ))}
-      </div>
-
-      {/* Requirements */}
-      <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 space-y-1.5">
-        <p className="text-xs font-medium text-gray-700">Требования к файлам</p>
-        {[
-          ['Форматы', 'JPEG, PNG, WebP'],
-          ['Размер', 'до 5 МБ каждый'],
-          ['Количество', `до ${max} фото`],
-          ['Минимум', '800 × 600 px'],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">{label}</span>
-            <span className="font-medium text-gray-700">{value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+      </ul>
+    </details>
   );
 }

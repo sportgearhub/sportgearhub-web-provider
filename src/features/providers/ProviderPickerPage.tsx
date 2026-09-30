@@ -18,9 +18,12 @@ import type { SellerInvitation } from '../../types';
  * (they are what a person came for when someone sent them here), last-used cabinet preselected.
  */
 export function ProviderPickerPage() {
-  const { user, providers, pendingInvitations: sessionInvitations, acceptInvitation, signOut } = useAuth();
-  // The session's copy is a snapshot from sign-in; this is what is actually still open.
-  const [live, setLive] = useState<SellerInvitation[] | null>(null);
+  const { user, providers, acceptInvitation, signOut } = useAuth();
+  // Invitations are addressed to the phone, not to a cabinet, so /auth/me does not carry them —
+  // they are fetched here, where "signed in, now where do I go" is actually decided. Until the
+  // answer is in, nothing is redirected: an invited person with no cabinets of their own would
+  // otherwise be sent off to create one before their invitation ever loaded.
+  const [invitations, setInvitations] = useState<SellerInvitation[] | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const deniedProviderId = (location.state as { deniedProviderId?: string } | null)?.deniedProviderId;
@@ -34,38 +37,19 @@ export function ProviderPickerPage() {
     if (!providers.some(item => item.providerId === selected)) setSelected(providers[0]?.providerId ?? '');
   }, [providers, selected]);
 
-  // /auth/me already lists what was open at sign-in, and it was loaded moments ago. The server is
-  // only worth asking again when there is an invitation to act on and its state may have moved on
-  // (revoked, expired, accepted elsewhere) — a seller with one cabinet and nothing waiting passes
-  // straight through without an extra round-trip.
-  const hasInvitations = sessionInvitations.length > 0;
-
   useEffect(() => {
-    if (!hasInvitations) return;
     let cancelled = false;
     authApi.pendingInvitations()
-      .then(next => { if (!cancelled) setLive(next.filter(invitation => invitation.status === 'pending')); })
-      // Falling back to the session's copy beats showing nothing.
-      .catch(() => { if (!cancelled) setLive(null); });
+      .then(next => { if (!cancelled) setInvitations(next.filter(invitation => invitation.status === 'pending')); })
+      // An invitation we cannot read is better treated as absent than as a reason to block sign-in.
+      .catch(() => { if (!cancelled) setInvitations([]); });
     return () => { cancelled = true; };
-  }, [hasInvitations]);
+  }, []);
 
-  // The cabinet's name only comes from the session, so the two are read together.
-  const nameOf = (sellerId: string) =>
-    sessionInvitations.find(invitation => invitation.providerId === sellerId)?.providerDisplayName ?? 'Кабинет';
-  const pendingInvitations = live
-    ? live.map(invitation => ({
-      invitationId: invitation.invitationId,
-      providerId: invitation.sellerId,
-      providerDisplayName: nameOf(invitation.sellerId),
-      role: invitation.role,
-      expiresAt: invitation.expiresAt,
-      invitedByName: invitation.invitedByName,
-    }))
-    : sessionInvitations.map(invitation => ({ ...invitation, invitedByName: null as string | null }));
+  if (invitations === null) return <FocusFrame><p className="text-center text-sm text-muted-foreground">Загружаем кабинеты…</p></FocusFrame>;
 
-  if (providers.length === 0 && pendingInvitations.length === 0) return <Navigate to="/providers/new" replace />;
-  if (providers.length === 1 && pendingInvitations.length === 0 && !deniedProviderId) {
+  if (providers.length === 0 && invitations.length === 0) return <Navigate to="/providers/new" replace />;
+  if (providers.length === 1 && invitations.length === 0 && !deniedProviderId) {
     selectProvider(providers[0].providerId);
     return <Navigate to="/" replace />;
   }
@@ -111,13 +95,13 @@ export function ProviderPickerPage() {
           </p>
         )}
         {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
-        {pendingInvitations.length > 0 && (
+        {invitations.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Приглашения</p>
-            {pendingInvitations.map(invitation => (
+            {invitations.map(invitation => (
               <div key={invitation.invitationId} className="flex items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">«{invitation.providerDisplayName}»</p>
+                  <p className="truncate text-sm font-medium text-gray-900">«{invitation.sellerDisplayName}»</p>
                   <p className="text-xs text-gray-600">
                     {invitation.invitedByName ? `${invitation.invitedByName} приглашает` : 'Приглашение'} вас как {roleLabel(invitation.role)}
                   </p>
@@ -127,7 +111,7 @@ export function ProviderPickerPage() {
                   variant="primary"
                   size="sm"
                   loading={accepting === invitation.invitationId}
-                  onClick={() => void accept(invitation.invitationId, invitation.providerId)}
+                  onClick={() => void accept(invitation.invitationId, invitation.sellerId)}
                 >
                   Принять
                 </Button>
@@ -137,7 +121,7 @@ export function ProviderPickerPage() {
         )}
         {providers.length > 0 && (
           <div className="space-y-2">
-            {pendingInvitations.length > 0 && (
+            {invitations.length > 0 && (
               <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Ваши кабинеты</p>
             )}
             {providers.map(provider => {
