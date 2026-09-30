@@ -22,12 +22,12 @@ const quote = (value: string) => `"${value.replace(/"/g, '\\"')}"`;
  * The columns, in their default order. `field` is the name the endpoint's RSQL profile knows —
  * title, status, quantity, group_name, category, fulfillment_location_id, created_at, updated_at —
  * and a column without one cannot be sorted or filtered, because the server would reject it.
- * The profile is wider than this table: group name is filterable but is not in the list response,
- * so there is nothing to put in a cell for it.
+ * The profile is wider than this table — created_at can be sorted on without having a column.
  */
 const COLUMNS = [
   { key: 'title', label: 'Товар', field: 'title', fixed: true },
   { key: 'category', label: 'Категория', field: 'category' },
+  { key: 'group', label: 'Группа', field: 'group_name' },
   { key: 'quantity', label: 'Кол-во', field: 'quantity', align: 'right' as const },
   { key: 'price', label: 'Цена', align: 'right' as const },
   { key: 'status', label: 'Статус', field: 'status' },
@@ -37,9 +37,20 @@ const COLUMNS = [
 const STORAGE_KEY = 'sportgearhub.products.columns';
 const PAGE_SIZE_KEY = 'sportgearhub.products.pageSize';
 
-const STATUS_TABS = [
-  { value: '', label: 'Все' },
-  ...Object.entries(productStatusMeta).map(([value, meta]) => ({ value, label: meta.label })),
+/**
+ * The tabs are the endpoint's own, not the status column's, and they deliberately overlap: a card
+ * can be in sale and still be missing a photograph, so it is counted under both «В продаже» and
+ * «Требуют внимания». The numbers therefore add up to more than «Все», which is correct.
+ */
+const PRODUCT_TABS = [
+  { value: 'all', label: 'Все' },
+  { value: 'in_sale', label: 'В продаже' },
+  { value: 'ready_to_publish', label: 'Готовы к продаже' },
+  { value: 'needs_attention', label: 'Требуют внимания' },
+  { value: 'pending_review', label: 'На проверке' },
+  { value: 'changes_requested', label: 'На доработку' },
+  { value: 'removed_from_sale', label: 'Сняты с продажи' },
+  { value: 'archived', label: 'Архив' },
 ];
 
 function loadColumns(): ColumnSetting[] {
@@ -75,10 +86,11 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [blocked, setBlocked] = useState<Record<string, ProductRoutability>>({});
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [statusTab, setStatusTab] = useState('');
+  const [tab, setTab] = useState('all');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [sort, setSort] = useState<SortState>({ key: 'updated', direction: 'desc' });
   const [page, setPage] = useState(1);
@@ -100,7 +112,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const filter = useMemo(() => {
     const parts: string[] = [];
     if (debouncedQuery) parts.push(`title=contains=${quote(debouncedQuery)}`);
-    if (statusTab) parts.push(`status==${statusTab}`);
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (values.length === 0) return;
       const field = COLUMNS.find(column => column.key === key)?.field;
@@ -109,7 +120,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       parts.push(`${field}=in=(${values.map(quote).join(',')})`);
     });
     return parts.join(';');
-  }, [debouncedQuery, statusTab, columnFilters]);
+  }, [debouncedQuery, columnFilters]);
 
   const sortParam = useMemo(() => {
     if (!sort) return '';
@@ -122,13 +133,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   useEffect(() => {
     if (firstLoad.current) { firstLoad.current = false; return; }
     setPage(1);
-  }, [filter, sortParam, pageSize]);
+  }, [tab, filter, sortParam, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError('');
-    productsApi.list({ filter: filter || undefined, sort: sortParam || undefined, page, pageSize })
+    productsApi.list({ tab, filter: filter || undefined, sort: sortParam || undefined, page, pageSize })
       .then(result => {
         if (cancelled) return;
         setProducts(result.items ?? []);
@@ -139,13 +150,17 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [filter, sortParam, page, pageSize]);
+  }, [tab, filter, sortParam, page, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
     productCategoriesApi.list()
       .then(next => { if (!cancelled) setCategories(next); })
       .catch(() => { /* the column filter simply has nothing to offer */ });
+
+    productsApi.tabCounts()
+      .then(result => { if (!cancelled) setTabCounts(result.counts ?? {}); })
+      .catch(() => { /* tabs still work without their numbers */ });
 
     // One call answers "which of these can actually be booked" for the whole catalogue.
     productsApi.allRoutability()
@@ -199,7 +214,11 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       }
     >
       <div className="space-y-3 px-6 pb-6">
-        <SegmentedTabs items={STATUS_TABS} value={statusTab} onChange={setStatusTab} />
+        <SegmentedTabs
+          items={PRODUCT_TABS.map(item => ({ ...item, count: tabCounts[item.value] }))}
+          value={tab}
+          onChange={setTab}
+        />
 
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -233,7 +252,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                   <tr>
                     <td colSpan={visible.length + 1} className="px-4 py-12 text-center">
                       <p className="text-sm text-gray-600">
-                        {filter ? 'Ничего не нашлось. Попробуйте изменить фильтры.' : 'В каталоге пока пусто.'}
+                        {filter || tab !== 'all' ? 'Ничего не нашлось. Попробуйте изменить фильтры.' : 'В каталоге пока пусто.'}
                       </p>
                     </td>
                   </tr>
@@ -314,6 +333,15 @@ function Cell({
       return <span className="font-medium text-gray-900">{product.title}</span>;
     case 'category':
       return <span className="text-gray-600">{product.category?.title ?? '—'}</span>;
+    case 'group':
+      return product.groupName
+        ? (
+          <span className="text-gray-600">
+            {product.groupName}
+            {product.groupSize > 1 && <span className="ml-1 text-gray-400">· {product.groupSize}</span>}
+          </span>
+        )
+        : <span className="text-gray-400">—</span>;
     case 'quantity':
       return <span className={product.quantity > 0 ? 'text-gray-900' : 'text-amber-700'}>{product.quantity}</span>;
     case 'price':

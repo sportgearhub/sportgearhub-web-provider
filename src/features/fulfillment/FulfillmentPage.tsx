@@ -31,7 +31,7 @@ type FulfillmentAction = 'handover' | 'return' | 'complete' | 'issue';
 type QueueRow = FulfillmentItem & {
   productTitle: string | null;
   customerName: string | null;
-  notes: string | null;
+  customerPhone: string | null;
 };
 
 export function FulfillmentPage() {
@@ -56,9 +56,9 @@ export function FulfillmentPage() {
         const booking = byId.get(item.bookingId);
         return {
           ...item,
-          productTitle: booking?.productTitle ?? null,
-          customerName: booking?.customerSummary?.fullName ?? null,
-          notes: booking?.fulfillmentSummary?.notes ?? null,
+          productTitle: booking?.product.title ?? null,
+          customerName: booking?.customer?.fullName ?? null,
+          customerPhone: booking?.customer?.phone ?? null,
         };
       }));
     } catch (err) {
@@ -217,11 +217,15 @@ function FulfillmentCard({
             {formatMoment(item.startAt)} — {formatMoment(item.endAt)}
             {item.quantity > 1 ? ` · ${item.quantity} шт.` : ''}
           </p>
-          {item.notes && (
-            <div className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <AlertCircle size={14} className="mt-0.5 shrink-0" />
-              <span>{item.notes}</span>
-            </div>
+          {/* The person is standing at the counter; a number to call is worth more than a note. */}
+          {item.customerPhone && (
+            <a
+              href={`tel:${item.customerPhone}`}
+              onClick={event => event.stopPropagation()}
+              className="inline-block text-xs font-medium text-blue-700 hover:underline"
+            >
+              {item.customerPhone}
+            </a>
           )}
         </div>
 

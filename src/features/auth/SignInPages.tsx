@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthLink, AuthShell, Notice, authControlClass } from './authShared';
+import { AuthLink, AuthShell, LoadingNotice, Notice, authControlClass } from './authShared';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
 import { authPath, type Navigate } from './authUtils';
@@ -57,12 +57,11 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     await begin();
   };
 
-  const handleCodeSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitCode = async (value: string) => {
     setError('');
     setLoading(true);
     try {
-      const result = await verifyPhoneCode(e164, code);
+      const result = await verifyPhoneCode(e164, value);
       if ('registrationToken' in result) return onRegistration(result.registrationToken);
       onProven();
     } catch (err) {
@@ -109,19 +108,20 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
       >
         {error && <Notice kind="error">{error}</Notice>}
 
-        <form onSubmit={handleCodeSubmit} className="space-y-5">
-          <PasscodeInput label="Код из SMS" value={code} onChange={setCode} length={started?.codeLength ?? 6} autoFocus disabled={loading} />
+        <PasscodeInput
+          label="Код из SMS"
+          value={code}
+          onChange={next => {
+            setCode(next);
+            setError('');
+            if (next.length === (started?.codeLength ?? 6)) void submitCode(next);
+          }}
+          length={started?.codeLength ?? 6}
+          autoFocus
+          disabled={loading}
+        />
 
-          <Button
-            type="submit"
-            variant="primary"
-            loading={loading}
-            disabled={code.length < (started?.codeLength ?? 6)}
-            className={`w-full ${authControlClass}`}
-          >
-            Войти
-          </Button>
-        </form>
+        {loading && <LoadingNotice>Проверяем код…</LoadingNotice>}
       </AuthShell>
     );
   }
@@ -244,12 +244,13 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
     void authApi.passcodePolicy().then(policy => setLength(policy.length)).catch(() => undefined);
   }, [onNavigate]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  // The last digit is the whole instruction. Asking for a button press afterwards adds a step that
+  // says nothing the code did not already say.
+  const submit = async (code: string) => {
     setError('');
     setLoading(true);
     try {
-      await passcodeSignIn(passcode);
+      await passcodeSignIn(code);
       onNavigate('/');
     } catch (err) {
       setPasscode('');
@@ -266,6 +267,12 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChange = (next: string) => {
+    setPasscode(next);
+    setError('');
+    if (next.length === length) void submit(next);
   };
 
   return (
@@ -285,19 +292,9 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
     >
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <PasscodeInput label="Код доступа" value={passcode} onChange={setPasscode} length={length} autoFocus disabled={loading} />
+      <PasscodeInput label="Код доступа" value={passcode} onChange={handleChange} length={length} autoFocus disabled={loading} />
 
-        <Button
-          type="submit"
-          variant="primary"
-          loading={loading}
-          disabled={passcode.length < length}
-          className={`w-full ${authControlClass}`}
-        >
-          Войти
-        </Button>
-      </form>
+      {loading && <LoadingNotice>Проверяем код…</LoadingNotice>}
     </AuthShell>
   );
 }

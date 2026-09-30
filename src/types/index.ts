@@ -394,31 +394,37 @@ export type BookingStatus =
 
 /** Everything the API is willing to say about the customer outside a booking's own page. */
 export interface CustomerSummary {
-  customerId: string | null;
-  fullName: string | null;
+  fullName: string;
   phone: string | null;
-  email: string | null;
+}
+
+/** Enough of the card to show a booking row without opening it. */
+export interface BookingProductSummary {
+  productId: string;
+  title: string;
+  mediaPreviewUrl: string | null;
+  categorySlug: string | null;
+  categoryTitle: string | null;
+  fulfillmentLocationId: string | null;
 }
 
 export interface FulfillmentSummary {
-  status: string | null;
-  completionAllowed: boolean | null;
-  issueReportingAllowed: boolean | null;
-  notes: string | null;
+  stage: FulfillmentStage;
+  completionAllowed: boolean;
+  hasIssue: boolean;
 }
 
 export interface BookingListItem {
   bookingId: string;
   bookingNumber: string;
-  productId: string;
-  productTitle: string;
   bookingType: string;
-  customerSummary: CustomerSummary | null;
   status: BookingStatus;
+  product: BookingProductSummary;
+  customer: CustomerSummary | null;
   startAt: string;
   endAt: string;
   quantity: number;
-  fulfillmentSummary: FulfillmentSummary | null;
+  fulfillment: FulfillmentSummary;
   createdAt: string;
   updatedAt: string;
 }
@@ -527,14 +533,17 @@ export interface ProductSummary {
   price: number | null;
   mediaPreviewUrl: string | null;
   fulfillmentLocationId: string | null;
+  groupName: string | null;
+  /** How many cards share this group, and whether this is the one that represents them. */
+  groupSize: number;
+  isGroupFace: boolean;
+  createdAt: string;
   updatedAt: string;
 }
 
 export interface Product extends ProductSummary {
   description: string | null;
-  groupName?: string | null;
   infoSections?: OfferInfoSection[];
-  createdAt?: string;
 }
 
 export interface ProductCategory {

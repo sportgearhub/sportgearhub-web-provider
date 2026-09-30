@@ -1003,14 +1003,18 @@ export const productsApi = {
    * its own allowlist (title, status, quantity, group_name, category, fulfillment_location_id,
    * created_at, updated_at), so an unknown one is a 400 rather than a parameter that does nothing.
    */
-  list: (params: { filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
+  list: (params: { tab?: string; filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
     const qs = new URLSearchParams();
+    if (params.tab) qs.set('tab', params.tab);
     if (params.filter) qs.set('filter', params.filter);
     if (params.sort) qs.set('sort', params.sort);
     qs.set('page', String(params.page ?? 1));
     qs.set('pageSize', String(params.pageSize ?? 20));
     return providerRequest<Paged<ProductSummary>>(`/products?${qs}`);
   },
+
+  /** How many products sit behind each status tab, counted with the current filter ignored. */
+  tabCounts: () => providerRequest<{ counts: Record<string, number> }>('/products/tab-counts'),
 
   get: (productId: string) => providerRequest<Product>(`/products/${productId}`),
 
