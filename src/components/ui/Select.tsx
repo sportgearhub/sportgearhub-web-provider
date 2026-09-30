@@ -66,7 +66,7 @@ export function Select({
         aria-expanded={open}
         aria-invalid={Boolean(error) || undefined}
         className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-left text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
           open && 'border-blue-500 ring-2 ring-blue-500/15',
           error && 'border-destructive focus-visible:ring-destructive/40',
           className

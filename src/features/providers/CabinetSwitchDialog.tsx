@@ -42,7 +42,7 @@ export function CabinetSwitchDialog({
               key={provider.providerId}
               type="button"
               onClick={() => choose(provider.providerId)}
-              className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${
+              className={`flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition ${
                 active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-200'
               }`}
             >

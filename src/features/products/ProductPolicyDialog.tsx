@@ -70,7 +70,7 @@ export function ProductPolicyDialog({
 
   return (
     <Modal open={open} onClose={onClose} title="Правила аренды" size="md">
-      {error && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -110,7 +110,7 @@ export function ProductPolicyDialog({
           />
         </div>
 
-        <div className="rounded-md border border-gray-200 p-3">
+        <div className="rounded-lg border border-gray-200 p-3">
           <label className="flex items-center gap-2 text-sm text-gray-900">
             <input
               type="checkbox"

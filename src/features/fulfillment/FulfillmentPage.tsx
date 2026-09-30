@@ -123,14 +123,14 @@ export function FulfillmentPage() {
   return (
     <div className="space-y-5">
       {error && (
-        <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
           <AlertCircle size={14} />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
           <CheckSquare size={14} />
           <span>{successMsg}</span>
         </div>

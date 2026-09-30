@@ -90,7 +90,7 @@ export function AddressAutocomplete({
         }}
       />
       {open && (loading || suggestions.length > 0 || suggestError) && (
-        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
           {loading && <div className="px-3 py-2 text-xs text-gray-500">Ищем адрес...</div>}
           {!loading && suggestError && <div className="px-3 py-2 text-xs text-red-600">{suggestError}</div>}
           {!loading && !suggestError && suggestions.map(suggestion => (

@@ -18,7 +18,7 @@ export function BrandWordmark({ tone = 'dark', size = 'md', className }: BrandWo
           <span className={cn('absolute bottom-0 left-0 h-0.5 w-full rounded-full', tone === 'light' ? 'bg-white/85' : 'bg-primary')} />
         </span>
       </span>
-      <span className={cn('inline-block -skew-x-6 rounded-md shadow-sm', hub, size === 'sm' ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-base leading-none')}>
+      <span className={cn('inline-block -skew-x-6 rounded-lg shadow-sm', hub, size === 'sm' ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-base leading-none')}>
         hub
       </span>
     </span>

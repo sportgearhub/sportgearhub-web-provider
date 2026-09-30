@@ -91,7 +91,7 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
                       type="button"
                       onClick={() => onNavigate(item.path)}
                       aria-current={active ? 'page' : undefined}
-                      className={`flex h-9 w-full items-center rounded-md px-3 text-left text-sm transition ${
+                      className={`flex h-9 w-full items-center rounded-lg px-3 text-left text-sm transition ${
                         active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -271,7 +271,7 @@ function EmployeesSettings() {
           </Button>
         }
       >
-        <div className="mb-4 inline-flex rounded-md border bg-gray-50 p-0.5">
+        <div className="mb-4 inline-flex rounded-lg border bg-gray-50 p-0.5">
           <button
             type="button"
             onClick={() => setView('staff')}
@@ -427,7 +427,7 @@ function EmployeesSettings() {
               setForm(current => ({ ...current, role: event.target.value }));
             }}
           />
-          {inviteError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{inviteError}</p>}
+          {inviteError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{inviteError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setInviteOpen(false)}>
               Отмена

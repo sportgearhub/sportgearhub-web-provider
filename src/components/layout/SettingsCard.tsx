@@ -19,7 +19,7 @@ export function SettingsCard({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-950">{title}</h2>

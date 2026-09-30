@@ -47,14 +47,14 @@ export function HandoverForm({ item, onSuccess, onCancel }: HandoverFormProps) {
         <p className="text-xs text-gray-500 mt-0.5">Подтвердите, что оборудование передано клиенту.</p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-md px-4 py-3">
+      <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <p className="text-xs text-blue-800">
           Время выдачи будет записано как <strong>{new Date().toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</strong>
         </p>
       </div>
 
       <div className="space-y-3">
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Чеклист</label>
           <div className="space-y-2">

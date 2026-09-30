@@ -28,10 +28,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-foreground/35" onClick={onClose} />
-      <div className={cn('relative max-h-[90vh] w-full overflow-y-auto rounded-lg border bg-background shadow-lg', sizeClasses[size])}>
+      <div className={cn('relative max-h-[90vh] w-full overflow-y-auto rounded-xl border bg-background shadow-lg', sizeClasses[size])}>
         <div className="flex items-center justify-between rounded-t-lg border-b bg-muted/50 px-5 py-4">
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          <button onClick={onClose} className="rounded-md border bg-background p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <button onClick={onClose} className="rounded-lg border bg-background p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
             <X size={16} />
           </button>
         </div>

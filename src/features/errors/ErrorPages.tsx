@@ -51,7 +51,7 @@ export function RouteErrorPage() {
             : 'Кабинет не смог отрисовать эту страницу. Попробуйте обновить — если повторится, напишите в поддержку.'}
         </p>
         {detail && (
-          <p className="mt-3 break-words rounded-md bg-gray-50 px-3 py-2 text-left text-xs text-gray-600">{detail}</p>
+          <p className="mt-3 break-words rounded-lg bg-gray-50 px-3 py-2 text-left text-xs text-gray-600">{detail}</p>
         )}
         <div className="mt-5 flex justify-center gap-2">
           <Button variant="primary" onClick={() => window.location.reload()}>

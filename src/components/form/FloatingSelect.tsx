@@ -139,7 +139,7 @@ export function FloatingSelect({
           <div
             role="listbox"
             aria-labelledby={fieldId}
-            className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg"
+            className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg"
           >
             {options.length === 0 && <p className="px-3 py-2 text-sm text-gray-500">Нет вариантов</p>}
             {options.map((option, index) => {
@@ -154,7 +154,7 @@ export function FloatingSelect({
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => pick(option)}
                   className={cn(
-                    'flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition',
+                    'flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
                     option.disabled
                       ? 'cursor-not-allowed text-gray-400'
                       : isSelected

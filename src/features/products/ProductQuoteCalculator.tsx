@@ -46,7 +46,7 @@ export function ProductQuoteCalculator({ productId }: { productId: string }) {
   };
 
   return (
-    <div className="rounded-md border border-gray-200 p-3">
+    <div className="rounded-lg border border-gray-200 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
           <Calculator size={14} className="text-gray-400" /> Сколько заплатит клиент

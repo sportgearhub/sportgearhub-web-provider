@@ -30,7 +30,7 @@ export function IconTooltip({ children, label = 'Подсказка', className 
             side="top"
             align="center"
             sideOffset={8}
-            className="z-50 max-w-[240px] rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs leading-4 text-gray-700 shadow-lg"
+            className="z-50 max-w-[240px] rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs leading-4 text-gray-700 shadow-lg"
           >
             {children}
             <TooltipPrimitive.Arrow className="fill-white" />

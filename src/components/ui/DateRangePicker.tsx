@@ -106,7 +106,7 @@ export function DateRangePicker({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(c => !c)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm shadow-sm transition hover:border-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-left text-sm shadow-sm transition hover:border-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -128,7 +128,7 @@ export function DateRangePicker({
       {open && !disabled && (
         <div
           role="dialog"
-          className="absolute left-0 top-full z-50 mt-1 w-[268px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1 w-[268px] rounded-xl border border-gray-200 bg-white p-3 shadow-lg"
           onMouseDown={e => e.preventDefault()}
         >
           <div className="mb-2 flex items-center justify-between">

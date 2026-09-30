@@ -118,7 +118,7 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
             </Button>
           )}
         </div>
-        {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+        {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
         {editing && (
           <Card>
             <h3 className="text-sm font-semibold text-gray-900">{form.locationId ? 'Пункт проката' : 'Новый пункт проката'}</h3>

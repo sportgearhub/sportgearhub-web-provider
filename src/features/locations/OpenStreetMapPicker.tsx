@@ -412,7 +412,7 @@ export function OpenStreetMapPicker({ open, value, onSave, onAddressSelect, onCl
             </div>
             <p className="mt-1 text-[11px] text-gray-500">Введите полный адрес, включая дом</p>
             {suggestionsOpen && (loadingSuggestions || suggestions.length > 0 || suggestError) && (
-              <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+              <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 {loadingSuggestions && <div className="px-3 py-2 text-xs text-gray-500">Ищем адрес...</div>}
                 {!loadingSuggestions && suggestError && <div className="px-3 py-2 text-xs text-red-600">{suggestError}</div>}
                 {!loadingSuggestions && !suggestError && suggestions.map(suggestion => (

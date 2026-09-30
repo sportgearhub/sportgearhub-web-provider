@@ -44,7 +44,7 @@ export function ActionMenu({ label, items, disabled = false, className }: Action
         type="button"
         onClick={openMenu}
         disabled={disabled}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
         title={label}
         aria-label={label}
         aria-expanded={open}
@@ -56,7 +56,7 @@ export function ActionMenu({ label, items, disabled = false, className }: Action
         <>
           <div className="fixed inset-0 z-40" onClick={close} />
           <div
-            className="fixed z-50 w-52 overflow-hidden rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+            className="fixed z-50 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
             style={{ top: position.top, left: position.left }}
           >
             {items.map((item, index) => (

@@ -68,7 +68,7 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
         <button
           type="button"
           onClick={() => onNavigate('/')}
-          className="flex shrink-0 items-center rounded-md text-left transition hover:opacity-80"
+          className="flex shrink-0 items-center rounded-lg text-left transition hover:opacity-80"
           title="На главную"
           aria-label="Sportgearhub — на главную"
         >
@@ -87,7 +87,7 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
               onClick={() => onNavigate(item.path)}
               aria-current={isActive(item.path) ? 'page' : undefined}
               className={cn(
-                'flex h-9 shrink-0 items-center rounded-md px-3 text-sm font-medium transition-colors',
+                'flex h-9 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors',
                 isActive(item.path)
                   ? 'bg-sidebar-accent text-sidebar-primary'
                   : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
@@ -145,7 +145,7 @@ function ProfileMenu({
         aria-haspopup="menu"
         title={name}
         className={cn(
-          'flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition',
+          'flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition',
           inSettings || menu.open
             ? 'border-blue-200 bg-sidebar-accent text-sidebar-primary'
             : 'border-input bg-background text-foreground hover:bg-sidebar-accent'
@@ -284,7 +284,7 @@ function useDropdown(align: 'left' | 'right' = 'left', width = 208) {
         ref={menuRef}
         role="menu"
         style={{ position: 'fixed', top: rect.bottom + 6, width, zIndex: 9999, ...placement }}
-        className="overflow-hidden rounded-md border bg-background py-1 shadow-xl"
+        className="overflow-hidden rounded-lg border bg-background py-1 shadow-xl"
       >
         {children}
       </div>,

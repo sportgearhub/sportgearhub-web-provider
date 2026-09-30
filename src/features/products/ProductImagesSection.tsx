@@ -475,7 +475,7 @@ function UploadQueue({
       <ul className="divide-y divide-gray-50">
         {items.map(item => (
           <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
-            <img src={item.preview} alt="" className="h-10 w-10 shrink-0 rounded-md border border-gray-200 object-cover" />
+            <img src={item.preview} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-gray-200 object-cover" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-gray-800">{item.file.name}</p>
               <p className="text-[11px] text-gray-500">
@@ -488,7 +488,7 @@ function UploadQueue({
               <button
                 type="button"
                 onClick={() => onRetry(item.id)}
-                className="rounded-md p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                className="rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
                 aria-label="Повторить"
               >
                 <RotateCw size={14} />
@@ -498,7 +498,7 @@ function UploadQueue({
               <button
                 type="button"
                 onClick={() => onDrop(item.id)}
-                className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                 aria-label="Убрать из списка"
               >
                 <X size={14} />
@@ -575,7 +575,7 @@ function ImageTile({
       <button
         type="button"
         onClick={event => { event.stopPropagation(); onDelete(); }}
-        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-white/90 text-gray-500 opacity-0 shadow-sm transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-gray-500 opacity-0 shadow-sm transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100"
         aria-label={`Удалить ${title}`}
       >
         <Trash2 size={13} />
@@ -607,7 +607,7 @@ function VideoPrototype() {
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-gray-900">Видео</h3>
-          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+          <span className="rounded-lg bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
             Скоро
           </span>
         </div>
@@ -642,7 +642,7 @@ function VideoPrototype() {
               <button
                 type="button"
                 onClick={() => setPicked(current => current.filter((_, i) => i !== index))}
-                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-gray-600 opacity-0 transition hover:text-red-600 group-hover:opacity-100"
+                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-white/90 text-gray-600 opacity-0 transition hover:text-red-600 group-hover:opacity-100"
                 aria-label={`Убрать ${item.name}`}
               >
                 <X size={12} />

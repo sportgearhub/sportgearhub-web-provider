@@ -53,7 +53,7 @@ export function ProductInfoSectionsDialog({
 
   return (
     <Modal open={open} onClose={onClose} title="Что входит" size="md">
-      {error && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="space-y-5">
         {INFO_SECTION_KINDS.map(({ kind, label, placeholder }) => (
           <div key={kind}>

@@ -41,7 +41,7 @@ export function SectionPage({
         </div>
         {action}
       </div>
-      {error && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="mt-4">{children}</div>
     </div>
   );

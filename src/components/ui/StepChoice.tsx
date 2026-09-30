@@ -16,7 +16,7 @@ export function StepChoice({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex min-h-11 w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition ${
+      className={`flex min-h-11 w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition ${
         selected
           ? 'border-blue-500 bg-blue-50 text-blue-950'
           : 'border-gray-200 bg-white text-gray-900 hover:border-blue-200 hover:bg-blue-50/40'

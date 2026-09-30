@@ -208,7 +208,7 @@ function PayoutRequisitesDialog({
           : 'Деньги уходят на этот счёт. БИК подставит название банка и корреспондентский счёт.'}
       </p>
 
-      {error && <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <div className="mt-4 space-y-4">
         {isSbp ? (

@@ -16,16 +16,30 @@ const DAYS: { key: string; label: string }[] = [
   { key: 'sunday', label: 'Воскресенье' },
 ];
 
-type DayDraft = { open: boolean; opensAt: string; closesAt: string };
+type DayDraft = { open: boolean; allDay: boolean; opensAt: string; closesAt: string };
 
-const defaultDay = (): DayDraft => ({ open: true, opensAt: '10:00', closesAt: '20:00' });
+const defaultDay = (): DayDraft => ({ open: true, allDay: false, opensAt: '10:00', closesAt: '20:00' });
+
+/** Round the clock, as a pair of times: the API stores hours, not a flag. */
+const ALL_DAY = { opensAt: '00:00', closesAt: '23:59' };
+
+const isAllDay = (opensAt: string, closesAt: string) =>
+  opensAt.slice(0, 5) === '00:00' && closesAt.slice(0, 5) >= '23:59';
+
+/** `HH:mm` from the inputs, `HH:mm:ss` on the wire, as the API documents it. */
+const toWireTime = (value: string) => (value.length === 5 ? `${value}:00` : value);
 
 function toDrafts(schedule: LocationSchedule | null): Record<string, DayDraft> {
   const drafts: Record<string, DayDraft> = {};
   DAYS.forEach(({ key }) => {
     const hours = schedule?.workingHours.find(item => item.day.toLowerCase() === key);
     drafts[key] = hours
-      ? { open: true, opensAt: hours.opensAt.slice(0, 5), closesAt: hours.closesAt.slice(0, 5) }
+      ? {
+        open: true,
+        allDay: isAllDay(hours.opensAt, hours.closesAt),
+        opensAt: hours.opensAt.slice(0, 5),
+        closesAt: hours.closesAt.slice(0, 5),
+      }
       : schedule
         ? { ...defaultDay(), open: false }
         : defaultDay();
@@ -86,7 +100,11 @@ export function LocationScheduleDialog({
   const save = async () => {
     const workingHours: WorkingHours[] = DAYS
       .filter(({ key }) => days[key]?.open)
-      .map(({ key }) => ({ day: key, opensAt: days[key].opensAt, closesAt: days[key].closesAt }));
+      .map(({ key }) => {
+        const day = days[key];
+        const hours = day.allDay ? ALL_DAY : day;
+        return { day: key, opensAt: toWireTime(hours.opensAt), closesAt: toWireTime(hours.closesAt) };
+      });
 
     if (workingHours.some(hours => hours.opensAt >= hours.closesAt)) {
       setError('Время открытия должно быть раньше закрытия.');
@@ -96,7 +114,14 @@ export function LocationScheduleDialog({
     setSaving(true);
     setError('');
     try {
-      onSaved(await locationsApi.setSchedule(locationId, { workingHours, exceptions }));
+      // An exception with hours overrides that day; without them it is a closed day. Both go out
+      // in the same HH:mm:ss the working hours use.
+      const wireExceptions = exceptions.map(exception => ({
+        ...exception,
+        opensAt: exception.opensAt ? toWireTime(exception.opensAt) : null,
+        closesAt: exception.closesAt ? toWireTime(exception.closesAt) : null,
+      }));
+      onSaved(await locationsApi.setSchedule(locationId, { workingHours, exceptions: wireExceptions }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить расписание.');
     } finally {
@@ -107,13 +132,13 @@ export function LocationScheduleDialog({
   return (
     <Modal open={open} onClose={onClose} title={`Часы работы — ${locationName}`} size="lg">
       {loadFailed && (
-        <p className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-900">
+        <p className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-900">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
           Не удалось загрузить текущее расписание — показаны значения по умолчанию. Сохранение
           заменит неделю целиком, поэтому проверьте каждый день.
         </p>
       )}
-      {error && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {loading ? (
         <p className="py-6 text-center text-sm text-gray-500">Загружаем расписание...</p>
@@ -123,7 +148,7 @@ export function LocationScheduleDialog({
         {DAYS.map(({ key, label }) => {
           const day = days[key] ?? defaultDay();
           return (
-            <div key={key} className="flex flex-wrap items-center gap-3 rounded-md border border-gray-100 px-3 py-2">
+            <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-100 px-3 py-2">
               <label className="flex min-w-[9.5rem] items-center gap-2 text-sm text-gray-900">
                 <input
                   type="checkbox"
@@ -134,20 +159,35 @@ export function LocationScheduleDialog({
                 {label}
               </label>
               {day.open ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="time"
-                    value={day.opensAt}
-                    onChange={event => patchDay(key, { opensAt: event.target.value })}
-                    className="w-28"
-                  />
-                  <span className="text-gray-400">—</span>
-                  <Input
-                    type="time"
-                    value={day.closesAt}
-                    onChange={event => patchDay(key, { closesAt: event.target.value })}
-                    className="w-28"
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  {day.allDay ? (
+                    <span className="text-sm text-gray-600">00:00 — 23:59</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={day.opensAt}
+                        onChange={event => patchDay(key, { opensAt: event.target.value })}
+                        className="w-28"
+                      />
+                      <span className="text-gray-400">—</span>
+                      <Input
+                        type="time"
+                        value={day.closesAt}
+                        onChange={event => patchDay(key, { closesAt: event.target.value })}
+                        className="w-28"
+                      />
+                    </div>
+                  )}
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={day.allDay}
+                      onChange={event => patchDay(key, { allDay: event.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    Круглосуточно
+                  </label>
                 </div>
               ) : (
                 <span className="text-sm text-gray-500">Выходной</span>
@@ -174,7 +214,7 @@ export function LocationScheduleDialog({
 
         <div className="mt-2 space-y-2">
           {exceptions.map((exception, index) => (
-            <div key={index} className="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <div key={index} className="grid gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
               <Input
                 type="date"
                 value={exception.from}

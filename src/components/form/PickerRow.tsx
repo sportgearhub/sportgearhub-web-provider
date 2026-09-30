@@ -197,7 +197,7 @@ function PickerDialog({
           <button
             type="button"
             onClick={onClose}
-            className="-mr-1 rounded-md p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+            className="-mr-1 rounded-lg p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
             aria-label="Закрыть"
           >
             <X size={18} />
@@ -219,7 +219,7 @@ function PickerDialog({
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                   aria-label="Очистить поиск"
                 >
                   <X size={14} />

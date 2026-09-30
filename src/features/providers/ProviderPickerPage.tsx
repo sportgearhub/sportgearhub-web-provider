@@ -82,7 +82,7 @@ export function ProviderPickerPage() {
       </div>
       <Card className="space-y-4 p-6">
         <h1 className="text-center text-xl font-semibold text-gray-950">Выберите кабинет</h1>
-        <div className="flex items-center gap-3 rounded-md bg-gray-50 px-3 py-2.5">
+        <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-gray-600">
             <UserRound size={16} />
           </span>
@@ -92,16 +92,16 @@ export function ProviderPickerPage() {
           </div>
         </div>
         {deniedProviderId && (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             У вас нет доступа к этому кабинету. Выберите один из ваших.
           </p>
         )}
-        {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+        {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
         {invitations.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Приглашения</p>
             {invitations.map(invitation => (
-              <div key={invitation.invitationId} className="flex items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5">
+              <div key={invitation.invitationId} className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900">«{invitation.sellerDisplayName}»</p>
                   <p className="text-xs text-gray-600">
@@ -135,7 +135,7 @@ export function ProviderPickerPage() {
                   type="button"
                   onClick={() => setSelected(provider.providerId)}
                   onDoubleClick={() => enter(provider.providerId)}
-                  className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${
+                  className={`flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition ${
                     active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-200'
                   }`}
                 >

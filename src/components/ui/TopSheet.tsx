@@ -72,7 +72,7 @@ export function TopSheet({
             <button
               type="button"
               onClick={onClose}
-              className="-mr-1 shrink-0 rounded-md p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+              className="-mr-1 shrink-0 rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
               aria-label="Закрыть"
             >
               <X size={18} />

@@ -75,7 +75,7 @@ function Toast({
           onClick={onDismiss}
           aria-label="Закрыть"
           className={cn(
-            '-mr-1 shrink-0 rounded-md p-0.5 transition',
+            '-mr-1 shrink-0 rounded-lg p-0.5 transition',
             isError ? 'text-red-400 hover:bg-red-100 hover:text-red-700' : 'text-emerald-500 hover:bg-emerald-100 hover:text-emerald-700'
           )}
         >
