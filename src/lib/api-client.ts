@@ -2,10 +2,12 @@ import type {
   Product,
   ActivityOption,
   ProductAttributes,
+  ProductAttributesInput,
   ProductAuthoringOptions,
   ProductCategory,
   ProductImage,
   ProductPolicy,
+  ProductPolicyInput,
   ProductPricingPolicy,
   ProductPricingSummary,
   ProductRoutability,
@@ -1024,7 +1026,7 @@ export const productsApi = {
     category: string;
     groupName?: string | null;
     quantity: number;
-    attributes?: Record<string, string>;
+    attributes?: ProductAttributesInput;
     fulfillmentLocationId?: string | null;
   }) => providerRequest<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
 
@@ -1037,7 +1039,7 @@ export const productsApi = {
       category?: string | null;
       groupName?: string | null;
       quantity?: number | null;
-      attributes?: Record<string, string | null> | null;
+      attributes?: ProductAttributesInput | null;
       fulfillmentLocationId?: string | null;
     }
   ) => providerRequest<Product>(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -1053,7 +1055,7 @@ export const productsApi = {
   authoringOptions: () => providerRequest<ProductAuthoringOptions>('/products/authoring-options'),
 
   getAttributes: (productId: string) => providerRequest<ProductAttributes>(`/products/${productId}/attributes`),
-  putAttributes: (productId: string, attributes: Record<string, string>) =>
+  putAttributes: (productId: string, attributes: ProductAttributesInput) =>
     providerRequest<ProductAttributes>(`/products/${productId}/attributes`, {
       method: 'PUT',
       body: JSON.stringify({ attributes }),
@@ -1069,7 +1071,7 @@ export const productsApi = {
   }),
 
   getPolicy: (productId: string) => providerRequest<ProductPolicy>(`/products/${productId}/policy`),
-  putPolicy: (productId: string, data: Omit<ProductPolicy, 'productPolicyId' | 'productId' | 'updatedAt'>) =>
+  putPolicy: (productId: string, data: ProductPolicyInput) =>
     providerRequest<ProductPolicy>(`/products/${productId}/policy`, { method: 'PUT', body: JSON.stringify(data) }),
 
   getInfoSections: (productId: string) =>

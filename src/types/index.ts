@@ -557,9 +557,34 @@ export interface ProductCategory {
   parentId?: string | null;
 }
 
+/**
+ * One saved characteristic, as the API reads it back: the canonical value plus something to show.
+ * This is not what is sent — see ProductAttributesInput — and the two must not be confused, since
+ * posting the read shape sends an array where a map is expected and the server stores the indices.
+ */
+export interface ProductAttributeValue {
+  key: string;
+  valueType: string;
+  value: string | null;
+  displayValue: string | null;
+}
+
+/** GET /products/{id}/attributes — an array, one entry per filled characteristic. */
 export interface ProductAttributes {
   productId: string;
-  attributes: Record<string, string>;
+  attributes: ProductAttributeValue[];
+}
+
+/** PUT /products/{id}/attributes, and the `attributes` of create and patch — a flat map. */
+export type ProductAttributesInput = Record<string, string | null>;
+
+/** Read shape to write shape. Everything the server could not resolve a value for is dropped. */
+export function toAttributeMap(attributes: ProductAttributeValue[] | null | undefined): Record<string, string> {
+  return Object.fromEntries(
+    (attributes ?? [])
+      .filter(attribute => attribute.value != null && attribute.value !== '')
+      .map(attribute => [attribute.key, attribute.value as string])
+  );
 }
 
 export interface ProductImage {
@@ -593,6 +618,7 @@ export interface ProductDeposit {
   value: number;
 }
 
+/** GET /products/{id}/policy. */
 export interface ProductPolicy {
   productPolicyId?: string;
   productId?: string;
@@ -602,6 +628,19 @@ export interface ProductPolicy {
   noShowChargePercent: number | null;
   deposit: ProductDeposit | null;
   updatedAt?: string;
+}
+
+/**
+ * PUT /products/{id}/policy. Declared rather than derived from the response with Omit: the two are
+ * separate schemas upstream and only happen to agree today, and a derived type cannot notice the
+ * day they stop.
+ */
+export interface ProductPolicyInput {
+  leadTimeHours: number | null;
+  cancellationTiers: ProductCancellationTier[] | null;
+  isCancellationAllowed: boolean | null;
+  noShowChargePercent: number | null;
+  deposit: ProductDeposit | null;
 }
 
 export interface ProductAuthoringOptions {

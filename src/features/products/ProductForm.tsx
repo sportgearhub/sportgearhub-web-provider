@@ -15,6 +15,7 @@ import { SectionPage } from '../../components/layout/SectionPage';
 import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../../lib/api-client';
 import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
 import type { EquipmentAttribute } from '../../lib/api-client';
+import { toAttributeMap } from '../../types';
 import type { ProductCategory, ProviderLocation, RentalTier } from '../../types';
 import { ProductAttributeFields, attributeError } from './ProductAttributeFields';
 import { ProductImagesSection } from './ProductImagesSection';
@@ -111,7 +112,10 @@ export function ProductForm({
             groupName: product.groupName ?? '',
             quantity: String(product.quantity ?? 1),
             fulfillmentLocationId: product.fulfillmentLocationId ?? '',
-            attributes: productAttributes?.attributes ?? {},
+            // The endpoint reads back an array of values; the form and the save both want a map.
+            // Note `?? {}` would not have caught this: `T[] | {}` reduces to `{}`, which is
+            // assignable to Record<string, string>, so the wrong shape typechecked happily.
+            attributes: toAttributeMap(productAttributes?.attributes),
             pricingMode: pricing?.pricingMode || DEFAULT_PRICING_MODE,
             baseAmount: pricing?.baseAmount != null ? String(pricing.baseAmount) : '',
             tiers: pricing?.rentalTiers?.length ? pricing.rentalTiers : STANDARD_TIERS.map(tier => ({ ...tier })),
