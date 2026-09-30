@@ -34,36 +34,51 @@ function toDrafts(schedule: LocationSchedule | null): Record<string, DayDraft> {
 }
 
 /**
- * Опening hours for a pickup point. The API takes the week whole — a day left out is a day closed —
- * and offers no way to read back what is stored, so this says plainly that saving replaces
- * everything rather than pretending the blank form is the current state.
+ * Opening hours for a pickup point. The API takes the week whole — a day left out is a day closed —
+ * so the dialog loads what is stored first and saves all seven days back.
  */
 export function LocationScheduleDialog({
   open,
   locationId,
   locationName,
-  known,
   onClose,
   onSaved,
 }: {
   open: boolean;
   locationId: string;
   locationName: string;
-  known: LocationSchedule | null;
   onClose: () => void;
   onSaved: (schedule: LocationSchedule) => void;
 }) {
-  const [days, setDays] = useState<Record<string, DayDraft>>(() => toDrafts(known));
+  const [days, setDays] = useState<Record<string, DayDraft>>(() => toDrafts(null));
   const [exceptions, setExceptions] = useState<ScheduleException[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setDays(toDrafts(known));
-    setExceptions(known?.exceptions ?? []);
+    let cancelled = false;
+    setLoading(true);
+    setLoadFailed(false);
     setError('');
-  }, [open, known]);
+    locationsApi.getSchedule(locationId)
+      .then(schedule => {
+        if (cancelled) return;
+        setDays(toDrafts(schedule));
+        setExceptions(schedule.exceptions ?? []);
+      })
+      .catch(() => {
+        // Saving replaces the week, so an unread schedule has to be said out loud.
+        if (cancelled) return;
+        setDays(toDrafts(null));
+        setExceptions([]);
+        setLoadFailed(true);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, locationId]);
 
   const patchDay = (key: string, patch: Partial<DayDraft>) =>
     setDays(current => ({ ...current, [key]: { ...current[key], ...patch } }));
@@ -91,15 +106,19 @@ export function LocationScheduleDialog({
 
   return (
     <Modal open={open} onClose={onClose} title={`Часы работы — ${locationName}`} size="lg">
-      {!known && (
+      {loadFailed && (
         <p className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-900">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-          Текущее расписание платформа не отдаёт обратно, поэтому здесь показаны значения по
-          умолчанию. Сохранение заменит неделю целиком — проверьте каждый день.
+          Не удалось загрузить текущее расписание — показаны значения по умолчанию. Сохранение
+          заменит неделю целиком, поэтому проверьте каждый день.
         </p>
       )}
       {error && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
+      {loading ? (
+        <p className="py-6 text-center text-sm text-gray-500">Загружаем расписание...</p>
+      ) : (
+      <>
       <div className="space-y-1.5">
         {DAYS.map(({ key, label }) => {
           const day = days[key] ?? defaultDay();
@@ -183,6 +202,8 @@ export function LocationScheduleDialog({
         <Button variant="secondary" disabled={saving} onClick={onClose}><X size={14} /> Отмена</Button>
         <Button variant="primary" loading={saving} onClick={() => void save()}><Save size={14} /> Сохранить неделю</Button>
       </div>
+      </>
+      )}
     </Modal>
   );
 }

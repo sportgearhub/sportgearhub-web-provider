@@ -828,10 +828,11 @@ export type LocationPayload = {
 };
 
 export const locationsApi = {
-  /**
-   * The week is written whole — a day left out is a day closed. There is no GET for it: the API
-   * only returns the schedule from this call, so the console cannot show what is already set.
-   */
+  /** An empty week is an answer, not an error: a point with no schedule set is simply open. */
+  getSchedule: (fulfillmentLocationId: string) =>
+    providerRequest<LocationSchedule>(`/fulfillment-locations/${fulfillmentLocationId}/schedule`),
+
+  /** The week is written whole — a day left out is a day closed. */
   setSchedule: (
     fulfillmentLocationId: string,
     data: { workingHours: WorkingHours[]; exceptions: ScheduleException[] }

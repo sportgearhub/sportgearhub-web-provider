@@ -8,7 +8,7 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:5093"
+            "url": "http://127.0.0.1:5095"
         }
     ],
     "paths": {
@@ -102,19 +102,6 @@
                         }
                     }
                 ],
-                "requestBody": {
-                    "x-name": "LegalIdentityRequest",
-                    "description": "",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerProfileLegalIdentityRequest"
-                            }
-                        }
-                    },
-                    "required": true,
-                    "x-position": 1
-                },
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -1997,6 +1984,51 @@
             }
         },
         "/api/v1/sellers/{sellerId}/fulfillment-locations/{fulfillment_location_id}/schedule": {
+            "get": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsSellerConsoleFulfillmentLocationsGetFulfillmentLocationScheduleEndpoint",
+                "parameters": [
+                    {
+                        "name": "seller_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "fulfillment_location_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "guid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsFulfillmentLocationsFulfillmentLocationScheduleResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "JWTBearerAuth": []
+                    }
+                ]
+            },
             "put": {
                 "tags": [
                     "Api"
@@ -4230,16 +4262,6 @@
                     "message": {
                         "type": "string",
                         "nullable": true
-                    }
-                }
-            },
-            "EbashITSportgearhubApiModelsSellerProfileLegalIdentityRequest": {
-                "type": "object",
-                "x-abstract": true,
-                "additionalProperties": false,
-                "properties": {
-                    "inn": {
-                        "type": "string"
                     }
                 }
             },
@@ -6640,6 +6662,16 @@
                     "description": {
                         "type": "string",
                         "nullable": true
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsSellerProfileLegalIdentityRequest": {
+                "type": "object",
+                "x-abstract": true,
+                "additionalProperties": false,
+                "properties": {
+                    "inn": {
+                        "type": "string"
                     }
                 }
             },

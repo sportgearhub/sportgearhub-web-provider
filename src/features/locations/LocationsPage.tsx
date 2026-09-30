@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { ApiError, locationsApi } from '../../lib/api-client';
-import type { LocationSchedule, ProviderLocation } from '../../types';
+import type { ProviderLocation } from '../../types';
 import { LocationScheduleDialog } from './LocationScheduleDialog';
 import { OpenStreetMapPicker } from './OpenStreetMapPicker';
 
@@ -34,8 +34,6 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
   const [mapOpen, setMapOpen] = useState(false);
   const [error, setError] = useState('');
   const [scheduling, setScheduling] = useState<ProviderLocation | null>(null);
-  // The API has no GET for a schedule, so the console can only remember what it just wrote.
-  const [schedules, setSchedules] = useState<Record<string, LocationSchedule>>({});
 
   const load = async () => {
     setLoading(true);
@@ -222,12 +220,8 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
           open
           locationId={scheduling.fulfillmentLocationId || scheduling.locationId}
           locationName={scheduling.name}
-          known={schedules[scheduling.fulfillmentLocationId || scheduling.locationId] ?? null}
           onClose={() => setScheduling(null)}
-          onSaved={schedule => {
-            setSchedules(current => ({ ...current, [schedule.fulfillmentLocationId]: schedule }));
-            setScheduling(null);
-          }}
+          onSaved={() => setScheduling(null)}
         />
       )}
     </div>
