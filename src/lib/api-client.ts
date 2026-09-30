@@ -11,6 +11,7 @@ import type {
   ProductRoutability,
   QuotePreview,
   ProductSummary,
+  Paged,
   Provider,
   RentalTier,
   AuthUser,
@@ -120,6 +121,14 @@ export type EquipmentAttribute = {
   unit?: string | null;
   unitLabel?: string | null;
   filterable: boolean;
+  isRequired: boolean;
+  /** Fields that belong together on the form, e.g. «Габариты и вес». */
+  groupKey?: string | null;
+  groupName?: string | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  minLength?: number | null;
+  maxLength?: number | null;
   sortOrder: number;
   allowedValues: EquipmentAttributeAllowedValue[];
 };
@@ -988,7 +997,20 @@ export type { Provider };
 // rules, what's included — hangs off /products/{id}/… rather than a second object it links to.
 
 export const productsApi = {
-  list: () => providerRequest<ProductSummary[]>('/products'),
+  /**
+   * The catalogue, filtered and paged by the server. `filter` is RSQL — `status==active` or
+   * `title=contains="велосипед"`, joined with `;` — and the endpoint validates field names against
+   * its own allowlist (title, status, quantity, group_name, category, fulfillment_location_id,
+   * created_at, updated_at), so an unknown one is a 400 rather than a parameter that does nothing.
+   */
+  list: (params: { filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.filter) qs.set('filter', params.filter);
+    if (params.sort) qs.set('sort', params.sort);
+    qs.set('page', String(params.page ?? 1));
+    qs.set('pageSize', String(params.pageSize ?? 20));
+    return providerRequest<Paged<ProductSummary>>(`/products?${qs}`);
+  },
 
   get: (productId: string) => providerRequest<Product>(`/products/${productId}`),
 

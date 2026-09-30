@@ -16,7 +16,7 @@ import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../..
 import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
 import type { EquipmentAttribute } from '../../lib/api-client';
 import type { ProductCategory, ProviderLocation, RentalTier } from '../../types';
-import { ProductAttributeFields } from './ProductAttributeFields';
+import { ProductAttributeFields, attributeError } from './ProductAttributeFields';
 import { ProductImagesSection } from './ProductImagesSection';
 
 type StepKey = 'about' | 'attributes' | 'price' | 'media';
@@ -168,6 +168,10 @@ export function ProductForm({
     if (!draft.title.trim()) next.title = 'Укажите название.';
     if (!draft.categorySlug) next.categorySlug = 'Выберите категорию.';
     if (!(Number(draft.quantity) > 0)) next.quantity = 'Количество должно быть больше нуля.';
+    attributes.forEach(attribute => {
+      const message = attributeError(attribute, draft.attributes[attribute.key] ?? '');
+      if (message) next[`attr:${attribute.key}`] = message;
+    });
     if (isTiered && !draft.tiers.some(tier => tier.price > 0)) next.pricing = 'Укажите цену хотя бы для одной ступени.';
     if (!isTiered && !(Number(draft.baseAmount) > 0)) next.pricing = 'Укажите цену.';
     setErrors(next);

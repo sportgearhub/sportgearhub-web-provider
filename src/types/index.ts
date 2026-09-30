@@ -489,16 +489,33 @@ export interface FulfillmentCommandResult {
 }
 
 
+// ─── Paged lists ──────────────────────────────────────────────────────────────
+
+/** What every list endpoint answers: the page, and where that page sits in the whole. */
+export interface Pagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface Paged<T> {
+  items: T[];
+  pagination: Pagination;
+}
+
 // ─── Product ──────────────────────────────────────────────────────────────────
 // The catalogue unit. Resource, variant and offer collapsed into this on 2026-09-30; a booking
 // points straight at a product, and a "variant" is now just a group name several products share.
 
 export type ProductStatus = 'draft' | 'pending_review' | 'active' | 'inactive' | 'archived' | string;
 
+/** What a product says about its category in a list: the API sends the slug and a `title`. */
 export interface ProductCategoryRef {
-  categoryId?: string;
   slug: string;
-  name?: string;
+  title: string;
 }
 
 export interface ProductSummary {

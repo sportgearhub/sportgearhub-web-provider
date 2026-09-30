@@ -45,6 +45,13 @@ own, and `seller` and `admin` both failed outright until it was flattened away.
 They are pretty-printed with two-space indentation so a regeneration diffs line by line instead of
 showing one changed line of minified JSON.
 
+## List endpoints
+
+Endpoints that take `filter`, `sort`, `page` and `pageSize` document them in the spec, and answer
+`{ items, pagination }`. `filter` is RSQL — `status==active;title=contains="велосипед"` — and each
+list allows only the fields its profile names, so an unknown field is a validation error rather than
+a silently ignored parameter. See [`../../errors.md`](../errors.md) for the error shape.
+
 ## Reading them
 
 Path parameters are snake_case in the spec (`{seller_id}`, `{product_id}`) because the serializer's

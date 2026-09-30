@@ -139,7 +139,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             }
           >
             <DetailList>
-              <DetailRow label="Категория" value={product.category?.name ?? product.category?.slug} />
+              <DetailRow label="Категория" value={product.category?.title ?? product.category?.slug} />
               {product.groupName && <DetailRow label="Группа" value={product.groupName} hint="Карточки одной группы клиент видит как варианты одного товара" />}
               <DetailRow label="Количество" value={`${product.quantity} шт`} hint="Сколько можно сдать одновременно" />
               <DetailRow label="Описание" value={product.description} />
