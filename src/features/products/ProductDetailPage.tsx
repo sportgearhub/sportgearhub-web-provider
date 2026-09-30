@@ -103,7 +103,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       error={error}
       action={
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={meta.variant}>{meta.label}</Badge>
+          <Badge variant={meta.variant} size="md">{meta.label}</Badge>
           <Button
             variant="secondary"
             size="sm"

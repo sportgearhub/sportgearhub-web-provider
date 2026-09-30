@@ -20,8 +20,10 @@ const badgeVariants = cva(
         teal: 'border-teal-200 bg-teal-50 text-teal-700',
       },
       size: {
+        /** Inline, in a table row or beside a title. */
         sm: 'h-6 px-2.5 text-xs',
-        md: 'h-7 px-3 text-sm',
+        /** Standing next to buttons, where it has to match their height to sit level. */
+        md: 'h-8 px-3.5 text-sm',
       },
     },
     defaultVariants: {
