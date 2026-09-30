@@ -8,11 +8,19 @@ import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, productsApi } from '../../lib/api-client';
 import { ProductImagesSection } from './ProductImagesSection';
+import { ProductQuoteCalculator } from './ProductQuoteCalculator';
 import { ProductReadinessCard } from './ProductReadinessCard';
 import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
 import { infoSectionLabel } from './infoSections';
-import type { OfferInfoSection, Product, ProductPolicy, ProductPricingPolicy, ProductRoutability } from '../../types';
+import type {
+  OfferInfoSection,
+  Product,
+  ProductPolicy,
+  ProductPricingPolicy,
+  ProductPricingSummary,
+  ProductRoutability,
+} from '../../types';
 import { formatPrice, productStatus } from './productStatus';
 
 /**
@@ -31,6 +39,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [editingInfo, setEditingInfo] = useState(false);
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
   const [routability, setRoutability] = useState<ProductRoutability | null>(null);
+  const [priceSummary, setPriceSummary] = useState<ProductPricingSummary | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -38,16 +47,18 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     try {
       const next = await productsApi.get(productId);
       setProduct(next);
-      const [nextPricing, nextPolicy, nextInfo, nextRoutability] = await Promise.all([
+      const [nextPricing, nextPolicy, nextInfo, nextRoutability, nextSummary] = await Promise.all([
         productsApi.getPricing(productId).catch(() => null),
         productsApi.getPolicy(productId).catch(() => null),
         productsApi.getInfoSections(productId).catch(() => null),
         productsApi.routability(productId).catch(() => null),
+        productsApi.pricingSummary(productId).catch(() => null),
       ]);
       setPricing(nextPricing);
       setPolicy(nextPolicy);
       setInfoSections(nextInfo?.sections ?? []);
       setRoutability(nextRoutability);
+      setPriceSummary(nextSummary);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 404
         ? 'Товар не найден — возможно, он удалён.'
@@ -161,6 +172,19 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             ) : (
               <p className="text-sm text-gray-500">Цена не указана — без неё товар нельзя продавать.</p>
             )}
+
+            {priceSummary?.displayAmount != null && (
+              <p className="mt-3 border-t border-gray-100 pt-3 text-sm text-gray-600">
+                В каталоге клиент увидит:{' '}
+                <span className="font-medium text-gray-950">
+                  {formatPrice(priceSummary.displayAmount)}
+                  {priceSummary.displayUnit ? ` / ${priceSummary.displayUnit}` : ''}
+                </span>
+                {priceSummary.note ? ` · ${priceSummary.note}` : ''}
+              </p>
+            )}
+
+            {pricing && <div className="mt-3"><ProductQuoteCalculator productId={productId} /></div>}
           </SettingsCard>
 
           <SettingsCard

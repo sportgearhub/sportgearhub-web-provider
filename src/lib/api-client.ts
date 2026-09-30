@@ -6,7 +6,9 @@ import type {
   ProductImage,
   ProductPolicy,
   ProductPricingPolicy,
+  ProductPricingSummary,
   ProductRoutability,
+  QuotePreview,
   ProductSummary,
   Provider,
   RentalTier,
@@ -1064,6 +1066,17 @@ export const productsApi = {
   },
 
   routability: (productId: string) => providerRequest<ProductRoutability>(`/products/${productId}/routability`),
+
+  /** How the price will read to a customer, as the platform renders it. */
+  pricingSummary: (productId: string) =>
+    providerRequest<ProductPricingSummary>(`/products/${productId}/pricing-summary-preview`, { method: 'POST' }),
+
+  /** What a customer would actually pay for a given slot — the seller's own calculator. */
+  quote: (productId: string, selectionContext: { startAt: string; durationHours: number; quantity: number }) =>
+    providerRequest<QuotePreview>('/pricing/quote-preview', {
+      method: 'POST',
+      body: JSON.stringify({ productId, selectionContext }),
+    }),
 
   /** Every product's routability in one call — what the catalogue needs to flag blocked rows. */
   allRoutability: () => providerRequest<ProductRoutability[]>('/products/routability'),

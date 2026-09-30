@@ -1223,3 +1223,29 @@ export interface ProductRoutability {
   issues: RoutabilityIssue[];
   checkedAt: string;
 }
+
+/** How the price reads on a customer-facing card ("от 700 ₽ / сутки"). */
+export interface ProductPricingSummary {
+  productId: string;
+  displayMode: string;
+  displayAmount: number | null;
+  displayUnit: string | null;
+  note: string | null;
+  generatedAt: string;
+}
+
+export interface QuotePreview {
+  quotePreviewId?: string;
+  productId: string;
+  baseAmount: number;
+  adjustments?: unknown[];
+  subtotal: number;
+  taxes?: number | null;
+  fees?: number | null;
+  totalPrice: number;
+  prepaidServiceAmount?: number | null;
+  depositAmount?: number | null;
+  totalHoldAmount?: number | null;
+  generatedAt?: string;
+  expiresAt?: string;
+}
