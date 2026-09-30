@@ -5,8 +5,9 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { ApiError, locationsApi } from '../../lib/api-client';
-import type { ProviderLocation } from '../../types';
+import type { ProviderLocation, LocationSchedule } from '../../types';
 import { LocationScheduleDialog } from './LocationScheduleDialog';
+import { WeekHours } from './WeekHours';
 import { OpenStreetMapPicker } from './OpenStreetMapPicker';
 
 type LocationForm = {
@@ -34,17 +35,31 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
   const [mapOpen, setMapOpen] = useState(false);
   const [error, setError] = useState('');
   const [scheduling, setScheduling] = useState<ProviderLocation | null>(null);
+  const [schedules, setSchedules] = useState<Record<string, LocationSchedule>>({});
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      setLocations(await locationsApi.list());
+      const next = await locationsApi.list();
+      setLocations(next);
+      void loadSchedules(next);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить пункты проката.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // The hours belong on the card, and there is no list endpoint for them — one call per point, all
+  // at once, and a point whose schedule will not load simply shows none.
+  const loadSchedules = async (items: ProviderLocation[]) => {
+    const entries = await Promise.all(items.map(async location => {
+      const id = location.fulfillmentLocationId || location.locationId;
+      const schedule = await locationsApi.getSchedule(id).catch(() => null);
+      return [id, schedule] as const;
+    }));
+    setSchedules(Object.fromEntries(entries.filter(([, schedule]) => schedule)) as Record<string, LocationSchedule>);
   };
 
   useEffect(() => {
@@ -198,6 +213,9 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
                         {location.latitude !== null && location.latitude !== undefined && <MapPin size={13} className="shrink-0 text-gray-400" />}
                       </span>
                       <span className="mt-0.5 block text-xs text-gray-500">{location.cityName ? `${location.cityName} · ` : ''}{location.address}</span>
+                      <span className="mt-2 block">
+                        <WeekHours schedule={schedules[location.fulfillmentLocationId || location.locationId] ?? null} />
+                      </span>
                     </button>
                     <Button
                       variant="secondary"
@@ -221,7 +239,13 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
           locationId={scheduling.fulfillmentLocationId || scheduling.locationId}
           locationName={scheduling.name}
           onClose={() => setScheduling(null)}
-          onSaved={() => setScheduling(null)}
+          onSaved={schedule => {
+            setSchedules(current => ({
+              ...current,
+              [scheduling.fulfillmentLocationId || scheduling.locationId]: schedule,
+            }));
+            setScheduling(null);
+          }}
         />
       )}
     </div>
