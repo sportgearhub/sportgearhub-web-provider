@@ -34,14 +34,21 @@ export function ProviderPickerPage() {
     if (!providers.some(item => item.providerId === selected)) setSelected(providers[0]?.providerId ?? '');
   }, [providers, selected]);
 
+  // /auth/me already lists what was open at sign-in, and it was loaded moments ago. The server is
+  // only worth asking again when there is an invitation to act on and its state may have moved on
+  // (revoked, expired, accepted elsewhere) — a seller with one cabinet and nothing waiting passes
+  // straight through without an extra round-trip.
+  const hasInvitations = sessionInvitations.length > 0;
+
   useEffect(() => {
+    if (!hasInvitations) return;
     let cancelled = false;
     authApi.pendingInvitations()
       .then(next => { if (!cancelled) setLive(next.filter(invitation => invitation.status === 'pending')); })
       // Falling back to the session's copy beats showing nothing.
       .catch(() => { if (!cancelled) setLive(null); });
     return () => { cancelled = true; };
-  }, []);
+  }, [hasInvitations]);
 
   // The cabinet's name only comes from the session, so the two are read together.
   const nameOf = (sellerId: string) =>

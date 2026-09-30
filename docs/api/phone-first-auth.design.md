@@ -1,11 +1,16 @@
-# Phone-First Authentication — What Signs In, What Is Just a Contact (DECIDED)
+# Phone-First Authentication — What Signs In, What Is Just a Contact
 
-> Status: **implemented on branch `rental-first-simplification`, 2026-09-23.** Records the
-> decision and its consequences; the code is the reference for details.
+> Status: **its central decision was reversed on 2026-09-30** by
+> [two-ways-in-auth.design.md](two-ways-in-auth.design.md): the email signs in too now. Everything
+> else here stands — what this document removed stayed removed, and the reasoning for removing it is
+> the reason the email came back as a one-time code and not as a link.
+>
+> Implemented on branch `rental-first-simplification`, 2026-09-23.
 
 ## The decision
 
-**The phone number is the identity and the only way in.** Proof is the existing phone flow —
+**The phone number is the identity and the only way in.** *(Reversed 2026-09-30 — the email is a
+credential as well. The paragraph below is the 2026-09-23 decision as written.)* Proof is the existing phone flow —
 MTS ID push through Verificahub, falling back to an SMS code — and the trusted-device passcode
 for repeat sign-ins. **Email is a profile attribute**: optional, attached after sign-in, proved by
 a one-time code, used for receipts and notifications. It is never a way in.

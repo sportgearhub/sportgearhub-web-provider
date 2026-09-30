@@ -3,11 +3,12 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { ApiError, bookingsApi } from '../../lib/api-client';
+import { rejectionMessage } from './commandResult';
 import type { FulfillmentItem } from '../../types';
 
 interface IssueReportFormProps {
   item: FulfillmentItem;
-  onSuccess: (updated: FulfillmentItem) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
@@ -31,25 +32,24 @@ export function IssueReportForm({ item, onSuccess, onCancel }: IssueReportFormPr
     }
     setError('');
     setLoading(true);
-    const issueReportedAt = new Date().toISOString();
     try {
-      await bookingsApi.reportIssue(item.bookingId, {
+      const response = await bookingsApi.reportIssue(item.bookingId, {
         reasonCode: `fulfillment_${severity}`,
         description: description.trim(),
         evidenceRefs: [],
       });
+      const rejected = rejectionMessage(response, 'Не удалось отправить обращение.');
+      if (rejected) {
+        setError(rejected);
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось отправить отчет.');
       setLoading(false);
       return;
     }
-    const updated: FulfillmentItem = {
-      ...item,
-      status: 'issue_reported',
-      issueReportedAt,
-      notes: description,
-    };
-    onSuccess(updated);
+    onSuccess();
     setLoading(false);
   };
 

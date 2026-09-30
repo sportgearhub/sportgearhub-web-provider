@@ -34,7 +34,9 @@ disagrees with the code, the code is right.
   takes effect
 - [`admin-onboarding-and-payouts.design.md`](admin-onboarding-and-payouts.design.md) — the platform
   side of onboarding, and how a seller becomes payable
-- [`phone-first-auth.design.md`](phone-first-auth.design.md) — the phone is the identity
+- [`two-ways-in-auth.design.md`](two-ways-in-auth.design.md) — the phone and the email both sign in
+- [`phone-first-auth.design.md`](phone-first-auth.design.md) — when the phone was the only way in, and
+  what that decision removed for good
 - [`payments-and-payouts-context-map.design.md`](payments-and-payouts-context-map.design.md) — where
   the money logic lives and what is worth moving
 - [`payout-destination-and-payment-events.design.md`](payout-destination-and-payment-events.design.md) —

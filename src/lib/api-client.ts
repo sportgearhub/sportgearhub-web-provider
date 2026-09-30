@@ -15,7 +15,6 @@ import type {
   RentalTier,
   AuthUser,
   ProviderSummary,
-  PendingInvitation,
   Session,
   ProviderReadiness,
   Agreement,
@@ -40,11 +39,10 @@ import type {
   BookingDetail,
   BookingStatus,
   FulfillmentCommandResult,
-  ResourceStatus,
-  OfferStatus,
+  FulfillmentItem,
 } from '../types';
 
-import { keysToCamel, keysToSnake } from './case-convert';
+import { camelToSnake, keysToCamel, keysToSnake } from './case-convert';
 import { providerUrl } from './active-provider';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -85,8 +83,19 @@ type ApiUser = {
   surname?: string | null;
   platformRole?: string | null;
   emailVerified?: boolean;
+  // The API says "seller"; the console says «кабинет» and calls it a provider internally, so the
+  // two vocabularies meet here and nowhere else.
+  sellers?: Array<{ sellerId: string; displayName: string; kind: ProviderSummary['kind']; status: ProviderSummary['status']; role: string }>;
+  pendingInvitations?: Array<{
+    invitationId: string;
+    sellerId?: string;
+    sellerDisplayName?: string;
+    providerId?: string;
+    providerDisplayName?: string;
+    role: string;
+    expiresAt: string;
+  }>;
   providers?: ProviderSummary[];
-  pendingInvitations?: PendingInvitation[];
 };
 
 export type ResourceCategory = {
@@ -296,8 +305,20 @@ function normalizeUser(user: ApiUser): AuthUser {
 function normalizeSession(raw: ApiUser): Session {
   return {
     user: normalizeUser(raw),
-    providers: raw.providers ?? [],
-    pendingInvitations: raw.pendingInvitations ?? [],
+    providers: (raw.sellers ?? []).map(seller => ({
+      providerId: seller.sellerId,
+      displayName: seller.displayName,
+      kind: seller.kind,
+      status: seller.status,
+      role: seller.role,
+    })),
+    pendingInvitations: (raw.pendingInvitations ?? []).map(invitation => ({
+      invitationId: invitation.invitationId,
+      providerId: invitation.sellerId ?? invitation.providerId ?? '',
+      providerDisplayName: invitation.sellerDisplayName ?? invitation.providerDisplayName ?? 'Кабинет',
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+    })),
   };
 }
 
@@ -909,11 +930,12 @@ export const bookingsApi = {
     status?: BookingStatus;
     dateFrom?: string;
     dateTo?: string;
-    offerId?: string;
-    resourceId?: string;
+    productId?: string;
   }) => {
+    // Query keys are snake_case on the wire like every other field; a camelCase one is not an error,
+    // it is silently ignored, and the caller gets an unfiltered list back.
     const qs = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(k, String(v)));
+    Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(camelToSnake(k), String(v)));
     return providerRequest<BookingListItem[]>(`/bookings?${qs}`);
   },
 
@@ -977,7 +999,7 @@ export const bookingsApi = {
 // ─── Fulfillment Queue ────────────────────────────────────────────────────────
 
 export const fulfillmentApi = {
-  getQueue: () => providerRequest<Record<string, unknown>[]>('/fulfillment'),
+  getQueue: () => providerRequest<FulfillmentItem[]>('/fulfillment'),
 };
 
 // ─── Acquiring ────────────────────────────────────────────────────────────────
@@ -989,11 +1011,7 @@ export const fulfillmentApi = {
 // ─── Stock Balance ────────────────────────────────────────────────────────────
 
 
-export type {
-  Provider,
-  ResourceStatus,
-  OfferStatus,
-};
+export type { Provider };
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 // One object for the whole catalogue unit. Everything a product owns — attributes, images, price,

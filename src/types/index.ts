@@ -94,13 +94,6 @@ export interface ProviderMemberInvitationResult {
   message: string;
 }
 
-export interface CatalogCity {
-  cityId: string;
-  name: string;
-  countryCode?: string | null;
-  timezone?: string | null;
-}
-
 /** A пункт проката: an address (from the registry) or a pin; the city is derived by the API. */
 export interface ProviderLocation {
   fulfillmentLocationId: string;
@@ -118,7 +111,6 @@ export interface ProviderLocation {
 }
 
 // ─── Provider / Profile ──────────────────────────────────────────────────────
-
 
 export interface ProviderReviewSummary {
   reviewId: string;
@@ -244,89 +236,10 @@ export interface PayoutDetailsInput {
   correspondentAccount?: string;
 }
 
-export type PayoutMode = 't_bank_bank_account' | 't_bank_sbp_individual' | string;
-export type PayoutContractStatus = 'review' | 'setting_up' | 'active' | 'rejected' | 'blocked' | string;
-
-export interface PayoutBankRequisites {
-  account?: string | null;
-  bankName?: string | null;
-  bik?: string | null;
-  correspondentAccount?: string | null;
-}
-
-export interface PayoutContract {
-  contractId: string;
-  providerId: string;
-  payoutMode: PayoutMode;
-  contractNumber?: number | null;
-  currency: string;
-  startsOn?: string | null;
-  status: PayoutContractStatus;
-  bankRequisites?: PayoutBankRequisites | null;
-  sbpPayout?: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StorefrontSettings {
-  providerId: string;
-  slug: string | null;
-  host: string | null;
-  enabled: boolean;
-  publicName: string | null;
-  description: string | null;
-  provider?: {
-    providerId: string;
-    slug?: string | null;
-    displayName?: string | null;
-    description?: string | null;
-    legalName?: string | null;
-    legalCountryCode?: string | null;
-    legalForm?: string | null;
-    taxationSystem?: string | null;
-    inn?: string | null;
-    kpp?: string | null;
-    ogrn?: string | null;
-    registeredAddress?: string | null;
-    cityId?: string | null;
-    address?: string | null;
-    contacts?: StorefrontContact[];
-  } | null;
-  theme: {
-    primaryColor: string | null;
-    accentColor: string | null;
-  };
-  contacts: StorefrontContact[];
-  seo: {
-    title: string | null;
-    description: string | null;
-  };
-  updatedAt: string | null;
-}
-
-export interface StorefrontContact {
-  type: string;
-  value: string;
-  isPrimary: boolean;
-}
-
-export type StorefrontSettingsPatch = Partial<Pick<StorefrontSettings, 'enabled' | 'publicName' | 'description'>> & {
-  theme?: Partial<StorefrontSettings['theme']>;
-  contacts?: StorefrontContact[];
-  seo?: Partial<StorefrontSettings['seo']>;
-};
-
-export interface StorefrontEditSession {
-  previewUrl: string;
-  expiresAt: string;
-}
-
 export interface DashboardCounts {
-  totalResources: number;
-  activeResources: number;
-  totalOffers: number;
-  activeOffers: number;
-  draftOffers: number;
+  totalProducts: number;
+  activeProducts: number;
+  draftProducts: number;
   totalBookings: number;
   upcomingBookings: number;
   activeAcquiringConnections: number;
@@ -362,192 +275,7 @@ export interface DashboardResponse {
 
 
 
-// ─── Legacy shape kept for mock data / existing UI components ─────────────────
 
-export interface DashboardStats {
-  activeBookings: number;
-  pendingHandovers: number;
-  pendingReturns: number;
-  totalRevenueMTD: number;
-  currency: string;
-  catalogReadiness: number;
-  openIssues: number;
-}
-
-// ─── Resources ───────────────────────────────────────────────────────────────
-
-export type ResourceStatus = 'active' | 'inactive' | 'archived' | 'draft';
-
-/** As the API reports it: one status word per aspect, not a set of booleans. */
-export interface ResourceReadiness {
-  availabilityStatus: string;
-  pricingStatus: string;
-  policyStatus: string;
-  inventoryStatus: string;
-  offerAuthoringStatus: string;
-}
-
-export interface PublishabilityImpact {
-  status?: string;
-  reason?: string;
-  publishable?: boolean;
-  reasonCodes: string[];
-}
-
-export interface Resource {
-  resourceId: string;
-  resourceType: string;
-  capacityMode?: string;
-  category?: {
-    slug: string;
-    title: string;
-  } | null;
-  status: ResourceStatus;
-  title: string;
-  readiness: ResourceReadiness;
-  publishabilityImpact: PublishabilityImpact;
-  updatedAt: string;
-  providerId?: string;
-  createdAt?: string;
-  /** kept for backward-compat with existing UI components */
-  id: string;
-  slug?: string;
-  categoryId: string;
-  categoryName: string;
-  description?: string;
-  imageUrl?: string;
-  mediaPreviewUrl?: string | null;
-  variantCount?: number;
-}
-
-export interface ResourceImage {
-  imageId: string;
-  resourceId: string;
-  originalFileName: string;
-  contentType: string;
-  sizeBytes: number;
-  url: string;
-  sortOrder: number;
-  createdAt: string;
-}
-
-// ─── Availability ─────────────────────────────────────────────────────────────
-
-export interface OfferAvailabilityWindow {
-  startsOn: string;
-  endsOn: string;
-  dailyOpensAt: string;
-  dailyClosesAt: string;
-}
-
-export interface OfferAvailabilityBlockedPeriod {
-  startsOn: string;
-  endsOn: string;
-  reasonCode: string | null;
-}
-
-export interface OfferAvailability {
-  settingsId: string | null;
-  offerId: string;
-  timezone: string;
-  availabilityWindows: OfferAvailabilityWindow[];
-  blockedPeriods: OfferAvailabilityBlockedPeriod[];
-  /** Booking step for slot-based offers; null when the offer is not slotted. */
-  slotIntervalMinutes: number | null;
-  status: string;
-  updatedAt: string | null;
-}
-
-export interface ResourceUnit {
-  unitId: string;
-  resourceId: string;
-  inventoryCode?: string | null;
-  notes?: string | null;
-  status: string;
-  conditionStatus?: string | null;
-  externalReferenceCode?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type ResourceUnitInput = {
-  inventoryCode?: string | null;
-  notes?: string | null;
-  status?: string | null;
-  conditionStatus?: string | null;
-  externalReferenceCode?: string | null;
-};
-
-export interface ResourceInventorySummary {
-  resourceId: string;
-  totalUnits: number;
-  availableUnits: number;
-  readyUnits: number;
-  maintenanceUnits: number;
-  damagedUnits: number;
-  inUseUnits: number;
-  retiredUnits: number;
-  lostUnits: number;
-  updatedAt: string;
-}
-
-export type StockBalanceAction = 'none' | 'create' | 'retire' | 'partial_retire' | 'error';
-
-export interface StockBalancePreviewRow {
-  sku: string;
-  label: string;
-  currentBalance: number;
-  targetBalance: number;
-  delta: number;
-  action: StockBalanceAction;
-  warning: string | null;
-  error: string | null;
-}
-
-export interface StockBalancePreview {
-  rows: StockBalancePreviewRow[];
-  hasWarnings: boolean;
-  hasErrors: boolean;
-}
-
-export interface StockBalanceApplyRow {
-  sku: string;
-  label: string;
-  previousBalance: number;
-  newBalance: number;
-  unitsCreated: number;
-  unitsRetired: number;
-  warning: string | null;
-}
-
-export interface StockBalanceApplyResult {
-  rows: StockBalanceApplyRow[];
-  hasWarnings: boolean;
-}
-
-// ─── Variants ─────────────────────────────────────────────────────────────────
-
-export interface NormalizedAttribute {
-  key: string;
-  value: string;
-}
-
-export interface ResourceAllocation {
-  allocationId: string;
-  resourceId: string;
-  /** `dedicated_units` counts ready units; `shared_inventory` uses `baseQuantity` as the capacity. */
-  allocationMode: string;
-  baseQuantity: number | null;
-  allocationRules: ResourceAllocationRules | null;
-  status: string;
-  updatedAt: string;
-}
-
-export interface ResourceAllocationRules {
-  maxPerBooking?: number | null;
-  maxConcurrent?: number | null;
-  sharedPoolCode?: string | null;
-}
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -557,113 +285,7 @@ export interface RentalTier {
   label?: string | null;
 }
 
-export interface UnitRules {
-  baseAmount: number;
-  unit: string;
-  minimumUnits: number;
-  maximumUnits: number;
-}
-
-export interface AdjustmentRule {
-  code?: string | null;
-  type?: string | null;
-  percent?: number | null;
-  amount?: number | null;
-  appliesWhen?: string | null;
-  isRequired?: boolean | null;
-}
-
-export interface PricingPolicy {
-  pricingPolicyId?: string;
-  pricingMode?: string;
-  currency?: string;
-  baseAmount?: number | null;
-  adjustmentRules?: AdjustmentRule[];
-  rentalTiers?: RentalTier[] | null;
-  status: string;
-  readiness?: Record<string, unknown>;
-  publishabilityImpact?: PublishabilityImpact | { status?: string; reason?: string };
-  /** kept for backward-compat with existing UI */
-  id?: string;
-  resourceId?: string;
-  offerId?: string;
-  label?: string;
-  basePrice?: number;
-  adjustments?: PricingAdjustment[];
-  updatedAt?: string;
-}
-
-export interface PricingAdjustment {
-  id: string;
-  type: 'percentage' | 'fixed';
-  amount: number;
-  condition: string;
-  label: string;
-}
-
-export interface PricingQuotePreview {
-  baseAmount: number;
-  adjustments: unknown[];
-  subtotal: number;
-  taxes: number;
-  fees: number;
-  totalPrice: number;
-  depositAmount: number;
-  totalHoldAmount: number;
-  currency: string;
-}
-
-export interface PricingDiagnostics {
-  resourceId?: string;
-  offerId?: string | null;
-  pricingReady: boolean;
-  quoteable: boolean;
-  summaryReady: boolean;
-  errors: string[];
-  warnings: string[];
-  publishabilityImpact?: PublishabilityImpact | Array<{ key: string; value: string | null }>;
-  checkedAt?: string;
-}
-
 // ─── Policy ───────────────────────────────────────────────────────────────────
-
-export interface PolicyRuleset {
-  leadTimeHours?: number;
-  cancellationWindowHours?: number;
-  isCancellationAllowed?: boolean;
-  noShowChargePercent?: number;
-  deposit?: PolicyDeposit;
-  checkInGraceMinutes?: number;
-  assuranceMode?: string;
-  weatherException?: boolean;
-  minimumAge?: number;
-  [key: string]: unknown;
-}
-
-export type PolicyDeposit =
-  | { unit: 'none' }
-  | { unit: 'percentage'; value: number }
-  | { unit: 'fixed_amount'; value: number; currency: string };
-
-export interface OfferCancellationTier {
-  thresholdHoursBeforeStart: number;
-  refundPercent: number;
-}
-
-/** Offer-level policy override (GET/PUT /offers/{offerId}/policy). */
-export interface OfferPolicy {
-  policyOverrideId?: string;
-  ownerType?: string;
-  ownerId?: string;
-  leadTimeHours?: number | null;
-  cancellationTiers?: OfferCancellationTier[] | null;
-  isCancellationAllowed?: boolean | null;
-  noShowChargePercent?: number | null;
-  deposit?: PolicyDeposit | null;
-  readiness?: Record<string, unknown>;
-  publishabilityImpact?: PublishabilityImpact;
-  updatedAt?: string;
-}
 
 export interface OfferInfoSection {
   kind: string;
@@ -672,50 +294,6 @@ export interface OfferInfoSection {
 
 export interface OfferInfoSections {
   sections: OfferInfoSection[];
-}
-
-export type OfferPolicyInput = {
-  leadTimeHours?: number | null;
-  cancellationTiers?: OfferCancellationTier[] | null;
-  isCancellationAllowed?: boolean | null;
-  noShowChargePercent?: number | null;
-  deposit?: PolicyDeposit | null;
-};
-
-export interface ProviderPolicy {
-  ownerType?: string;
-  ownerId?: string;
-  policyScope: string;
-  ruleset?: PolicyRuleset;
-  status: string;
-  leadTimeHours?: number;
-  isCancellationAllowed?: boolean;
-  noShowChargePercent?: number;
-  checkInGraceMinutes?: number;
-  assuranceMode?: string;
-  weatherException?: boolean;
-  minimumAge?: number;
-  readiness?: Record<string, unknown>;
-  publishabilityImpact?: PublishabilityImpact;
-  deposit: PolicyDeposit;
-  /** kept for backward-compat with existing UI */
-  id: string;
-  resourceId?: string;
-  label: string;
-  cancellationWindowHours: number;
-  cancellationRefundPercent: number;
-  lateReturnFeeEnabled: boolean;
-  damageDepositRequired: boolean;
-  additionalNotes?: string;
-  updatedAt: string;
-}
-
-export interface PolicyDiagnostics {
-  validationReady: boolean;
-  summaryReady: boolean;
-  errors: string[];
-  warnings: string[];
-  publishabilityImpact: PublishabilityImpact;
 }
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
@@ -805,48 +383,12 @@ export interface Offer {
   readiness?: OfferReadiness;
 }
 
-
-export interface OfferRoutability {
-  publishable: boolean;
-  offerStatus: string;
-  status: string;
-  routable: boolean;
-  resolutionReady: boolean;
-  availabilityReady: boolean;
-  pricingReady: boolean;
-  policyReady: boolean;
-  capabilityValid: boolean;
-  inventoryReady: boolean | null;
-  reasonCodes: string[];
-  warnings: string[];
-  issues: string[];
-  checkedAt: string;
-}
-
 export interface OfferAuthoringOption {
   value: string;
   title: string;
   description: string | null;
   isDefault: boolean;
   isActive?: boolean;
-}
-
-export interface OfferAuthoringOptions {
-  offerTypes: OfferAuthoringOption[];
-  bookingFlowTypes: OfferAuthoringOption[];
-  pricingModes: OfferAuthoringOption[];
-  defaults: {
-    offerType: string;
-    bookingFlowType: string;
-    pricingMode?: string;
-  };
-  resourceCompatibility: {
-    resourceId: string;
-    resourceType: string;
-    capacityMode: string;
-    recommendedOfferTypes: string[];
-    defaultOfferType: string;
-  } | null;
 }
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
@@ -859,23 +401,33 @@ export type BookingStatus =
   | 'no_show'
   | 'pending_fulfillment';
 
+/** Everything the API is willing to say about the customer outside a booking's own page. */
 export interface CustomerSummary {
-  fullName: string;
-  [key: string]: unknown;
+  customerId: string | null;
+  fullName: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+export interface FulfillmentSummary {
+  status: string | null;
+  completionAllowed: boolean | null;
+  issueReportingAllowed: boolean | null;
+  notes: string | null;
 }
 
 export interface BookingListItem {
   bookingId: string;
   bookingNumber: string;
-  offerId: string;
-  offerTitle: string;
+  productId: string;
+  productTitle: string;
   bookingType: string;
-  customerSummary: CustomerSummary;
+  customerSummary: CustomerSummary | null;
   status: BookingStatus;
   startAt: string;
   endAt: string;
   quantity: number;
-  fulfillmentSummary?: Record<string, unknown>;
+  fulfillmentSummary: FulfillmentSummary | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -885,8 +437,7 @@ export interface BookingDetail {
   bookingNumber: string;
   status: BookingStatus;
   statusReason?: string;
-  offer?: Record<string, unknown>;
-  customerSummary: CustomerSummary;
+  customerSummary: CustomerSummary | null;
   schedule?: Record<string, unknown>;
   selectionSummary?: Record<string, unknown>;
   assuranceSummary?: Record<string, unknown>;
@@ -894,72 +445,50 @@ export interface BookingDetail {
     status: string;
     completionAllowed: boolean;
     issueReportingAllowed: boolean;
+    notes: string | null;
   };
-  providerPolicySummary?: Record<string, unknown>;
   support?: { correlationRef: string };
-}
-
-/** Legacy shape kept for existing UI components that use the old Booking interface */
-export interface Booking {
-  id: string;
-  ref: string;
-  status: BookingStatus;
-  customer: BookingCustomer;
-  selection: BookingSelection;
-  totalAmount: number;
-  currency: string;
-  createdAt: string;
-  updatedAt: string;
-  notes?: string;
-}
-
-export interface BookingCustomer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-}
-
-export interface BookingSelection {
-  offerId: string;
-  offerTitle: string;
-  resourceId: string;
-  resourceTitle: string;
-  variantId?: string;
-  variantTitle?: string;
-  quantity: number;
-  startDate: string;
-  endDate?: string;
-  durationLabel: string;
 }
 
 // ─── Fulfillment ──────────────────────────────────────────────────────────────
 
-export type FulfillmentStatus =
+/**
+ * Where a booking stands, derived by the API from the timestamps it holds. A rental sits at `active`
+ * for the whole hire — that is the stage that accepts a return — and at `returned` it is waiting to
+ * be closed out.
+ */
+export type FulfillmentStage =
   | 'pending_handover'
   | 'active'
-  | 'pending_return'
+  | 'returned'
   | 'completed'
   | 'issue_reported';
 
+/**
+ * A queue row as the API sends it now: the booking, what stage it is at, and which of the three
+ * moves it will accept. The customer and the product are looked up from the booking, not repeated
+ * here.
+ */
 export interface FulfillmentItem {
   bookingId: string;
-  bookingRef: string;
-  status: FulfillmentStatus;
-  customer: BookingCustomer;
-  selection: BookingSelection;
-  handoverAt?: string;
-  returnAt?: string;
-  completedAt?: string;
-  issueReportedAt?: string;
-  notes?: string;
+  bookingNumber: string;
+  bookingType: string;
+  fulfillmentStage: FulfillmentStage;
+  handoverAllowed: boolean;
+  returnAllowed: boolean;
+  completionAllowed: boolean;
+  productId: string;
+  startAt: string;
+  endAt: string;
+  quantity: number;
+  updatedAt: string;
 }
 
 export interface FulfillmentCommandResult {
   booking: {
     bookingId: string;
     bookingNumber: string;
-    fulfillmentStage: string;
+    fulfillmentStage: FulfillmentStage;
     support?: { correlationRef: string };
   };
   result: {
@@ -968,117 +497,6 @@ export interface FulfillmentCommandResult {
   };
 }
 
-// ─── Acquiring ────────────────────────────────────────────────────────────────
-
-export interface AcquiringConnection {
-  connectionId: string;
-  providerId?: string;
-  acquiringProvider: string;
-  status: string;
-  shopCode?: string | null;
-  onboardingStatus?: string;
-  onboardingSnapshot?: {
-    snapshotPresent: boolean;
-    snapshotVersion?: number | null;
-    integrationProvider?: string | null;
-    chiefExecutivePresent: boolean;
-    founderCount: number;
-    submittedAt?: string | null;
-  };
-  routing?: {
-    routeStatus: string;
-    paymentRecipientId?: string | null;
-    levelOfConfidence?: string | null;
-  };
-  dealBinding?: {
-    status: string;
-    mode?: string | null;
-    dealId?: string | null;
-    createDealWithType?: string | null;
-  };
-  routability?: AcquiringRoutability;
-  diagnostics?: Record<string, unknown> | null;
-  paymentRouteable?: boolean;
-  createdAt?: string;
-  updatedAt: string;
-}
-
-export interface AcquiringRoutability {
-  connectionId: string;
-  paymentRouteable: boolean;
-  connectionStatus: string;
-  shopCodePresent: boolean;
-  terminalReady: boolean;
-  recipientRouteReady: boolean;
-  dealBindingReady: boolean;
-  reasonCodes: string[];
-  diagnostics?: Record<string, unknown> | null;
-  checkedAt: string;
-}
-
-export interface AcquiringRecipientRoute {
-  routeId: string;
-  connectionId: string;
-  routeScope: string;
-  routeStatus: string;
-  paymentRecipientId?: string | null;
-  levelOfConfidence?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AcquiringDealBinding {
-  bindingId: string;
-  routeId: string;
-  status: string;
-  mode: string;
-  dealId?: string | null;
-  createDealWithType?: string | null;
-  diagnostics?: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AcquiringOnboardingPayload {
-  legalProfile: {
-    legalEntityName: string;
-    legalName?: string;
-    taxpayerNumber: string;
-    registrationNumber: string;
-    registeredAddress: string;
-  };
-  contactProfile: {
-    surname?: string;
-    name?: string;
-    patronymic?: string;
-    email: string;
-    phone: string;
-    position: string;
-  };
-  businessProfile?: {
-    billingDescriptor?: string;
-    shortName?: string;
-    siteUrl?: string;
-    okved?: string;
-    registrationDepartment?: string;
-    registrationDate?: string;
-    actualAddress?: string;
-    comment?: string | null;
-  };
-  chiefExecutive?: Record<string, unknown> | null;
-  founders?: Record<string, unknown>[];
-  settlementProfile: {
-    mode?: string;
-    bankName: string;
-    bankAccount: string;
-    correspondentAccount: string;
-    bik: string;
-    beneficiaryName: string;
-    phone?: string;
-    sbpMemberId?: string | null;
-    displayBankName?: string;
-  };
-}
 
 // ─── Product ──────────────────────────────────────────────────────────────────
 // The catalogue unit. Resource, variant and offer collapsed into this on 2026-09-30; a booking

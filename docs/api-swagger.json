@@ -8,7 +8,7 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:5095"
+            "url": "http://127.0.0.1:5096"
         }
     ],
     "paths": {
@@ -3276,6 +3276,187 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "JWTBearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/email/start": {
+            "post": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsAuthPhoneStartEmailAuthEndpoint",
+                "requestBody": {
+                    "x-name": "StartEmailAuthRequest",
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalStartEmailAuthRequest"
+                            }
+                        }
+                    },
+                    "required": true,
+                    "x-position": 1
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalVerificationStartedResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/email/verify-code": {
+            "post": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsAuthPhoneVerifyEmailCodeEndpoint",
+                "requestBody": {
+                    "x-name": "VerifyEmailCodeRequest",
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalVerifyEmailCodeRequest"
+                            }
+                        }
+                    },
+                    "required": true,
+                    "x-position": 1
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalAuthUserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/email/complete-registration": {
+            "post": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsAuthPhoneCompleteEmailRegistrationEndpoint",
+                "requestBody": {
+                    "x-name": "CompleteEmailRegistrationRequest",
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalCompleteEmailRegistrationRequest"
+                            }
+                        }
+                    },
+                    "required": true,
+                    "x-position": 1
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalAuthUserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/phone/attach/start": {
+            "post": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsAuthPhoneStartPhoneAttachEndpoint",
+                "requestBody": {
+                    "x-name": "StartPhoneAttachRequest",
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalStartPhoneAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true,
+                    "x-position": 1
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalVerificationStartedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "JWTBearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/phone/attach/confirm": {
+            "post": {
+                "tags": [
+                    "Api"
+                ],
+                "operationId": "EbashITSportgearhubApiEndpointsAuthPhoneConfirmPhoneAttachEndpoint",
+                "requestBody": {
+                    "x-name": "ConfirmPhoneAttachRequest",
+                    "description": "",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalConfirmPhoneAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true,
+                    "x-position": 1
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsAuthLocalAuthUserResult"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -7038,11 +7219,11 @@
                     }
                 }
             },
-            "EbashITSportgearhubApiModelsAuthLocalStartPhoneAuthRequest": {
+            "EbashITSportgearhubApiModelsAuthLocalStartEmailAuthRequest": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                    "phone": {
+                    "email": {
                         "type": "string"
                     }
                 }
@@ -7065,6 +7246,86 @@
                     "registration_token": {
                         "type": "string",
                         "nullable": true
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalVerifyEmailCodeRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalCompleteEmailRegistrationRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "surname": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalStartPhoneAttachRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "phone": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalAuthUserResult": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "format": "guid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "surname": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "email_verified": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalConfirmPhoneAttachRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "phone": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                }
+            },
+            "EbashITSportgearhubApiModelsAuthLocalStartPhoneAuthRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "phone": {
+                        "type": "string"
                     }
                 }
             },
@@ -7101,29 +7362,6 @@
                 "properties": {
                     "email": {
                         "type": "string"
-                    }
-                }
-            },
-            "EbashITSportgearhubApiModelsAuthLocalAuthUserResult": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "user_id": {
-                        "type": "string",
-                        "format": "guid"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "surname": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "email_verified": {
-                        "type": "boolean"
                     }
                 }
             },

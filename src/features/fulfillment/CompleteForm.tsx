@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, bookingsApi } from '../../lib/api-client';
+import { rejectionMessage } from './commandResult';
 import type { FulfillmentItem } from '../../types';
 
 interface CompleteFormProps {
   item: FulfillmentItem;
-  onSuccess: (updated: FulfillmentItem) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
@@ -20,22 +21,22 @@ export function CompleteForm({ item, onSuccess, onCancel }: CompleteFormProps) {
     setError('');
     const completedAt = new Date().toISOString();
     try {
-      await bookingsApi.complete(item.bookingId, {
+      const response = await bookingsApi.complete(item.bookingId, {
         completedAt,
         note: notes.trim() || undefined,
       });
+      const rejected = rejectionMessage(response, 'Не удалось завершить бронь.');
+      if (rejected) {
+        setError(rejected);
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось завершить бронь.');
       setLoading(false);
       return;
     }
-    const updated: FulfillmentItem = {
-      ...item,
-      status: 'completed',
-      completedAt,
-      notes,
-    };
-    onSuccess(updated);
+    onSuccess();
     setLoading(false);
   };
 

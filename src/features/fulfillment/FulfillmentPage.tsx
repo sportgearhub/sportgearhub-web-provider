@@ -3,26 +3,40 @@ import { AlertCircle, CheckSquare, ChevronLeft } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { ApiError, fulfillmentApi } from '../../lib/api-client';
+import { ApiError, bookingsApi, fulfillmentApi } from '../../lib/api-client';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { CompleteForm } from './CompleteForm';
 import { IssueReportForm } from './IssueReportForm';
-import type { FulfillmentItem, FulfillmentStatus } from '../../types';
+import type { BookingListItem, FulfillmentItem, FulfillmentStage } from '../../types';
 
-const statusConfig: Record<FulfillmentStatus, { label: string; variant: 'yellow' | 'blue' | 'teal' | 'green' | 'red' }> = {
+const stageConfig: Record<FulfillmentStage, { label: string; variant: 'yellow' | 'blue' | 'teal' | 'green' | 'red' }> = {
   pending_handover: { label: 'Ожидает выдачи', variant: 'yellow' },
-  active: { label: 'Активно', variant: 'blue' },
-  pending_return: { label: 'Ожидает возврата', variant: 'teal' },
+  active: { label: 'На руках', variant: 'blue' },
+  returned: { label: 'Возвращено', variant: 'teal' },
   completed: { label: 'Завершено', variant: 'green' },
   issue_reported: { label: 'Есть обращение', variant: 'red' },
 };
 
+const CLOSED_STAGES: FulfillmentStage[] = ['completed', 'issue_reported'];
+
 type FulfillmentAction = 'handover' | 'return' | 'complete' | 'issue';
 
+/**
+ * A queue row as the operator reads it. /fulfillment says what stage a booking is at and which of
+ * the three moves it will accept; it does not repeat the customer or the product title, so those
+ * are joined in from /bookings. The join is best-effort — a row with no matching booking still
+ * shows, because being unable to name the customer is no reason to hide work that is due.
+ */
+type QueueRow = FulfillmentItem & {
+  productTitle: string | null;
+  customerName: string | null;
+  notes: string | null;
+};
+
 export function FulfillmentPage() {
-  const [queue, setQueue] = useState<FulfillmentItem[]>([]);
-  const [selected, setSelected] = useState<FulfillmentItem | null>(null);
+  const [queue, setQueue] = useState<QueueRow[]>([]);
+  const [selected, setSelected] = useState<QueueRow | null>(null);
   const [action, setAction] = useState<FulfillmentAction | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,8 +46,21 @@ export function FulfillmentPage() {
     setError('');
     setLoading(true);
     try {
-      const items = await fulfillmentApi.getQueue();
-      setQueue(items.map(normalizeFulfillmentItem));
+      const [items, bookings] = await Promise.all([
+        fulfillmentApi.getQueue(),
+        // Labels only. If this half fails the queue is still actionable, so it degrades quietly.
+        bookingsApi.list({}).catch(() => [] as BookingListItem[]),
+      ]);
+      const byId = new Map(bookings.map(booking => [booking.bookingId, booking]));
+      setQueue(items.map(item => {
+        const booking = byId.get(item.bookingId);
+        return {
+          ...item,
+          productTitle: booking?.productTitle ?? null,
+          customerName: booking?.customerSummary?.fullName ?? null,
+          notes: booking?.fulfillmentSummary?.notes ?? null,
+        };
+      }));
     } catch (err) {
       setError(err instanceof ApiError ? `Не удалось загрузить очередь: ${err.message}` : 'Не удалось загрузить очередь.');
     } finally {
@@ -45,76 +72,56 @@ export function FulfillmentPage() {
     void loadQueue();
   }, []);
 
-  const handleAction = (item: FulfillmentItem, nextAction: FulfillmentAction) => {
+  const handleAction = (item: QueueRow, nextAction: FulfillmentAction) => {
     setSelected(item);
     setAction(nextAction);
   };
 
-  const handleSuccess = (updated: FulfillmentItem) => {
-    setQueue(prev => prev.map(item => item.bookingId === updated.bookingId ? updated : item));
+  const handleSuccess = () => {
     const successLabels: Record<FulfillmentAction, string> = {
-      handover: 'Выдача успешно записана.',
-      return: 'Возврат успешно записан.',
+      handover: 'Выдача записана.',
+      return: 'Возврат записан.',
       complete: 'Бронирование завершено.',
       issue: 'Обращение отправлено.',
     };
-
-    if (action) {
-      setSuccessMsg(successLabels[action]);
-    }
-
+    if (action) setSuccessMsg(successLabels[action]);
     setAction(null);
     setSelected(null);
     void loadQueue();
     window.setTimeout(() => setSuccessMsg(''), 4000);
   };
 
-  const activeItems = queue.filter(item =>
-    item.status === 'pending_handover' || item.status === 'active' || item.status === 'pending_return'
-  );
-  const completedItems = queue.filter(item =>
-    item.status === 'completed' || item.status === 'issue_reported'
-  );
+  const openItems = queue.filter(item => !CLOSED_STAGES.includes(item.fulfillmentStage));
+  const closedItems = queue.filter(item => CLOSED_STAGES.includes(item.fulfillmentStage));
 
   if (action && selected) {
     return (
-      <div className="p-6 max-w-2xl">
+      <div className="max-w-2xl p-6">
         <button
           onClick={() => {
             setAction(null);
             setSelected(null);
           }}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 mb-4 transition-colors"
+          className="mb-4 flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-gray-800"
         >
           <ChevronLeft size={14} /> Назад к очереди выдачи
         </button>
 
         <div className="mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">{selected.bookingRef}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {selected.customer.name} · {selected.selection.offerTitle}
-          </p>
+          <h2 className="text-sm font-semibold text-gray-900">{selected.bookingNumber}</h2>
+          <p className="mt-0.5 text-xs text-gray-500">{describe(selected)}</p>
         </div>
 
-        {action === 'handover' && (
-          <HandoverForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />
-        )}
-        {action === 'return' && (
-          <ReturnForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />
-        )}
-        {action === 'complete' && (
-          <CompleteForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />
-        )}
-        {action === 'issue' && (
-          <IssueReportForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />
-        )}
+        {action === 'handover' && <HandoverForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />}
+        {action === 'return' && <ReturnForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />}
+        {action === 'complete' && <CompleteForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />}
+        {action === 'issue' && <IssueReportForm item={selected} onSuccess={handleSuccess} onCancel={() => setAction(null)} />}
       </div>
     );
   }
 
   return (
     <div className="space-y-5 px-6 pb-6">
-
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
           <AlertCircle size={14} />
@@ -129,125 +136,57 @@ export function FulfillmentPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading && (
         <Card>
-          <p className="text-xs text-gray-500">Загружаем очередь выдачи...</p>
+          <p className="text-xs text-gray-500">Загружаем очередь выдачи…</p>
         </Card>
-      ) : null}
+      )}
 
-      {!loading && <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Открытая очередь</h3>
-          <Badge variant="blue">{activeItems.length}</Badge>
-        </div>
+      {!loading && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Открытая очередь</h3>
+            <Badge variant="blue">{openItems.length}</Badge>
+          </div>
+          {openItems.length === 0 ? (
+            <Card>
+              <p className="text-xs text-gray-500">Нет активных задач по выдаче.</p>
+            </Card>
+          ) : (
+            openItems.map(item => <FulfillmentCard key={item.bookingId} item={item} onAction={handleAction} />)
+          )}
+        </section>
+      )}
 
-        {activeItems.length === 0 ? (
-          <Card>
-            <p className="text-xs text-gray-500">Нет активных задач по выдаче.</p>
-          </Card>
-        ) : (
-          activeItems.map(item => (
-            <FulfillmentCard
-              key={item.bookingId}
-              item={item}
-              onAction={handleAction}
-            />
-          ))
-        )}
-      </section>}
-
-      {!loading && <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Завершено / обращения</h3>
-          <Badge variant="gray">{completedItems.length}</Badge>
-        </div>
-
-        {completedItems.length === 0 ? (
-          <Card>
-            <p className="text-xs text-gray-500">Завершенные аренды и обращения появятся здесь.</p>
-          </Card>
-        ) : (
-          completedItems.map(item => (
-            <FulfillmentCard
-              key={item.bookingId}
-              item={item}
-              onAction={handleAction}
-              compact
-            />
-          ))
-        )}
-      </section>}
+      {!loading && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Завершено и обращения</h3>
+            <Badge variant="gray">{closedItems.length}</Badge>
+          </div>
+          {closedItems.length === 0 ? (
+            <Card>
+              <p className="text-xs text-gray-500">Завершённые аренды и обращения появятся здесь.</p>
+            </Card>
+          ) : (
+            closedItems.map(item => <FulfillmentCard key={item.bookingId} item={item} onAction={handleAction} compact />)
+          )}
+        </section>
+      )}
     </div>
   );
 }
 
-function normalizeFulfillmentItem(raw: Record<string, unknown>): FulfillmentItem {
-  const booking = readRecord(raw.booking);
-  const customer = readRecord(raw.customer ?? raw.customerSummary ?? booking.customerSummary);
-  const selection = readRecord(raw.selection ?? raw.selectionSummary ?? booking.selectionSummary);
-  const status = normalizeFulfillmentStatus(
-    readString(raw.status) ||
-    readString(raw.fulfillmentStage) ||
-    readString(booking.fulfillmentStage) ||
-    readString(booking.status)
-  );
-  const bookingId = readString(raw.bookingId) || readString(booking.bookingId) || readString(raw.id);
-  const bookingRef =
-    readString(raw.bookingRef) ||
-    readString(raw.bookingNumber) ||
-    readString(booking.bookingNumber) ||
-    bookingId ||
-    'Бронь';
-
-  return {
-    bookingId,
-    bookingRef,
-    status,
-    customer: {
-      id: readString(customer.customerId) || readString(customer.id) || bookingId,
-      name: readString(customer.fullName) || readString(customer.name) || 'Клиент',
-      email: readString(customer.email) || '',
-      phone: readString(customer.phone) || undefined,
-    },
-    selection: {
-      offerId: readString(selection.offerId) || readString(raw.offerId),
-      offerTitle: readString(selection.offerTitle) || readString(raw.offerTitle) || 'Предложение',
-      resourceId: readString(selection.resourceId) || readString(raw.resourceId),
-      resourceTitle: readString(selection.resourceTitle) || readString(raw.resourceTitle) || 'Позиция',
-      variantId: readString(selection.variantId) || undefined,
-      variantTitle: readString(selection.variantTitle) || undefined,
-      quantity: readNumber(selection.quantity) || readNumber(raw.quantity) || 1,
-      startDate: readString(selection.startAt) || readString(selection.startDate) || readString(raw.startAt) || new Date().toISOString(),
-      endDate: readString(selection.endAt) || readString(selection.endDate) || readString(raw.endAt) || undefined,
-      durationLabel: readString(selection.durationLabel) || '',
-    },
-    handoverAt: readString(raw.handoverAt) || undefined,
-    returnAt: readString(raw.returnAt) || undefined,
-    completedAt: readString(raw.completedAt) || undefined,
-    issueReportedAt: readString(raw.issueReportedAt) || undefined,
-    notes: readString(raw.notes) || readString(raw.note) || undefined,
-  };
+/** The customer and the product, whichever of the two the bookings join managed to supply. */
+function describe(item: QueueRow) {
+  const parts = [item.customerName, item.productTitle].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : 'Бронирование';
 }
 
-function normalizeFulfillmentStatus(value: string): FulfillmentStatus {
-  if (value === 'pending_handover' || value === 'handover_pending') return 'pending_handover';
-  if (value === 'active' || value === 'handed_over') return 'active';
-  if (value === 'pending_return' || value === 'return_pending' || value === 'returned') return 'pending_return';
-  if (value === 'completed') return 'completed';
-  if (value === 'issue_reported' || value === 'issue') return 'issue_reported';
-  return 'pending_handover';
-}
-
-function readRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function readNumber(value: unknown): number {
-  return typeof value === 'number' ? value : 0;
+function formatMoment(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 function FulfillmentCard({
@@ -255,34 +194,28 @@ function FulfillmentCard({
   onAction,
   compact = false,
 }: {
-  item: FulfillmentItem;
-  onAction: (item: FulfillmentItem, action: FulfillmentAction) => void;
+  item: QueueRow;
+  onAction: (item: QueueRow, action: FulfillmentAction) => void;
   compact?: boolean;
 }) {
-  const status = statusConfig[item.status];
+  const stage = stageConfig[item.fulfillmentStage];
+  // Which moves are open is the API's call, not ours — it accounts for booking type, timestamps and
+  // whatever else it knows. Reporting a problem is the one thing that stays available while the
+  // booking is still open.
+  const canReportIssue = !CLOSED_STAGES.includes(item.fulfillmentStage);
 
   return (
     <Card>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <h4 className="text-sm font-semibold text-gray-900">{item.bookingRef}</h4>
-            <Badge variant={status.variant}>{status.label}</Badge>
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-semibold text-gray-900">{item.bookingNumber}</h4>
+            <Badge variant={stage.variant}>{stage.label}</Badge>
           </div>
-          <p className="text-xs text-gray-600">
-            {item.customer.name} · {item.selection.offerTitle}
-          </p>
+          <p className="text-xs text-gray-600">{describe(item)}</p>
           <p className="text-xs text-gray-500">
-            {item.selection.resourceTitle}
-            {item.selection.variantTitle ? ` · ${item.selection.variantTitle}` : ''}
-          </p>
-          <p className="text-xs text-gray-500">
-            Начало: {new Date(item.selection.startDate).toLocaleString('ru-RU', {
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatMoment(item.startAt)} — {formatMoment(item.endAt)}
+            {item.quantity > 1 ? ` · ${item.quantity} шт.` : ''}
           </p>
           {item.notes && (
             <div className="flex items-start gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -294,22 +227,22 @@ function FulfillmentCard({
 
         {!compact && (
           <div className="flex flex-wrap gap-2">
-            {item.status === 'pending_handover' && (
+            {item.handoverAllowed && (
               <Button size="sm" variant="primary" onClick={() => onAction(item, 'handover')}>
                 Записать выдачу
               </Button>
             )}
-            {item.status === 'active' && (
+            {item.returnAllowed && (
               <Button size="sm" variant="secondary" onClick={() => onAction(item, 'return')}>
                 Записать возврат
               </Button>
             )}
-            {item.status === 'pending_return' && (
+            {item.completionAllowed && (
               <Button size="sm" variant="primary" onClick={() => onAction(item, 'complete')}>
                 Завершить
               </Button>
             )}
-            {item.status !== 'issue_reported' && item.status !== 'completed' && (
+            {canReportIssue && (
               <Button size="sm" variant="ghost" onClick={() => onAction(item, 'issue')}>
                 Сообщить о проблеме
               </Button>

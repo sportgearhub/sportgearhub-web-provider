@@ -6,25 +6,32 @@ phone is the identity, the seller is created first, and review gates publishing 
 
 ## Signing in
 
-The phone number is the identity and the only way in. Email is a contact that can be attached
-afterwards, never a way to sign in.
+The phone number and the email address are both credentials. Whichever one someone joined with, they
+can add the other from inside their session and then sign in with either — see
+[`../two-ways-in-auth.design.md`](../two-ways-in-auth.design.md).
 
 ```mermaid
 flowchart TD
-    U[User] --> A[Enter phone number]
-    A --> B[POST /auth/phone/start]
-    B --> C[Enter code from SMS]
-    C --> D[POST /auth/phone/verify-code]
-    D --> E{Known user?}
-    E -->|No| F[POST /auth/phone/complete-registration]
-    E -->|Yes| G[Tokens issued]
-    F --> G
-    G --> H[GET /auth/me]
-    H --> I[Sellers this person belongs to, and pending invitations]
+    U[User] --> A{Phone or email}
+    A -->|Phone| B[POST /auth/phone/start]
+    A -->|Email| C[POST /auth/email/start]
+    B --> D[Enter code from SMS]
+    C --> E[Enter code from the mailbox]
+    D --> F[POST /auth/phone/verify-code]
+    E --> G[POST /auth/email/verify-code]
+    F --> H{Known contact?}
+    G --> H
+    H -->|No| I[complete-registration for that channel]
+    H -->|Yes| J[Tokens issued]
+    I --> J
+    J --> K[GET /auth/me]
+    K --> L[Sellers this person belongs to, and pending invitations]
 ```
 
-A trusted device may then sign in with a passcode instead of an SMS code, via
-`/auth/passcode/sign-in`.
+A trusted device may then sign in with a passcode instead of a code, via `/auth/passcode/sign-in`.
+
+The second contact is added from inside the session and proved the same way: `attach/start` then
+`attach/confirm`, on `/auth/phone/` or `/auth/email/`.
 
 ## Becoming a seller
 

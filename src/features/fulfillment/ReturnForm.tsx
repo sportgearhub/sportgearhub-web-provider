@@ -3,11 +3,12 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { ApiError, bookingsApi } from '../../lib/api-client';
+import { rejectionMessage } from './commandResult';
 import type { FulfillmentItem } from '../../types';
 
 interface ReturnFormProps {
   item: FulfillmentItem;
-  onSuccess: (updated: FulfillmentItem) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
@@ -29,23 +30,23 @@ export function ReturnForm({ item, onSuccess, onCancel }: ReturnFormProps) {
     setError('');
     const returnedAt = new Date().toISOString();
     try {
-      await bookingsApi.return(item.bookingId, {
+      const response = await bookingsApi.return(item.bookingId, {
         returnedAt,
         note: notes.trim() || undefined,
         conditionSummary: [{ key: 'condition', value: condition }],
       });
+      const rejected = rejectionMessage(response, 'Не удалось записать возврат.');
+      if (rejected) {
+        setError(rejected);
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось записать возврат.');
       setLoading(false);
       return;
     }
-    const updated: FulfillmentItem = {
-      ...item,
-      status: condition === 'damaged' ? 'issue_reported' : 'pending_return',
-      returnAt: returnedAt,
-      notes,
-    };
-    onSuccess(updated);
+    onSuccess();
     setLoading(false);
   };
 

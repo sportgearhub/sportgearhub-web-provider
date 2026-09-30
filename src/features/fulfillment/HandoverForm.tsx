@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, bookingsApi } from '../../lib/api-client';
+import { rejectionMessage } from './commandResult';
 import type { FulfillmentItem } from '../../types';
 
 interface HandoverFormProps {
   item: FulfillmentItem;
-  onSuccess: (updated: FulfillmentItem) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
@@ -20,22 +21,22 @@ export function HandoverForm({ item, onSuccess, onCancel }: HandoverFormProps) {
     setError('');
     const handedOverAt = new Date().toISOString();
     try {
-      await bookingsApi.handover(item.bookingId, {
+      const response = await bookingsApi.handover(item.bookingId, {
         handedOverAt,
         note: notes.trim() || undefined,
       });
+      const rejected = rejectionMessage(response, 'Не удалось записать выдачу.');
+      if (rejected) {
+        setError(rejected);
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось записать выдачу.');
       setLoading(false);
       return;
     }
-    const updated: FulfillmentItem = {
-      ...item,
-      status: 'active',
-      handoverAt: handedOverAt,
-      notes,
-    };
-    onSuccess(updated);
+    onSuccess();
     setLoading(false);
   };
 
