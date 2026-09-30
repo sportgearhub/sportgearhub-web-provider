@@ -121,7 +121,11 @@ export function ProductForm({
   }, [draft.categorySlug]);
 
   const categoryItems = useMemo(
-    () => categories.map(category => ({ value: category.slug, label: category.name })),
+    () => categories.map(category => ({
+      value: category.slug,
+      label: category.name,
+      description: (category.activities ?? []).map(activity => activity.name).join(' · ') || null,
+    })),
     [categories]
   );
   const locationItems = useMemo(

@@ -1249,3 +1249,30 @@ export interface QuotePreview {
   generatedAt?: string;
   expiresAt?: string;
 }
+
+/**
+ * An invitation as /seller-invitations/pending reports it: authoritative about status and expiry,
+ * and it names who sent it — but not the cabinet, which the session carries.
+ */
+export interface SellerInvitation {
+  invitationId: string;
+  sellerId: string;
+  phone: string;
+  role: string;
+  status: string;
+  invitedByName: string | null;
+  invitedByPhone: string | null;
+  sentAt: string;
+  expiresAt: string;
+}
+
+/**
+ * The second axis the category tree cannot express: a tent, a rod, skis and a SUP board are four
+ * branches and one activity. A product inherits its activities from its category.
+ */
+export interface ActivityOption {
+  activityId: string;
+  slug: string;
+  name: string;
+  sortOrder: number;
+}

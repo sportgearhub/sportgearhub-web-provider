@@ -1,5 +1,6 @@
 import type {
   Product,
+  ActivityOption,
   ProductAttributes,
   ProductAuthoringOptions,
   ProductCategory,
@@ -28,6 +29,7 @@ import type {
   ProviderMemberOptions,
   ProviderInvitation,
   ProviderLocation,
+  SellerInvitation,
   LocationSchedule,
   ScheduleException,
   WorkingHours,
@@ -657,6 +659,12 @@ export const authApi = {
       body: JSON.stringify({ email, code }),
     }),
   me: loadSession,
+  /**
+   * Invitations waiting for the signed-in phone. The session carries a copy, but this is the live
+   * one: it knows an invitation that was revoked or expired since sign-in.
+   */
+  pendingInvitations: () => request<SellerInvitation[]>('/api/v1/seller-invitations/pending'),
+
   // Invitations are addressed to a phone, not delivered to it: the signed-in account that proved
   // the number accepts by id.
   acceptProviderInvitation: (invitationId: string) =>
@@ -1080,6 +1088,10 @@ export const productsApi = {
 
   /** Every product's routability in one call — what the catalogue needs to flag blocked rows. */
   allRoutability: () => providerRequest<ProductRoutability[]>('/products/routability'),
+};
+
+export const activityOptionsApi = {
+  list: () => providerRequest<ActivityOption[]>('/activity-options'),
 };
 
 export const productCategoriesApi = {

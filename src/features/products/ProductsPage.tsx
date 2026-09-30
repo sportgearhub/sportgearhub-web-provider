@@ -5,8 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { SectionPage } from '../../components/layout/SectionPage';
-import { ApiError, productsApi } from '../../lib/api-client';
-import type { ProductRoutability, ProductSummary } from '../../types';
+import { ApiError, activityOptionsApi, productCategoriesApi, productsApi } from '../../lib/api-client';
+import type { ActivityOption, ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusFilterOptions } from './productStatus';
 
 /**
@@ -19,6 +19,10 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [blocked, setBlocked] = useState<Record<string, ProductRoutability>>({});
+  const [activities, setActivities] = useState<ActivityOption[]>([]);
+  const [activity, setActivity] = useState('');
+  // A product's activities come from its category, so the tree is what maps one to the other.
+  const [activitiesByCategory, setActivitiesByCategory] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -33,6 +37,16 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 
+    Promise.all([activityOptionsApi.list(), productCategoriesApi.list()])
+      .then(([nextActivities, categories]) => {
+        if (cancelled) return;
+        setActivities(nextActivities);
+        setActivitiesByCategory(Object.fromEntries(
+          categories.map(category => [category.slug, (category.activities ?? []).map(item => item.slug)])
+        ));
+      })
+      .catch(() => { /* the catalogue works without the activity filter */ });
+
     // One call answers "which of these can actually be booked" for the whole list.
     productsApi.allRoutability()
       .then(all => {
@@ -45,9 +59,11 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   const shown = useMemo(() => products.filter(product => {
     const matchesStatus = !status || product.status === status;
+    const matchesActivity = !activity
+      || (activitiesByCategory[product.category?.slug ?? ''] ?? []).includes(activity);
     const haystack = `${product.title} ${product.category?.name ?? ''}`.toLowerCase();
-    return matchesStatus && (!query || haystack.includes(query.toLowerCase()));
-  }), [products, query, status]);
+    return matchesStatus && matchesActivity && (!query || haystack.includes(query.toLowerCase()));
+  }), [products, query, status, activity, activitiesByCategory]);
 
   return (
     <SectionPage
@@ -77,6 +93,17 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           className="sm:w-52"
         />
       </div>
+
+      {activities.length > 0 && (
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          <FilterChip active={activity === ''} onClick={() => setActivity('')}>Все</FilterChip>
+          {activities.map(option => (
+            <FilterChip key={option.slug} active={activity === option.slug} onClick={() => setActivity(option.slug)}>
+              {option.name}
+            </FilterChip>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <p className="mt-6 text-sm text-gray-500">Загружаем каталог...</p>
@@ -148,6 +175,21 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </>
       )}
     </SectionPage>
+  );
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 rounded-full border px-3 py-1 text-sm transition ${
+        active ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

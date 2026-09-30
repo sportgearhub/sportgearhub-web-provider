@@ -7,9 +7,10 @@ import { Card } from '../../components/ui/Card';
 import { BrandWordmark } from '../../components/layout/BrandWordmark';
 import { FocusFrame } from '../../components/layout/FocusFrame';
 import { useAuth } from '../../context/useAuth';
-import { ApiError } from '../../lib/api-client';
+import { ApiError, authApi } from '../../lib/api-client';
 import { selectProvider, selectedProviderId } from '../../lib/active-provider';
 import { kindLabel, roleLabel, statusMeta } from './providerStatus';
+import type { SellerInvitation } from '../../types';
 
 /**
  * «Выберите кабинет» — the first screen after sign-in. Zero cabinets and nothing waiting: straight
@@ -17,7 +18,9 @@ import { kindLabel, roleLabel, statusMeta } from './providerStatus';
  * (they are what a person came for when someone sent them here), last-used cabinet preselected.
  */
 export function ProviderPickerPage() {
-  const { user, providers, pendingInvitations, acceptInvitation, signOut } = useAuth();
+  const { user, providers, pendingInvitations: sessionInvitations, acceptInvitation, signOut } = useAuth();
+  // The session's copy is a snapshot from sign-in; this is what is actually still open.
+  const [live, setLive] = useState<SellerInvitation[] | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const deniedProviderId = (location.state as { deniedProviderId?: string } | null)?.deniedProviderId;
@@ -30,6 +33,29 @@ export function ProviderPickerPage() {
   useEffect(() => {
     if (!providers.some(item => item.providerId === selected)) setSelected(providers[0]?.providerId ?? '');
   }, [providers, selected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    authApi.pendingInvitations()
+      .then(next => { if (!cancelled) setLive(next.filter(invitation => invitation.status === 'pending')); })
+      // Falling back to the session's copy beats showing nothing.
+      .catch(() => { if (!cancelled) setLive(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // The cabinet's name only comes from the session, so the two are read together.
+  const nameOf = (sellerId: string) =>
+    sessionInvitations.find(invitation => invitation.providerId === sellerId)?.providerDisplayName ?? 'Кабинет';
+  const pendingInvitations = live
+    ? live.map(invitation => ({
+      invitationId: invitation.invitationId,
+      providerId: invitation.sellerId,
+      providerDisplayName: nameOf(invitation.sellerId),
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      invitedByName: invitation.invitedByName,
+    }))
+    : sessionInvitations.map(invitation => ({ ...invitation, invitedByName: null as string | null }));
 
   if (providers.length === 0 && pendingInvitations.length === 0) return <Navigate to="/providers/new" replace />;
   if (providers.length === 1 && pendingInvitations.length === 0 && !deniedProviderId) {
@@ -85,7 +111,9 @@ export function ProviderPickerPage() {
               <div key={invitation.invitationId} className="flex items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900">«{invitation.providerDisplayName}»</p>
-                  <p className="text-xs text-gray-600">приглашает вас как {roleLabel(invitation.role)}</p>
+                  <p className="text-xs text-gray-600">
+                    {invitation.invitedByName ? `${invitation.invitedByName} приглашает` : 'Приглашение'} вас как {roleLabel(invitation.role)}
+                  </p>
                 </div>
                 <Button
                   type="button"
