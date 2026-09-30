@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
 import { EmailAttachDialog } from './EmailAttachDialog';
-import { Globe2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
-import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../context/useAuth';
-import { ApiError, profileApi, providerMembersApi, storefrontApi } from '../../lib/api-client';
-import type { Provider, ProviderInvitation, ProviderMember, ProviderMemberRoleOption, StorefrontEditSession, StorefrontSettings } from '../../types';
+import { ApiError, providerMembersApi } from '../../lib/api-client';
+import type { ProviderInvitation, ProviderMember, ProviderMemberRoleOption } from '../../types';
 import { LocationsPage } from '../locations/LocationsPage';
 import { PayoutsPage } from '../payouts/PayoutsPage';
 import { SellerProfileSettings } from './SellerProfileSettings';
@@ -28,7 +25,6 @@ export type SettingsTab =
   | 'shop-edit'
   | 'seller'
   | 'seller-edit'
-  | 'storefront'
   | 'locations'
   | 'account'
   | 'employees'
@@ -39,7 +35,6 @@ export type SettingsTab =
 function sectionOf(tab: SettingsTab): SettingsTab {
   return tab.endsWith('-edit') ? (tab.slice(0, -'-edit'.length) as SettingsTab) : tab;
 }
-type StorefrontTab = 'settings' | 'live';
 
 interface SettingsPageProps {
   tab: SettingsTab;
@@ -70,18 +65,9 @@ const sidebarGroups: { title: string; items: { id: SettingsTab; label: string; p
     items: [{ id: 'account', label: 'Аккаунт', path: '/settings/account' }],
   },
 ];
-const reservedProviderSlugs = new Set([
-  'www',
-  'api',
-  'admin',
-  'app',
-  'crm',
-  'support',
-  'mail',
-]);
 
 export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
-  const showSidebar = tab !== 'storefront';
+  const showSidebar = true;
   const section = sectionOf(tab);
   return (
     <div className="flex min-h-0 flex-1 bg-white">
@@ -137,7 +123,6 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
         {tab === 'seller' && <SellerProfileSettings onNavigate={onNavigate} />}
         {tab === 'seller-edit' && <SellerProfileEdit onNavigate={onNavigate} />}
         {tab === 'contracts' && <ContractsSettings />}
-        {tab === 'storefront' && <StorefrontSettingsPage />}
         {tab === 'locations' && <LocationsPage embedded />}
         {tab === 'employees' && <EmployeesSettings />}
         {tab === 'payouts' && <PayoutsPage />}
@@ -147,326 +132,7 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   );
 }
 
-function StorefrontSettingsPage() {
-  const [activeTab, setActiveTab] = useState<StorefrontTab>('settings');
-  const [profile, setProfile] = useState<Provider | null>(null);
-  const [storefront, setStorefront] = useState<StorefrontSettings | null>(null);
-  const [editSession, setEditSession] = useState<StorefrontEditSession | null>(null);
-  const [form, setForm] = useState({
-    slug: '',
-    enabled: false,
-    publicName: '',
-    description: '',
-    primaryColor: '',
-    accentColor: '',
-    phone: '',
-    email: '',
-    telegram: '',
-    whatsapp: '',
-    seoTitle: '',
-    seoDescription: '',
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [sessionLoading, setSessionLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
-  const [slugError, setSlugError] = useState('');
-  const [colorError, setColorError] = useState('');
 
-  const normalizedSlug = form.slug.trim().toLowerCase();
-  const publicUrl = storefront?.host ? `https://${storefront.host}` : normalizedSlug ? `https://${normalizedSlug}.sportgearhub.ru` : '';
-
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [nextProfile, nextStorefront] = await Promise.all([
-        profileApi.get(),
-        storefrontApi.get(),
-      ]);
-      setProfile(nextProfile);
-      setStorefront(nextStorefront);
-      const storefrontPhone = readStorefrontContact(nextStorefront, 'phone');
-      const storefrontEmail = readStorefrontContact(nextStorefront, 'email');
-      setForm({
-        slug: nextStorefront.provider?.slug ?? nextProfile.slug ?? nextStorefront.slug ?? '',
-        enabled: nextStorefront.enabled === true,
-        publicName: nextStorefront.publicName ?? nextProfile.displayName ?? '',
-        description: nextStorefront.description ?? '',
-        primaryColor: nextStorefront.theme?.primaryColor ?? '',
-        accentColor: nextStorefront.theme?.accentColor ?? '',
-        phone: storefrontPhone || nextProfile.contactPhone || '',
-        email: storefrontEmail || nextProfile.contactEmail || '',
-        telegram: readStorefrontContact(nextStorefront, 'telegram'),
-        whatsapp: readStorefrontContact(nextStorefront, 'whatsapp'),
-        seoTitle: nextStorefront.seo?.title ?? nextStorefront.publicName ?? nextProfile.displayName ?? '',
-        seoDescription: nextStorefront.seo?.description ?? '',
-      });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить настройки сайта.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  const validateSlug = () => {
-    if (!normalizedSlug) return form.enabled ? 'Укажите slug перед включением сайта.' : '';
-    if (normalizedSlug.length < 3 || normalizedSlug.length > 48) return 'Slug должен быть от 3 до 48 символов.';
-    if (!/^[a-z0-9-]+$/.test(normalizedSlug)) return 'Используйте латинские буквы, цифры и дефисы.';
-    if (normalizedSlug.startsWith('-') || normalizedSlug.endsWith('-')) return 'Slug не может начинаться или заканчиваться дефисом.';
-    if (normalizedSlug.includes('--')) return 'Slug не может содержать два дефиса подряд.';
-    if (reservedProviderSlugs.has(normalizedSlug)) return 'Этот slug зарезервирован.';
-    return '';
-  };
-
-  const validateColors = () => {
-    const hexColor = /^#[0-9a-fA-F]{6}$/;
-    if (form.primaryColor && !hexColor.test(form.primaryColor)) return 'Основной цвет должен быть в формате #RRGGBB.';
-    if (form.accentColor && !hexColor.test(form.accentColor)) return 'Акцентный цвет должен быть в формате #RRGGBB.';
-    return '';
-  };
-
-  const save = async () => {
-    const nextSlugError = validateSlug();
-    const nextColorError = validateColors();
-    if (nextSlugError || nextColorError) {
-      setSlugError(nextSlugError);
-      setColorError(nextColorError);
-      return;
-    }
-
-    setSaving(true);
-    setSaved(false);
-    setError('');
-    setSlugError('');
-    setColorError('');
-    try {
-      const slugChanged = normalizedSlug !== (profile?.slug ?? '');
-      if (slugChanged) {
-        await profileApi.patch({ slug: normalizedSlug });
-      }
-
-      const nextStorefront = await storefrontApi.patch({
-        enabled: form.enabled,
-        publicName: form.publicName.trim() || null,
-        description: form.description.trim() || null,
-        theme: {
-          primaryColor: form.primaryColor.trim() || null,
-          accentColor: form.accentColor.trim() || null,
-        },
-        contacts: buildStorefrontContacts(form),
-        seo: {
-          title: form.seoTitle.trim() || null,
-          description: form.seoDescription.trim() || null,
-        },
-      });
-
-      setStorefront(nextStorefront);
-      setProfile(current => current ? { ...current, slug: normalizedSlug } : current);
-      setEditSession(null);
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить сайт.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const createEditSession = async (force = false) => {
-    if ((!force && editSession) || sessionLoading) return;
-
-    const nextSlugError = validateSlug();
-    if (nextSlugError || !normalizedSlug) {
-      setSlugError(nextSlugError || 'Укажите slug перед запуском live-редактора.');
-      setActiveTab('settings');
-      return;
-    }
-
-    setSessionLoading(true);
-    setError('');
-    setSlugError('');
-    try {
-      const slugChanged = normalizedSlug !== (profile?.slug ?? '');
-      if (slugChanged) {
-        await profileApi.patch({ slug: normalizedSlug });
-        setProfile(current => current ? { ...current, slug: normalizedSlug } : current);
-      }
-      const nextSession = await storefrontApi.createEditSession();
-      setEditSession(nextSession);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось открыть live-редактор.');
-    } finally {
-      setSessionLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (loading || activeTab !== 'live' || editSession || sessionLoading) return;
-    void createEditSession();
-  }, [activeTab, editSession, loading, sessionLoading]);
-
-  useEffect(() => {
-    if (activeTab !== 'live' || !editSession?.expiresAt) return;
-
-    const expiresAt = new Date(editSession.expiresAt).getTime();
-    const refreshInMs = Number.isNaN(expiresAt)
-      ? 10 * 60 * 1000
-      : Math.max(0, expiresAt - Date.now() - 60 * 1000);
-    const timeoutId = window.setTimeout(() => {
-      void createEditSession(true);
-    }, refreshInMs);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [activeTab, editSession?.expiresAt]);
-
-  return (
-    <Card className="rounded-none border-0 p-0 shadow-none">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6">
-        <div className="flex flex-wrap gap-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab('settings')}
-            className={`border-b-2 px-3 py-2 text-sm font-medium transition ${
-              activeTab === 'settings' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Настройки
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('live')}
-            className={`border-b-2 px-3 py-2 text-sm font-medium transition ${
-              activeTab === 'live' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Live
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 pb-2">
-          {saved && activeTab === 'settings' && <Badge variant="green">сохранено</Badge>}
-          {storefront && <Badge variant={form.enabled ? 'green' : 'gray'}>{form.enabled ? 'включен' : 'выключен'}</Badge>}
-          {activeTab === 'live' && editSession && (
-            <a href={editSession.previewUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-blue-700 hover:text-blue-800">
-              Открыть в новой вкладке
-            </a>
-          )}
-          {activeTab === 'settings' && (
-            <Button type="button" variant="primary" onClick={() => void save()} loading={saving} disabled={loading}>
-              <Save size={14} /> Сохранить
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {error && <p className="mx-6 mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
-
-      {loading ? (
-        <p className="p-6 text-sm text-gray-500">Загружаем настройки сайта...</p>
-      ) : activeTab === 'settings' ? (
-        <div className="space-y-5 p-6">
-          {publicUrl && (
-            <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
-              <Globe2 size={13} /> {publicUrl}
-            </a>
-          )}
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Slug"
-              value={form.slug}
-              onChange={event => {
-                setSlugError('');
-                setForm(current => ({ ...current, slug: event.target.value.trim().toLowerCase() }));
-              }}
-              error={slugError}
-              placeholder="megaprokat-ufa"
-              hint={publicUrl || 'Латиница, цифры и дефисы.'}
-            />
-            <label className="flex min-h-9 items-center justify-between gap-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-              <span className="min-w-0 text-xs text-gray-600">Включить сайт</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.enabled}
-                onClick={() => {
-                  setSlugError('');
-                  setForm(current => ({ ...current, enabled: !current.enabled }));
-                }}
-                className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
-                  form.enabled ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-gray-200'
-                }`}
-              >
-                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${form.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </label>
-            <Input label="Публичное название" value={form.publicName} onChange={event => setForm(current => ({ ...current, publicName: event.target.value }))} />
-            <Input label="Телефон" value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} />
-            <Input label="Email" type="email" value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} />
-            <Input label="Telegram" value={form.telegram} onChange={event => setForm(current => ({ ...current, telegram: event.target.value }))} placeholder="megaprokat_ufa" />
-            <Input label="WhatsApp" value={form.whatsapp} onChange={event => setForm(current => ({ ...current, whatsapp: event.target.value }))} placeholder="+79990000000" />
-          </div>
-
-          <Textarea label="Описание сайта" rows={3} value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} />
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Основной цвет" value={form.primaryColor} onChange={event => {
-              setColorError('');
-              setForm(current => ({ ...current, primaryColor: event.target.value }));
-            }} placeholder="#0f766e" error={colorError && colorError.includes('Основной') ? colorError : undefined} />
-            <Input label="Акцентный цвет" value={form.accentColor} onChange={event => {
-              setColorError('');
-              setForm(current => ({ ...current, accentColor: event.target.value }));
-            }} placeholder="#f59e0b" error={colorError && colorError.includes('Акцентный') ? colorError : undefined} />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input label="SEO title" value={form.seoTitle} onChange={event => setForm(current => ({ ...current, seoTitle: event.target.value }))} />
-            <Input label="SEO description" value={form.seoDescription} onChange={event => setForm(current => ({ ...current, seoDescription: event.target.value }))} />
-          </div>
-        </div>
-      ) : (
-        <div>
-          {!editSession ? (
-            <div className="border-y border-gray-100 px-6 py-8">
-              <p className="text-sm font-medium text-gray-900">
-                {sessionLoading ? 'Открываем live-редактор...' : 'Live-редактор недоступен.'}
-              </p>
-              {slugError && <p className="mt-1 text-xs text-red-700">{slugError}</p>}
-            </div>
-          ) : (
-            <iframe
-              src={editSession.previewUrl}
-              title="Live-редактор онлайн магазина"
-              className="block h-[calc(100vh-105px)] min-h-[720px] w-full border-0 bg-white"
-            />
-          )}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function readStorefrontContact(storefront: StorefrontSettings, type: string) {
-  return storefront.contacts?.find(contact => contact.type === type)?.value ?? '';
-}
-
-function buildStorefrontContacts(form: {
-  phone: string;
-  email: string;
-  telegram: string;
-  whatsapp: string;
-}) {
-  return [
-    { type: 'phone', value: form.phone.trim(), isPrimary: true },
-    { type: 'email', value: form.email.trim(), isPrimary: true },
-    { type: 'telegram', value: form.telegram.trim(), isPrimary: true },
-    { type: 'whatsapp', value: form.whatsapp.trim(), isPrimary: false },
-  ].filter(contact => contact.value);
-}
 
 function EmployeesSettings() {
   const { user } = useAuth();

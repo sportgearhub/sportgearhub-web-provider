@@ -1,8 +1,14 @@
-# Seller Onboarding — Full Redesign (PROPOSAL)
+# Seller Onboarding — Full Redesign
 
-> Status: **proposed, not implemented.** Captured from the 2026-09-22 discussion. Replaces
+> Status: **built.** `POST /api/v1/sellers`, the seller and legal profiles, `readiness`,
+> `submit-for-review` and the admin review actions all exist; `ProviderOnboardingApplication` is gone.
+> The legal identity ended up as **one flat table with a `kind`** rather than a table per type, with a
+> DTO per kind on the API. This document claimed «proposed, not implemented» until 2026-09-30,
+> long after it was built.
+>
+> Captured from the 2026-09-22 discussion. Replaces
 > `ProviderOnboardingApplication` entirely and **builds on**
-> [provider-moderation-model.design.md](provider-moderation-model.design.md), whose
+> provider-moderation-model.design.md (the deleted provider-moderation-model design, removed 2026-09-30), whose
 > *register-first, publish-after-review* principle and `ProviderModerationState` enum both stand.
 >
 > Contains claims about Russian tax law that need a tax advisor's confirmation before they are
@@ -32,7 +38,7 @@ Three further defects:
 - **It owns data it should only collect.** `ProviderProfileService` reads the application at
   runtime, so a dead form stays load-bearing.
 - **Approval is a constructor.** The `Provider` row is created inside `ApproveOnboardingAsync`,
-  which is the defect [provider-moderation-model.design.md](provider-moderation-model.design.md)
+  which is the defect provider-moderation-model.design.md (the deleted provider-moderation-model design, removed 2026-09-30)
   already documents.
 
 ## Correcting the C2C / B2C framing
@@ -53,7 +59,7 @@ constraint. Coupling them would stop a tour operator from renting out gear and s
 самозанятый from listing a rental, both of which are ordinary.
 
 So: **two independent axes.** Offer type decides fulfillment (see
-[fulfillment-dimensions.design.md](fulfillment-dimensions.design.md)). Seller kind decides legal
+fulfillment-dimensions.design.md (the deleted fulfillment-dimensions design, removed 2026-09-30)). Seller kind decides legal
 capacity, documents, receipts and payouts. Neither determines the other.
 
 ## The seller kinds
@@ -186,7 +192,7 @@ payload.
 
 Dadata confirms the business *exists*. It cannot say whether we want to trade with it, and that
 judgment is the only thing left that a human makes. It is a single state, restoring the enum
-from [provider-moderation-model.design.md](provider-moderation-model.design.md):
+from provider-moderation-model.design.md (the deleted provider-moderation-model design, removed 2026-09-30):
 
 `Unsubmitted → PendingReview → Approved | ChangesRequested | Rejected`
 
@@ -284,7 +290,7 @@ the only one left.
 
 ## Related
 
-- [provider-moderation-model.design.md](provider-moderation-model.design.md) — register-first principle; its state enum is absorbed here
-- [fulfillment-dimensions.design.md](fulfillment-dimensions.design.md) — the independent offer-type axis
-- [billing-and-payout-model.design.md](billing-and-payout-model.design.md) — where payout instructions belong
-- [database-model.md](database-model.md) — current schema and its defects
+- provider-moderation-model.design.md (the deleted provider-moderation-model design, removed 2026-09-30) — register-first principle; its state enum is absorbed here
+- fulfillment-dimensions.design.md (the deleted fulfillment-dimensions design, removed 2026-09-30) — the independent offer-type axis
+- billing-and-payout-model.design.md (the deleted billing-and-payout-model design, removed 2026-09-30) — where payout instructions belong
+- database-model.md (the deleted database-model analysis, removed 2026-09-30) — current schema and its defects

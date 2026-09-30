@@ -66,5 +66,7 @@ export function getActiveProviderId(): string {
 }
 
 export function providerUrl(path: string) {
-  return `/api/v1/providers/${encodeURIComponent(getActiveProviderId())}${path}`;
+  // The API calls this party a seller (renamed from "provider" on 2026-09-30); the console still
+  // says «кабинет» to a person, and keeps its own naming internally.
+  return `/api/v1/sellers/${encodeURIComponent(getActiveProviderId())}${path}`;
 }

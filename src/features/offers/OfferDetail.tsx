@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { CreditCard as Edit2, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { ApiError, offerAvailabilityApi, offersApi, policyApi } from '../../lib/api-client';
-import type { Offer, OfferAvailability, OfferInfoSection, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus } from '../../types';
+import { ApiError, offersApi, policyApi } from '../../lib/api-client';
+import type { Offer, OfferInfoSection, OfferPolicy, OfferReadiness, OfferRoutability, OfferStatus } from '../../types';
 import { infoSectionLabel } from './infoSections';
 import { OfferReadinessChecklist } from './OfferReadinessChecklist';
 import { offerBookingSetupReady, offerCustomerVisible } from './offerReadiness';
@@ -22,16 +22,14 @@ interface OfferDetailProps {
   onEdit: () => void;
   onStatusChange: (s: OfferStatus) => void;
   onConfigurePolicy?: () => void;
-  onOpenAvailability?: () => void;
   onOpenPolicy?: () => void;
 }
 
-export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigurePolicy, onOpenAvailability, onOpenPolicy }: OfferDetailProps) {
+export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigurePolicy, onOpenPolicy }: OfferDetailProps) {
   const sb = statusBadge[offer.status];
   const [readiness, setReadiness] = useState<OfferReadiness | undefined>(offer.readiness);
   const [routability, setRoutability] = useState<OfferRoutability | null>(null);
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
-  const [availability, setAvailability] = useState<OfferAvailability | null>(null);
   const [policy, setPolicy] = useState<OfferPolicy | null>(null);
   const [diagnosticsError, setDiagnosticsError] = useState('');
 
@@ -68,9 +66,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
     offersApi.getInfoSections(offer.offerId)
       .then(next => { if (!cancelled) setInfoSections(next.sections ?? []); })
       .catch(() => { if (!cancelled) setInfoSections([]); });
-    offerAvailabilityApi.get(offer.offerId)
-      .then(next => { if (!cancelled) setAvailability(next); })
-      .catch(() => { if (!cancelled) setAvailability(null); });
     policyApi.getOfferPolicy(offer.offerId)
       .then(next => { if (!cancelled) setPolicy(next); })
       .catch(() => { if (!cancelled) setPolicy(null); });
@@ -104,9 +99,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={sb.variant}>{sb.label}</Badge>
-          {onOpenAvailability && (
-            <Button size="sm" variant="secondary" onClick={onOpenAvailability}>Доступность</Button>
-          )}
           {onOpenPolicy && (
             <Button size="sm" variant="secondary" onClick={onOpenPolicy}>Правила</Button>
           )}
@@ -154,26 +146,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
               <Row label="Публикация" value={publishabilityLabel(offer)} />
               <Row label="Маршрутизация" value={routability?.routable ? 'Готова' : routability ? 'Есть блокеры' : 'Не проверена'} />
             </div>
-          </section>
-
-          <section className="px-6 py-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">Доступность</h3>
-              {onOpenAvailability && (
-                <Button size="sm" variant="ghost" aria-label="Редактировать доступность" onClick={onOpenAvailability}>Редактировать</Button>
-              )}
-            </div>
-            {availabilityConfigured(availability) ? (
-              <div className="space-y-2">
-                <Row label="Часовой пояс" value={availability!.timezone || '—'} />
-                <Row label="Шаг слота" value={availability!.slotIntervalMinutes ? `${availability!.slotIntervalMinutes} мин` : '—'} />
-                <Row label="Окна работы" value={String(availability!.availabilityWindows.length)} />
-                <Row label="Закрытые периоды" value={String(availability!.blockedPeriods.length)} />
-                <Row label="Приём броней" value={availability!.status === 'active' ? 'Включён' : 'Выключен'} />
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500">Не настроена.</p>
-            )}
           </section>
 
           <section className="px-6 py-4">
@@ -253,10 +225,6 @@ export function OfferDetail({ offer, onBack, onEdit, onStatusChange, onConfigure
 }
 
 
-function availabilityConfigured(availability: OfferAvailability | null): boolean {
-  if (!availability || availability.status === 'not_configured') return false;
-  return availability.availabilityWindows.length > 0 || availability.blockedPeriods.length > 0 || availability.status === 'active';
-}
 
 function depositLabel(deposit: OfferPolicy['deposit']): string {
   if (!deposit || deposit.unit === 'none') return 'Нет';

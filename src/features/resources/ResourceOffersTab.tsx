@@ -127,7 +127,6 @@ export function ResourceOffersTab({ resource, onNavigate }: ResourceOffersTabPro
       onConfigurePolicy={() => onNavigate?.(`/offers/${offer.offerId}/policy`)}
       onEdit={() => onNavigate?.(`/offers/${offer.offerId}/edit`)}
       onStatusChange={status => void handleStatusChange(status)}
-      onOpenAvailability={() => onNavigate?.(`/offers/${offer.offerId}/availability`)}
       onOpenPolicy={() => onNavigate?.(`/offers/${offer.offerId}/policy`)}
     />
   );

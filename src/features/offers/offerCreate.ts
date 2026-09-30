@@ -1,6 +1,5 @@
-import { offerAvailabilityApi, offersApi, pricingApi } from '../../lib/api-client';
+import { offersApi, pricingApi } from '../../lib/api-client';
 import type { Offer } from '../../types';
-import { toHhMm } from '../../components/ui/TimeSelect';
 import type { OfferFormData } from './OfferForm';
 
 /**
@@ -33,20 +32,6 @@ export async function createOfferWithSetup(
     status: data.pricingStatus || 'active',
   });
 
-  // Availability is optional — only persist when the provider added at least one window.
-  if (data.availabilityWindows?.length) {
-    await offerAvailabilityApi.put(offer.offerId, {
-      timezone: data.timezone?.trim() || 'Asia/Yekaterinburg',
-      availabilityWindows: data.availabilityWindows.map(w => ({
-        ...w,
-        dailyOpensAt: `${toHhMm(w.dailyOpensAt)}:00`,
-        dailyClosesAt: `${toHhMm(w.dailyClosesAt)}:00`,
-      })),
-      blockedPeriods: data.blockedPeriods ?? [],
-      slotIntervalMinutes: data.slotIntervalMinutes ?? null,
-      status: data.availabilityStatus || 'active',
-    });
-  }
 
 
   // Info sections — only persist when the provider listed something.

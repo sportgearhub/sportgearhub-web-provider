@@ -20,21 +20,12 @@ import type {
   DashboardResponse,
   Resource,
   ResourceImage,
-  ResourceAllocation,
-  ResourceAllocationRules,
-  ResourceInventorySummary,
-  ResourceUnit,
-  ResourceUnitInput,
   PricingPolicy,
   PricingQuotePreview,
   PricingDiagnostics,
-  PayoutContract,
   OfferPolicy,
   OfferPolicyInput,
   Offer,
-  OfferAvailability,
-  OfferAvailabilityWindow,
-  OfferAvailabilityBlockedPeriod,
   OfferReadiness,
   OfferRoutability,
   OfferPublishability,
@@ -45,17 +36,8 @@ import type {
   BookingDetail,
   BookingStatus,
   FulfillmentCommandResult,
-  AcquiringConnection,
-  AcquiringDealBinding,
-  AcquiringOnboardingPayload,
-  AcquiringRoutability,
-  StorefrontEditSession,
-  StorefrontSettings,
-  StorefrontSettingsPatch,
   ResourceStatus,
   OfferStatus,
-  StockBalancePreview,
-  StockBalanceApplyResult,
 } from '../types';
 
 import { keysToCamel, keysToSnake } from './case-convert';
@@ -719,7 +701,7 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
   return promise;
 }
 
-// Console calls are scoped by the provider in the URL: /api/v1/providers/{providerId}/…
+// Console calls are scoped by the seller in the URL: /api/v1/sellers/{sellerId}/…
 function providerRequest<T>(path: string, options: RequestInit = {}) {
   return request<T>(providerUrl(path), options);
 }
@@ -801,7 +783,7 @@ export const authApi = {
   // Invitations are addressed to a phone, not delivered to it: the signed-in account that proved
   // the number accepts by id.
   acceptProviderInvitation: (invitationId: string) =>
-    request<void>('/api/v1/provider-invitations/accept', {
+    request<void>('/api/v1/seller-invitations/accept', {
       method: 'POST',
       body: JSON.stringify({ invitationId }),
     }),
@@ -925,10 +907,10 @@ export const profileApi = {
 // "Start selling": a draft provider with its legal party and accepted agreement, in one request.
 export const providersApi = {
   create: (data: { seller: SellerProfileInput; displayName?: string; description?: string }) =>
-    request<Provider>('/api/v1/providers', { method: 'POST', body: JSON.stringify(data) }),
+    request<Provider>('/api/v1/sellers', { method: 'POST', body: JSON.stringify(data) }),
   // Registry preview for the creation flow, before a provider exists.
   lookupSeller: (inn: string) =>
-    request<LegalIdentityLookup>(`/api/v1/providers/seller-lookup?inn=${encodeURIComponent(inn)}`),
+    request<LegalIdentityLookup>(`/api/v1/sellers/seller-lookup?inn=${encodeURIComponent(inn)}`),
 };
 
 // The provider's own lifecycle, scoped by the provider in the URL.
@@ -946,25 +928,7 @@ export const providerApi = {
     providerRequest<PayoutDetails>('/payout', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
-export const payoutContractsApi = {
-  list: () => providerRequest<PayoutContract[]>('/payout-contracts'),
-};
 
-export const storefrontApi = {
-  get: () => providerRequest<StorefrontSettings>('/storefront'),
-
-  patch: (data: StorefrontSettingsPatch) =>
-    providerRequest<StorefrontSettings>('/storefront', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-
-  createEditSession: () =>
-    providerRequest<StorefrontEditSession>('/storefront/edit-session', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    }),
-};
 
 // ─── Cities & Provider Locations ─────────────────────────────────────────────
 
@@ -1138,53 +1102,6 @@ export const equipmentApi = {
 // ─── Availability ─────────────────────────────────────────────────────────────
 
 // Inventory: the units a resource is made of, and the allocation rules that turn them into capacity.
-export const inventoryApi = {
-  getInventorySummary: (resourceId: string) =>
-    providerRequest<ResourceInventorySummary>(`/resources/${resourceId}/inventory-summary`),
-
-  listUnits: (resourceId: string) =>
-    providerRequest<ResourceUnit[]>(`/resources/${resourceId}/units`),
-
-  createUnit: (resourceId: string, data: ResourceUnitInput) =>
-    providerRequest<ResourceUnit>(`/resources/${resourceId}/units`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  patchUnit: (resourceId: string, unitId: string, data: ResourceUnitInput) =>
-    providerRequest<ResourceUnit>(`/resources/${resourceId}/units/${unitId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-
-  archiveUnit: (resourceId: string, unitId: string, reasonCode = 'provider_archived') =>
-    providerRequest<ResourceUnit>(`/resources/${resourceId}/units/${unitId}/archive`, {
-      method: 'POST',
-      body: JSON.stringify({ reasonCode }),
-    }),
-
-  deleteUnit: (resourceId: string, unitId: string) =>
-    providerRequest<void>(`/resources/${resourceId}/units/${unitId}`, {
-      method: 'DELETE',
-    }),
-
-  getAllocation: (resourceId: string) =>
-    providerRequest<ResourceAllocation>(`/resources/${resourceId}/allocation`),
-
-  putAllocation: (
-    resourceId: string,
-    data: {
-      allocationMode: string;
-      baseQuantity: number | null;
-      allocationRules: ResourceAllocationRules | null;
-      status: string;
-    }
-  ) =>
-    providerRequest<ResourceAllocation>(`/resources/${resourceId}/allocation`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-};
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -1326,25 +1243,6 @@ export const offersApi = {
 
 // ─── Offer Availability ───────────────────────────────────────────────────────
 
-export const offerAvailabilityApi = {
-  get: (offerId: string) =>
-    providerRequest<OfferAvailability>(`/offers/${offerId}/availability`),
-
-  put: (
-    offerId: string,
-    data: {
-      timezone: string;
-      availabilityWindows: OfferAvailabilityWindow[];
-      blockedPeriods: OfferAvailabilityBlockedPeriod[];
-      slotIntervalMinutes: number | null;
-      status: string;
-    }
-  ) =>
-    providerRequest<OfferAvailability>(`/offers/${offerId}/availability`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-};
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
@@ -1426,33 +1324,6 @@ export const fulfillmentApi = {
 
 // ─── Acquiring ────────────────────────────────────────────────────────────────
 
-export const acquiringApi = {
-  list: () => providerRequest<AcquiringConnection[]>('/acquiring-connections'),
-
-  create: (acquiringProvider?: string) =>
-    providerRequest<AcquiringConnection>('/acquiring-connections', {
-      method: 'POST',
-      body: JSON.stringify(acquiringProvider ? { acquiringProvider } : {}),
-    }),
-
-  get: (connectionId: string) =>
-    providerRequest<AcquiringConnection>(`/acquiring-connections/${connectionId}`),
-
-  getRoutability: (connectionId: string) =>
-    providerRequest<AcquiringRoutability>(`/acquiring-connections/${connectionId}/routability`),
-
-
-  getDealBinding: (connectionId: string) =>
-    providerRequest<AcquiringDealBinding>(
-      `/acquiring-connections/${connectionId}/deal-binding`
-    ),
-
-  submitOnboarding: (connectionId: string, data: AcquiringOnboardingPayload) =>
-    providerRequest<AcquiringConnection>(
-      `/acquiring-connections/${connectionId}/submit-onboarding`,
-      { method: 'POST', body: JSON.stringify(data) }
-    ),
-};
 
 // ─── Activity Options ─────────────────────────────────────────────────────────
 
@@ -1470,31 +1341,6 @@ export const activityOptionsApi = {
 
 // ─── Stock Balance ────────────────────────────────────────────────────────────
 
-export const stockBalanceApi = {
-  downloadTemplate: async (): Promise<Blob> => {
-    const accessToken = await getAccessToken();
-    const headers = new Headers();
-    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-    const res = await fetch(
-      `${API_BASE_URL}${providerUrl('/stock-balance')}`,
-      { credentials: accessToken ? 'omit' : 'include', headers }
-    );
-    if (!res.ok) throw new ApiError(res.status, `Не удалось скачать шаблон`, undefined);
-    return res.blob();
-  },
-
-  preview: (file: File): Promise<StockBalancePreview> => {
-    const form = new FormData();
-    form.append('file', file);
-    return providerRequest<StockBalancePreview>('/stock-balance/preview', { method: 'POST', body: form });
-  },
-
-  apply: (file: File): Promise<StockBalanceApplyResult> => {
-    const form = new FormData();
-    form.append('file', file);
-    return providerRequest<StockBalanceApplyResult>('/stock-balance', { method: 'POST', body: form });
-  },
-};
 
 export type {
   Provider,

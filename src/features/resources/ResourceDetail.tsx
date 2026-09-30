@@ -4,7 +4,6 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ResourceImagesSection } from './ResourceImagesSection';
-import { ResourceParkTab } from './ResourceParkTab';
 import { ResourceActionsMenu } from './ResourceActionsMenu';
 import { ResourceOffersTab } from './ResourceOffersTab';
 import { equipmentApi, resourcesApi, type EquipmentAttribute, type ResourceAttributeValue } from '../../lib/api-client';
@@ -29,11 +28,10 @@ interface ResourceDetailProps {
   onNavigate?: (path: string) => void;
 }
 
-type DetailTab = 'overview' | 'park' | 'offers' | 'photos';
+type DetailTab = 'overview' | 'offers' | 'photos';
 
 const detailTabs: Array<{ value: DetailTab; label: string }> = [
   { value: 'overview', label: 'Обзор' },
-  { value: 'park', label: 'Инвентарь' },
   { value: 'offers', label: 'Предложения' },
   { value: 'photos', label: 'Фото' },
 ];
@@ -177,8 +175,6 @@ export function ResourceDetail({ resource, onEdit, onArchive, onRemove, removing
           </Card>
         </div>
       )}
-
-      {activeTab === 'park' && <ResourceParkTab key={`park-${tabResetKey}`} resource={resource} onNavigate={onNavigate} />}
 
       {activeTab === 'offers' && (
         <ResourceOffersTab key={`offers-${tabResetKey}`} resource={resource} onNavigate={onNavigate} />

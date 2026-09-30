@@ -1,6 +1,13 @@
-# Seller Agreement — Numbered Contract, Accepted In The Cabinet (PROPOSAL)
+# Seller Agreement — Numbered Contract, Accepted In The Cabinet
 
-> Status: **design, nothing built.** From reading Ozon's «Договор для Продавцов товаров на
+> Status: **built.** `SellerAgreement` carries the number from the
+> `seller.seller_agreement_number_seq` sequence, and `/api/v1/sellers/{sellerId}/agreement` accepts
+> it. The status line below said «nothing built» until 2026-09-30, long after it was.
+>
+> One thing worth knowing: dropping the old `provider` schema took that sequence with it, and the
+> column default that read it. An accepted agreement would have failed on a null number until it was
+> restored on 2026-09-30.
+> From reading Ozon's «Договор для Продавцов товаров на
 > Платформе Ozon» (`artifacts/ozon/public_agreement.md`, edition of 22.10.2026, 2,633 lines) and
 > what our own payout code already does with a contract number. This document is about the
 > **mechanics** — what is stored, when the number is born, where it flows. The **text** of our
@@ -160,6 +167,6 @@ The T-Bank formats above are the ones in code (`ProviderPayoutRegistrationServic
 
 ## Related
 
-- [provider-console-flows.design.md](provider-console-flows.design.md) — screen 3.3 is the acceptance
-- [provider-onboarding-api.design.md](provider-onboarding-api.design.md) — `payout` endpoints now write `provider_payout_details`; `approve` activates the agreement
+- provider-console-flows.design.md (the deleted provider-console-flows design, removed 2026-09-30) — screen 3.3 is the acceptance
+- provider-onboarding-api.design.md (the deleted provider-onboarding-api design, removed 2026-09-30) — `payout` endpoints now write `provider_payout_details`; `approve` activates the agreement
 - `sportgearhub-docs/docs/legal/providers/` — the drafted texts and the change log of editions

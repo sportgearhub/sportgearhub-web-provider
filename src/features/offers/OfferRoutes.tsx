@@ -5,8 +5,6 @@ import type { Offer, OfferStatus, Resource } from '../../types';
 import { resourcesApi } from '../../lib/api-client';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { Button } from '../../components/ui/Button';
-import { OfferAvailabilityEdit } from './OfferAvailabilityEdit';
-import { OfferAvailabilityRead } from './OfferAvailabilityRead';
 import { OfferDetail } from './OfferDetail';
 import { OfferForm, type OfferFormData } from './OfferForm';
 import { OfferPolicyTab } from './OfferPolicyTab';
@@ -82,7 +80,6 @@ export function OfferDetailRoute({ offerId, onNavigate }: { offerId: string; onN
             onEdit={() => onNavigate(`/offers/${offerId}/edit`)}
             onStatusChange={status => void changeStatus(offer, status, setOffer, setError)}
             onConfigurePolicy={() => onNavigate(`/offers/${offerId}/policy`)}
-            onOpenAvailability={() => onNavigate(`/offers/${offerId}/availability`)}
             onOpenPolicy={() => onNavigate(`/offers/${offerId}/policy`)}
           />
         </div>
@@ -161,22 +158,6 @@ export function OfferEditRoute({ offerId, onNavigate }: { offerId: string; onNav
           />
         </SectionPage>
       )}
-    </OfferFrame>
-  );
-}
-
-export function OfferAvailabilityRoute({ offerId, onNavigate }: { offerId: string; onNavigate: (path: string) => void }) {
-  return (
-    <OfferFrame offerId={offerId} onNavigate={onNavigate}>
-      {offer => <OfferAvailabilityRead offer={offer} onNavigate={onNavigate} />}
-    </OfferFrame>
-  );
-}
-
-export function OfferAvailabilityEditRoute({ offerId, onNavigate }: { offerId: string; onNavigate: (path: string) => void }) {
-  return (
-    <OfferFrame offerId={offerId} onNavigate={onNavigate}>
-      {offer => <OfferAvailabilityEdit offer={offer} onNavigate={onNavigate} />}
     </OfferFrame>
   );
 }

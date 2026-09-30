@@ -16,8 +16,6 @@ import { ResourceEditPage } from './features/resources/ResourceEditPage';
 import { OffersPage } from './features/offers/OffersPage';
 import { OfferCreatePage } from './features/offers/OfferCreatePage';
 import {
-  OfferAvailabilityEditRoute,
-  OfferAvailabilityRoute,
   OfferCreateRoute as OfferCreateStandaloneRoute,
   OfferDetailRoute,
   OfferEditRoute,
@@ -134,16 +132,12 @@ function OfferCreateStandalone() {
   return <OfferCreateStandaloneRoute onNavigate={navigateTo} />;
 }
 
-function OfferRoute({ page }: { page: 'detail' | 'edit' | 'availability' | 'availability-edit' | 'policy' }) {
+function OfferRoute({ page }: { page: 'detail' | 'edit' | 'policy' }) {
   const { navigateTo } = useConsole();
   const { offerId = '' } = useParams();
   switch (page) {
     case 'edit':
       return <OfferEditRoute offerId={offerId} onNavigate={navigateTo} />;
-    case 'availability':
-      return <OfferAvailabilityRoute offerId={offerId} onNavigate={navigateTo} />;
-    case 'availability-edit':
-      return <OfferAvailabilityEditRoute offerId={offerId} onNavigate={navigateTo} />;
     case 'policy':
       return <OfferPolicyRoute offerId={offerId} onNavigate={navigateTo} />;
     default:
@@ -184,8 +178,6 @@ const router = createBrowserRouter([
           { path: 'offers/new', element: <OfferCreateStandalone /> },
           { path: 'offers/:offerId', element: <OfferRoute page="detail" /> },
           { path: 'offers/:offerId/edit', element: <OfferRoute page="edit" /> },
-          { path: 'offers/:offerId/availability', element: <OfferRoute page="availability" /> },
-          { path: 'offers/:offerId/availability/edit', element: <OfferRoute page="availability-edit" /> },
           { path: 'offers/:offerId/policy', element: <OfferRoute page="policy" /> },
           { path: 'settings', element: <Navigate to="shop" replace /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
