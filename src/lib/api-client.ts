@@ -640,7 +640,9 @@ export const authApi = {
     storeSimpleToken(result);
     return { status: 'authenticated' as const, session: await loadSession() };
   },
-  completePhoneRegistration: async (data: { token: string; name: string; surname: string }) => {
+  /** `birthday` is required by the guide (a real past date, within 120 years), though the generated
+   *  spec marks it nullable — rows predating this form read 0001-01-01. */
+  completePhoneRegistration: async (data: { token: string; name: string; surname: string; birthday: string }) => {
     storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/phone/complete-registration', {
       method: 'POST',
       auth: false,

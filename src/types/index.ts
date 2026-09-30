@@ -147,17 +147,19 @@ export interface ProviderReadiness {
   latestReview: ProviderReviewSummary | null;
 }
 
+/** The API's own field names for a natural person — not last/first/middle. */
 export interface SellerPerson {
-  lastName: string;
-  firstName: string;
-  middleName: string | null;
+  surname: string;
+  name: string;
+  patronymic: string | null;
 }
 
 export interface SellerDirector extends SellerPerson {
   position: string;
 }
 
-export interface SellerBusinessDetails {
+/** The registry's record of a business. Flat on the response — there is no `business` object. */
+export interface SellerRegistryFacts {
   legalName: string;
   registrationNumber: string;
   legalAddress: string;
@@ -170,34 +172,41 @@ export interface SellerBusinessDetails {
 interface SellerIdentityBase {
   legalIdentityId: string;
   inn: string;
-  updatedAt?: string;
 }
 
 /**
- * The seller's legal identity, which is a different payload for each kind — not one shape with
- * three fields that may or may not be filled.
+ * The seller's legal identity: a different payload per kind, discriminated by `kind`, with a field
+ * that cannot apply **absent** rather than null.
  *
- * A самозанятый is a person with an ИНН and nothing in the registry. ИП and organisations have a
- * registry record instead, and the human being is its director. Only an organisation has a КПП.
- * Written as a union so reading `company` off a самозанятый does not compile, rather than
- * returning undefined at three in the afternoon.
+ * A самозанятый types their own name — there is no registry to read and no office they hold. ИП and
+ * organisations are read from the state registry by ИНН, and the human being is the director. Only
+ * an organisation has a КПП. The registry's fields sit flat on the response; there is no `business`
+ * object to reach through.
  */
 export type SellerProfile =
   | (SellerIdentityBase & { kind: 'self_employed'; person: SellerPerson })
-  | (SellerIdentityBase & { kind: 'sole_proprietor'; business: SellerBusinessDetails })
-  | (SellerIdentityBase & { kind: 'company'; business: SellerBusinessDetails; company: { kpp: string } });
+  | (SellerIdentityBase & SellerRegistryFacts & { kind: 'sole_proprietor' })
+  | (SellerIdentityBase & SellerRegistryFacts & { kind: 'company'; kpp: string });
 
-/** The natural person, wherever this kind keeps one: their own name, or the director's. */
+/** The natural person this kind keeps: their own name, or the director's. */
 export function sellerPerson(profile: SellerProfile): SellerPerson | null {
-  return profile.kind === 'self_employed' ? profile.person : profile.business.director;
+  return profile.kind === 'self_employed' ? profile.person : profile.director;
 }
 
-export function sellerBusiness(profile: SellerProfile): SellerBusinessDetails | null {
-  return profile.kind === 'self_employed' ? null : profile.business;
+/** The registry's facts, for the kinds that have a registry entry. */
+export function sellerRegistry(profile: SellerProfile): SellerRegistryFacts | null {
+  return profile.kind === 'self_employed' ? null : profile;
 }
 
 export function sellerKpp(profile: SellerProfile): string | null {
-  return profile.kind === 'company' ? profile.company.kpp : null;
+  return profile.kind === 'company' ? profile.kpp : null;
+}
+
+/** «Иванов Иван Иванович», or an em dash when this kind names nobody. */
+export function sellerPersonName(profile: SellerProfile): string {
+  const person = sellerPerson(profile);
+  if (!person) return '—';
+  return [person.surname, person.name, person.patronymic].filter(Boolean).join(' ');
 }
 
 /**
@@ -209,9 +218,9 @@ export function sellerKpp(profile: SellerProfile): string | null {
  * address and the director, and anything the client sent for those would be overwritten.
  */
 export type SellerProfileInput =
-  | { kind: 'self_employed'; inn: string; person: { lastName: string; firstName: string; middleName?: string | null } }
-  | { kind: 'sole_proprietor'; inn: string; taxationSystem: string; vatRate: string }
-  | { kind: 'company'; inn: string; taxationSystem: string; vatRate: string };
+  | { kind: 'self_employed'; inn: string; person: { surname: string; name: string; patronymic?: string | null } }
+  | { kind: 'sole_proprietor'; inn: string; taxationSystem: string; vatRate?: string }
+  | { kind: 'company'; inn: string; taxationSystem: string; vatRate?: string };
 
 export interface LegalIdentityLookup {
   legalCountryCode: string;

@@ -205,7 +205,8 @@ export function ProductForm({
         description: draft.description.trim() || null,
         fulfillmentLocationId: draft.fulfillmentLocationId || null,
         category: draft.categorySlug,
-        groupName: draft.groupName.trim() || null,
+        // PATCH reads null as «leave alone»; an empty string is the one way to clear a group.
+        groupName: draft.groupName.trim(),
         quantity: Number(draft.quantity),
         attributes: draft.attributes,
       };

@@ -1,4 +1,4 @@
-# OpenAPI Specs
+﻿# OpenAPI Specs
 
 Three documents, one per audience. The API builds them itself — see the `SwaggerDocument` calls in
 `IServiceCollectionExtesions.cs` — and each one filters the endpoint list by route prefix, so a
@@ -7,7 +7,7 @@ console only sees the surface it is allowed to call.
 | File | Document | Serves | Size |
 |---|---|---|---|
 | [`app.json`](app.json) | Sportgearhub App API | the customer app: auth, discovery, marketplace products, checkout, bookings | 46 paths · 48 operations |
-| [`seller.json`](seller.json) | Sportgearhub Seller CRM API | the seller console: auth, onboarding, everything under `/api/v1/seller` | 79 paths · 95 operations |
+| [`seller.json`](seller.json) | Sportgearhub Seller CRM API | the seller console: auth, onboarding, everything under `/api/v1/seller` | 82 paths · 98 operations |
 | [`admin.json`](admin.json) | Sportgearhub Admin API | the internal console: auth and everything under `/internal` | 62 paths · 67 operations |
 
 Auth (`/api/v1/auth`, `/connect`) is in all three, because all three sign in the same way.

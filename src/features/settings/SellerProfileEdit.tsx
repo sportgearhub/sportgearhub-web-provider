@@ -5,7 +5,7 @@ import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ApiError, providerApi } from '../../lib/api-client';
-import { sellerBusiness } from '../../types';
+import { sellerRegistry } from '../../types';
 import type { SellerProfile } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
 import { kindLabel, taxationSystemOptions, vatRateOptions } from '../providers/providerStatus';
@@ -21,7 +21,7 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [taxationSystem, setTaxationSystem] = useState('usn');
   const [vatRate, setVatRate] = useState('none');
-  const [person, setPerson] = useState({ lastName: '', firstName: '', middleName: '' });
+  const [person, setPerson] = useState({ surname: '', name: '', patronymic: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -35,13 +35,13 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
         setProfile(next);
         if (next.kind === 'self_employed') {
           setPerson({
-            lastName: next.person.lastName,
-            firstName: next.person.firstName,
-            middleName: next.person.middleName ?? '',
+            surname: next.person.surname,
+            name: next.person.name,
+            patronymic: next.person.patronymic ?? '',
           });
         } else {
-          setTaxationSystem(next.business.taxationSystem);
-          setVatRate(next.business.vatRate);
+          setTaxationSystem(next.taxationSystem);
+          setVatRate(next.vatRate);
         }
       })
       .catch(err => {
@@ -55,11 +55,11 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
     };
   }, [provider.providerId]);
 
-  const business = profile ? sellerBusiness(profile) : null;
+  const registry = profile ? sellerRegistry(profile) : null;
 
   const save = async () => {
     if (!profile) return;
-    if (profile.kind === 'self_employed' && (!person.lastName.trim() || !person.firstName.trim())) {
+    if (profile.kind === 'self_employed' && (!person.surname.trim() || !person.name.trim())) {
       setError('Укажите фамилию и имя.');
       return;
     }
@@ -74,9 +74,9 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
             kind: 'self_employed',
             inn: profile.inn,
             person: {
-              lastName: person.lastName.trim(),
-              firstName: person.firstName.trim(),
-              middleName: person.middleName.trim() || null,
+              surname: person.surname.trim(),
+              name: person.name.trim(),
+              patronymic: person.patronymic.trim() || null,
             },
           }
           : { kind: profile.kind, inn: profile.inn, taxationSystem, vatRate }
@@ -102,11 +102,11 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
           <DetailList>
             <DetailRow label="Форма собственности" value={kindLabel(profile.kind)} hint="Не меняется" />
             <DetailRow label="ИНН" value={profile.inn} hint="Не меняется" />
-            {business && <DetailRow label="Наименование" value={business.legalName} />}
+            {registry && <DetailRow label="Наименование" value={registry.legalName} />}
           </DetailList>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {business && (
+            {registry && (
               <>
                 <Select
                   label="Система налогообложения"
@@ -124,9 +124,9 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
             )}
             {profile.kind === 'self_employed' && (
               <>
-                <Input label="Фамилия" value={person.lastName} onChange={event => setPerson(current => ({ ...current, lastName: event.target.value }))} />
-                <Input label="Имя" value={person.firstName} onChange={event => setPerson(current => ({ ...current, firstName: event.target.value }))} />
-                <Input label="Отчество" value={person.middleName} onChange={event => setPerson(current => ({ ...current, middleName: event.target.value }))} />
+                <Input label="Фамилия" value={person.surname} onChange={event => setPerson(current => ({ ...current, surname: event.target.value }))} />
+                <Input label="Имя" value={person.name} onChange={event => setPerson(current => ({ ...current, name: event.target.value }))} />
+                <Input label="Отчество" value={person.patronymic} onChange={event => setPerson(current => ({ ...current, patronymic: event.target.value }))} />
               </>
             )}
           </div>

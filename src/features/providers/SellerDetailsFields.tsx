@@ -16,14 +16,14 @@ export const SELLER_KINDS: { value: SellerKind; title: string; description: stri
 export type SellerDraft = {
   kind: SellerKind | '';
   inn: string;
-  person: { lastName: string; firstName: string; middleName: string };
+  person: { surname: string; name: string; patronymic: string };
   taxationSystem: string;
   vatRate: string;
 };
 
 export function emptySellerDraft(userName?: string | null): SellerDraft {
-  const [firstName = '', lastName = ''] = (userName ?? '').split(' ');
-  return { kind: '', inn: '', person: { lastName, firstName, middleName: '' }, taxationSystem: 'usn', vatRate: 'none' };
+  const [name = '', surname = ''] = (userName ?? '').split(' ');
+  return { kind: '', inn: '', person: { surname, name, patronymic: '' }, taxationSystem: 'usn', vatRate: 'none' };
 }
 
 export function isBusinessKind(kind: SellerKind | '') {
@@ -43,7 +43,7 @@ export function isSellerInnOk(draft: SellerDraft) {
 export function sellerDraftError(draft: SellerDraft): string | null {
   if (!draft.kind) return 'Выберите форму собственности.';
   if (!isSellerInnOk(draft)) return draft.kind === 'company' ? 'ИНН организации — 10 цифр с верной контрольной суммой.' : 'ИНН — 12 цифр с верной контрольной суммой.';
-  if (draft.kind === 'self_employed' && (!draft.person.lastName.trim() || !draft.person.firstName.trim())) return 'Укажите фамилию и имя как в налоговом учёте.';
+  if (draft.kind === 'self_employed' && (!draft.person.surname.trim() || !draft.person.name.trim())) return 'Укажите фамилию и имя как в налоговом учёте.';
   return null;
 }
 
@@ -60,9 +60,9 @@ export function sellerDraftToInput(draft: SellerDraft): SellerProfileInput {
       kind: 'self_employed',
       inn,
       person: {
-        lastName: draft.person.lastName.trim(),
-        firstName: draft.person.firstName.trim(),
-        middleName: draft.person.middleName.trim() || null,
+        surname: draft.person.surname.trim(),
+        name: draft.person.name.trim(),
+        patronymic: draft.person.patronymic.trim() || null,
       },
     };
   }
@@ -141,9 +141,9 @@ export function SellerDetailsFields({ draft, onChange, onLookupError }: { draft:
       {draft.kind === 'self_employed' ? (
         <>
           <FieldRow className="sm:grid-cols-3">
-            <FloatingInput label="Фамилия" required value={draft.person.lastName} onChange={event => onChange({ ...draft, person: { ...draft.person, lastName: event.target.value } })} />
-            <FloatingInput label="Имя" required value={draft.person.firstName} onChange={event => onChange({ ...draft, person: { ...draft.person, firstName: event.target.value } })} />
-            <FloatingInput label="Отчество" value={draft.person.middleName} onChange={event => onChange({ ...draft, person: { ...draft.person, middleName: event.target.value } })} />
+            <FloatingInput label="Фамилия" required value={draft.person.surname} onChange={event => onChange({ ...draft, person: { ...draft.person, surname: event.target.value } })} />
+            <FloatingInput label="Имя" required value={draft.person.name} onChange={event => onChange({ ...draft, person: { ...draft.person, name: event.target.value } })} />
+            <FloatingInput label="Отчество" value={draft.person.patronymic} onChange={event => onChange({ ...draft, person: { ...draft.person, patronymic: event.target.value } })} />
           </FieldRow>
           <p className="px-1 text-xs text-gray-500">Как в налоговом учёте. Система налогообложения: НПД. Выплаты — по СБП на номер телефона.</p>
         </>

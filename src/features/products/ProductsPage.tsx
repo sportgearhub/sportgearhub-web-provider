@@ -19,14 +19,17 @@ import { formatPrice, productStatus, productStatusMeta } from './productStatus';
 const quote = (value: string) => `"${value.replace(/"/g, '\\"')}"`;
 
 /**
- * The columns, in their default order. `field` is the name the endpoint's RSQL profile knows —
- * title, status, quantity, group_name, category, fulfillment_location_id, created_at, updated_at —
- * and a column without one cannot be sorted or filtered, because the server would reject it.
- * The profile is wider than this table — created_at can be sorted on without having a column.
+ * The columns, in their default order.
+ *
+ * `field` is the name the endpoint's RSQL profile allows: product_id, title, status, quantity,
+ * group_name, booking_approval, category_id, fulfillment_location_id, created_at, updated_at. A
+ * column without one cannot be sorted or filtered — an unlisted field is a 400 naming it, not a
+ * parameter that quietly does nothing. The category filters by `category_id`, so its options are
+ * ids even though the cell shows the title.
  */
 const COLUMNS = [
   { key: 'title', label: 'Товар', field: 'title', fixed: true },
-  { key: 'category', label: 'Категория', field: 'category' },
+  { key: 'category', label: 'Категория', field: 'category_id' },
   { key: 'group', label: 'Группа', field: 'group_name' },
   { key: 'quantity', label: 'Кол-во', field: 'quantity', align: 'right' as const },
   { key: 'price', label: 'Цена', align: 'right' as const },
@@ -177,7 +180,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   const filterOptionsFor = (key: string) => {
     if (key === 'status') return Object.entries(productStatusMeta).map(([value, meta]) => ({ value, label: meta.label }));
-    if (key === 'category') return categories.map(category => ({ value: category.slug, label: category.name }));
+    if (key === 'category') return categories.map(category => ({ value: category.categoryId, label: category.name }));
     return undefined;
   };
 

@@ -12,7 +12,7 @@ interface AuthContextType {
   // back as a registration token rather than an error.
   requestPhoneCode: (phone: string) => Promise<void>;
   verifyPhoneCode: (phone: string, code: string) => Promise<Session | { registrationToken: string }>;
-  completePhoneRegistration: (data: { token: string; name: string; surname: string }) => Promise<Session>;
+  completePhoneRegistration: (data: { token: string; name: string; surname: string; birthday: string }) => Promise<Session>;
   passcodeSignIn: (passcode: string) => Promise<Session>;
   acceptInvitation: (invitationId: string) => Promise<Session>;
   signOut: () => Promise<void>;
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       : adopt(result.session);
   };
 
-  const completePhoneRegistration = async (data: { token: string; name: string; surname: string }) =>
+  const completePhoneRegistration = async (data: { token: string; name: string; surname: string; birthday: string }) =>
     adopt(await authApi.completePhoneRegistration(data));
 
   const passcodeSignIn = async (passcode: string) => adopt(await authApi.passcodeSignIn(passcode));

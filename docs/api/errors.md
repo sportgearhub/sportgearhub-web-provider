@@ -64,6 +64,12 @@
 | `invitation_phone_mismatch` | Приглашение адресовано другому номеру телефона. |
 | `phone_not_verified` | Подтвердите номер телефона, чтобы принять приглашение. |
 
+## Booking
+
+| Код | Сообщение |
+|---|---|
+| `booking.not_awaiting_confirmation` | Эта заявка уже не ждёт ответа. |
+
 ## LegalIdentity
 
 | Код | Сообщение |

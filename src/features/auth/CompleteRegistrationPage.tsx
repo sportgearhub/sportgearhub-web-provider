@@ -7,14 +7,26 @@ import { AuthShell, authControlClass } from './authShared';
 import { useToast } from '../../components/ui/Toast';
 import type { Navigate } from './authUtils';
 
-type FieldErrors = { name?: string; surname?: string };
+type FieldErrors = { name?: string; surname?: string; birthday?: string };
+
+/** A real past date, and not more than 120 years ago — the API's own rule. */
+function birthdayError(value: string): string | undefined {
+  if (!value) return 'Укажите дату рождения.';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Укажите дату в формате ДД.ММ.ГГГГ.';
+  const now = new Date();
+  if (date > now) return 'Дата рождения не может быть в будущем.';
+  const oldest = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+  if (date < oldest) return 'Проверьте дату рождения.';
+  return undefined;
+}
 
 // Reached when a one-time code proved a number that has no account yet. The number itself is
 // carried by the registration token, so it is never re-submitted — and nothing else is asked for:
 // an email is optional and attached later, from the profile, with its own confirmation.
 export function CompleteRegistrationPage({ token, onNavigate }: { token: string | null; onNavigate: Navigate }) {
   const { completePhoneRegistration } = useAuth();
-  const [form, setForm] = useState({ name: '', surname: '' });
+  const [form, setForm] = useState({ name: '', surname: '', birthday: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -38,6 +50,11 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
     const next: FieldErrors = {};
     if (!form.name.trim()) next.name = 'Укажите имя.';
     if (!form.surname.trim()) next.surname = 'Укажите фамилию.';
+    next.birthday = birthdayError(form.birthday);
+
+    Object.keys(next).forEach(key => {
+      if (!next[key as keyof FieldErrors]) delete next[key as keyof FieldErrors];
+    });
 
     if (Object.keys(next).length > 0) {
       setFieldErrors(next);
@@ -51,6 +68,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
         token,
         name: form.name.trim(),
         surname: form.surname.trim(),
+        birthday: form.birthday,
       });
       onNavigate('/auth/passcode-setup');
     } catch (err) {
@@ -58,6 +76,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
         const mapped: FieldErrors = {
           name: err.fieldError('name'),
           surname: err.fieldError('surname'),
+          birthday: err.fieldError('birthday'),
         };
         const hasFieldError = Object.values(mapped).some(Boolean);
         setFieldErrors(mapped);
@@ -89,6 +108,17 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
           onChange={e => setForm({ ...form, surname: e.target.value })}
           autoComplete="family-name"
           error={fieldErrors.surname}
+          className={authControlClass}
+        />
+
+        <Input
+          label="Дата рождения"
+          type="date"
+          value={form.birthday}
+          onChange={e => setForm({ ...form, birthday: e.target.value })}
+          autoComplete="bday"
+          error={fieldErrors.birthday}
+          max={new Date().toISOString().slice(0, 10)}
           className={authControlClass}
         />
 

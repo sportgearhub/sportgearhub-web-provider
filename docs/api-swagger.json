@@ -8,11 +8,11 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:5105"
+      "url": "http://127.0.0.1:5093"
     }
   ],
   "paths": {
-    "/api/v1/sellers/{sellerId}/agreement": {
+    "/api/v1/sellers/{seller_id}/agreement": {
       "get": {
         "tags": [
           "Api"
@@ -50,7 +50,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/seller-profile": {
+    "/api/v1/sellers/{seller_id}/seller-profile": {
       "get": {
         "tags": [
           "Api"
@@ -124,7 +124,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/seller-profile/lookup": {
+    "/api/v1/sellers/{seller_id}/seller-profile/lookup": {
       "get": {
         "tags": [
           "Api"
@@ -170,7 +170,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/readiness": {
+    "/api/v1/sellers/{seller_id}/readiness": {
       "get": {
         "tags": [
           "Api"
@@ -208,7 +208,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/submit-for-review": {
+    "/api/v1/sellers/{seller_id}/submit-for-review": {
       "post": {
         "tags": [
           "Api"
@@ -246,7 +246,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/payout": {
+    "/api/v1/sellers/{seller_id}/payout": {
       "get": {
         "tags": [
           "Api"
@@ -333,7 +333,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/routability": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/routability": {
       "get": {
         "tags": [
           "Api"
@@ -380,7 +380,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/routability-impact": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/routability-impact": {
       "get": {
         "tags": [
           "Api"
@@ -427,7 +427,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/routability": {
+    "/api/v1/sellers/{seller_id}/products/routability": {
       "get": {
         "tags": [
           "Api"
@@ -468,7 +468,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/dashboard": {
+    "/api/v1/sellers/{seller_id}/dashboard": {
       "get": {
         "tags": [
           "Api"
@@ -506,7 +506,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/profile": {
+    "/api/v1/sellers/{seller_id}/profile": {
       "get": {
         "tags": [
           "Api"
@@ -603,7 +603,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/authoring-options": {
+    "/api/v1/sellers/{seller_id}/products/authoring-options": {
       "get": {
         "tags": [
           "Api"
@@ -641,7 +641,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}": {
       "get": {
         "tags": [
           "Api"
@@ -784,7 +784,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/policy": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/policy": {
       "get": {
         "tags": [
           "Api"
@@ -889,7 +889,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/pricing-policy": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/pricing-policy": {
       "get": {
         "tags": [
           "Api"
@@ -994,7 +994,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products": {
+    "/api/v1/sellers/{seller_id}/products": {
       "get": {
         "tags": [
           "Api"
@@ -1123,7 +1123,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/tab-counts": {
+    "/api/v1/sellers/{seller_id}/products/tab-counts": {
       "get": {
         "tags": [
           "Api"
@@ -1161,7 +1161,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/activate": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/activate": {
       "post": {
         "tags": [
           "Api"
@@ -1221,7 +1221,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/archive": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/archive": {
       "post": {
         "tags": [
           "Api"
@@ -1281,7 +1281,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/deactivate": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/deactivate": {
       "post": {
         "tags": [
           "Api"
@@ -1341,7 +1341,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/pricing-summary-preview": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/pricing-summary-preview": {
       "post": {
         "tags": [
           "Api"
@@ -1361,8 +1361,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "guid"
+              "type": "string"
             }
           }
         ],
@@ -1388,7 +1387,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/submit-for-review": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/submit-for-review": {
       "post": {
         "tags": [
           "Api"
@@ -1408,8 +1407,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "guid"
+              "type": "string"
             }
           }
         ],
@@ -1435,7 +1433,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/info-sections": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/info-sections": {
       "get": {
         "tags": [
           "Api"
@@ -1546,7 +1544,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/pricing/quote-preview": {
+    "/api/v1/sellers/{seller_id}/pricing/quote-preview": {
       "post": {
         "tags": [
           "Api"
@@ -1872,7 +1870,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/fulfillment-locations": {
+    "/api/v1/sellers/{seller_id}/fulfillment-locations": {
       "get": {
         "tags": [
           "Api"
@@ -1962,7 +1960,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/fulfillment-locations/{fulfillment_location_id}": {
+    "/api/v1/sellers/{seller_id}/fulfillment-locations/{fulfillment_location_id}": {
       "patch": {
         "tags": [
           "Api"
@@ -2060,7 +2058,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/fulfillment-locations/{fulfillment_location_id}/schedule": {
+    "/api/v1/sellers/{seller_id}/fulfillment-locations/{fulfillment_location_id}/schedule": {
       "get": {
         "tags": [
           "Api"
@@ -2165,7 +2163,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}/fulfillment": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/fulfillment": {
       "get": {
         "tags": [
           "Api"
@@ -2212,7 +2210,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/fulfillment": {
+    "/api/v1/sellers/{seller_id}/fulfillment": {
       "get": {
         "tags": [
           "Api"
@@ -2288,7 +2286,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}/complete": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/complete": {
       "post": {
         "tags": [
           "Api"
@@ -2348,7 +2346,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}/handover": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/handover": {
       "post": {
         "tags": [
           "Api"
@@ -2408,7 +2406,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}/report-issue": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/report-issue": {
       "post": {
         "tags": [
           "Api"
@@ -2468,7 +2466,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}/return": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/return": {
       "post": {
         "tags": [
           "Api"
@@ -2528,7 +2526,113 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/equipment-categories": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/confirm": {
+      "post": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerFulfillmentConfirmSellerBookingEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbashITSportgearhubApiInterfacesBookingApprovalResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/decline": {
+      "post": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerFulfillmentDeclineSellerBookingEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "DeclineSellerBookingRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerFulfillmentDeclineSellerBookingRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbashITSportgearhubApiInterfacesBookingApprovalResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sellers/{seller_id}/equipment-categories": {
       "get": {
         "tags": [
           "Api"
@@ -2577,7 +2681,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/equipment-categories/{category_slug}/attributes": {
+    "/api/v1/sellers/{seller_id}/equipment-categories/{category_slug}/attributes": {
       "get": {
         "tags": [
           "Api"
@@ -2631,7 +2735,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings/{booking_id}": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}": {
       "get": {
         "tags": [
           "Api"
@@ -2678,7 +2782,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/bookings": {
+    "/api/v1/sellers/{seller_id}/bookings": {
       "get": {
         "tags": [
           "Api"
@@ -2694,7 +2798,7 @@
             }
           },
           {
-            "name": "status",
+            "name": "tab",
             "in": "query",
             "schema": {
               "type": "string",
@@ -2702,30 +2806,37 @@
             }
           },
           {
-            "name": "date_from",
+            "name": "filter",
             "in": "query",
+            "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
             "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
+              "type": "string"
             }
           },
           {
-            "name": "date_to",
+            "name": "sort",
             "in": "query",
+            "description": "Comma-separated allowlisted sort fields. Prefix a field with '-' for descending order. Example: -updatedAt,name.",
             "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
+              "type": "string"
             }
           },
           {
-            "name": "product_id",
+            "name": "page",
             "in": "query",
+            "description": "One-based page number.",
             "schema": {
-              "type": "string",
-              "format": "guid",
-              "nullable": true
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items requested per page.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           }
         ],
@@ -2735,10 +2846,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse"
-                  }
+                  "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sellers/{seller_id}/bookings/tab-counts": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerBookingTabCountsEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerBookingsSellerBookingTabCountsResponse"
                 }
               }
             }
@@ -2833,7 +2979,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/images/{image_id}": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/images/{image_id}": {
       "delete": {
         "tags": [
           "Api"
@@ -2882,7 +3028,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/activity-options": {
+    "/api/v1/sellers/{seller_id}/activity-options": {
       "get": {
         "tags": [
           "Api"
@@ -2939,7 +3085,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/attributes": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/attributes": {
       "get": {
         "tags": [
           "Api"
@@ -3044,7 +3190,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/product-categories": {
+    "/api/v1/sellers/{seller_id}/product-categories": {
       "get": {
         "tags": [
           "Api"
@@ -3101,7 +3247,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/product-categories/{category_slug}/attributes": {
+    "/api/v1/sellers/{seller_id}/product-categories/{category_slug}/attributes": {
       "get": {
         "tags": [
           "Api"
@@ -3155,7 +3301,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/images": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/images": {
       "get": {
         "tags": [
           "Api"
@@ -3253,7 +3399,7 @@
         ]
       }
     },
-    "/api/v1/sellers/{sellerId}/products/{product_id}/images/order": {
+    "/api/v1/sellers/{seller_id}/products/{product_id}/images/order": {
       "put": {
         "tags": [
           "Api"
@@ -3727,7 +3873,7 @@
         ]
       }
     },
-    "/api/v1/auth/verifications/{verificationId}": {
+    "/api/v1/auth/verifications/{verification_id}": {
       "get": {
         "tags": [
           "Api"
@@ -4997,42 +5143,17 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "booking_flow_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerSellerProductAuthoringOptionResponse"
-            }
-          },
           "pricing_modes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerSellerProductPricingModeOption"
             }
           },
-          "defaults": {
-            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerSellerProductAuthoringDefaultsResponse"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsProductsSellerSellerProductAuthoringOptionResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_default": {
-            "type": "boolean"
-          },
-          "is_active": {
-            "type": "boolean"
+          "booking_approvals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerSellerProductBookingApprovalOption"
+            }
           }
         }
       },
@@ -5054,12 +5175,21 @@
           }
         }
       },
-      "EbashITSportgearhubApiModelsProductsSellerSellerProductAuthoringDefaultsResponse": {
+      "EbashITSportgearhubApiModelsProductsSellerSellerProductBookingApprovalOption": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "booking_flow_type": {
+          "value": {
             "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
           }
         }
       },
@@ -5106,6 +5236,13 @@
             "type": "string",
             "format": "guid",
             "nullable": true
+          },
+          "group_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "booking_approval": {
+            "type": "string"
           },
           "info_sections": {
             "type": "array",
@@ -5382,6 +5519,9 @@
           "is_group_face": {
             "type": "boolean"
           },
+          "booking_approval": {
+            "type": "string"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -5543,14 +5683,6 @@
             "format": "date-time"
           }
         }
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsPostSellerProductPricingSummaryPreviewRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsPostSubmitProductForReviewRequest": {
-        "type": "object",
-        "additionalProperties": false
       },
       "EbashITSportgearhubApiEndpointsSellerProductsPutSellerProductPolicyRequest": {
         "type": "object",
@@ -6579,6 +6711,41 @@
           }
         }
       },
+      "EbashITSportgearhubApiInterfacesBookingApprovalResultResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EbashITSportgearhubApiEndpointsSellerFulfillmentDeclineSellerBookingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "EbashITSportgearhubApiModelsProductsEquipmentEquipmentCategoryResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -6936,6 +7103,28 @@
         "type": "object",
         "additionalProperties": false
       },
+      "RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse": {
+        "type": "object",
+        "description": "Represents a page of query results with pagination metadata.",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "The items in the current page.",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse"
+            }
+          },
+          "pagination": {
+            "description": "The pagination metadata.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagination"
+              }
+            ]
+          }
+        }
+      },
       "EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -7047,9 +7236,22 @@
           }
         }
       },
-      "EbashITSportgearhubApiModelsSellerBookingsGetSellerBookingsRequest": {
+      "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerBookingsRequest": {
         "type": "object",
         "additionalProperties": false
+      },
+      "EbashITSportgearhubApiEndpointsSellerBookingsSellerBookingTabCountsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
       },
       "EbashITSportgearhubApiEndpointsSellersGetSellerLookupRequest": {
         "type": "object",
@@ -7273,6 +7475,10 @@
               "type": "string",
               "nullable": true
             }
+          },
+          "booking_approval": {
+            "type": "string",
+            "nullable": true
           },
           "fulfillment_location_id": {
             "type": "string",
