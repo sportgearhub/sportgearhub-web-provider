@@ -1033,10 +1033,11 @@ export const productsApi = {
 
   images: {
     list: (productId: string) => providerRequest<ProductImage[]>(`/products/${productId}/images`),
-    upload: (productId: string, file: File) => {
+    // The endpoint reads every file on the form, so one request carries the whole selection.
+    upload: (productId: string, files: File[]) => {
       const body = new FormData();
-      body.append('file', file);
-      return providerRequest<ProductImage>(`/products/${productId}/images`, { method: 'POST', body });
+      files.forEach(file => body.append('files', file));
+      return providerRequest<ProductImage[]>(`/products/${productId}/images`, { method: 'POST', body });
     },
     reorder: (productId: string, imageIds: string[]) =>
       providerRequest<ProductImage[]>(`/products/${productId}/images/order`, {

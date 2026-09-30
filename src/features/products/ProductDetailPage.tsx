@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ImageOff, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -7,7 +7,11 @@ import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, productsApi } from '../../lib/api-client';
-import type { Product, ProductImage, ProductPolicy, ProductPricingPolicy } from '../../types';
+import { ProductImagesSection } from './ProductImagesSection';
+import { ProductPolicyDialog } from './ProductPolicyDialog';
+import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
+import { infoSectionLabel } from './infoSections';
+import type { OfferInfoSection, Product, ProductPolicy, ProductPricingPolicy } from '../../types';
 import { formatPrice, productStatus } from './productStatus';
 
 /**
@@ -19,10 +23,12 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [product, setProduct] = useState<Product | null>(null);
   const [pricing, setPricing] = useState<ProductPricingPolicy | null>(null);
   const [policy, setPolicy] = useState<ProductPolicy | null>(null);
-  const [images, setImages] = useState<ProductImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -30,14 +36,14 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     try {
       const next = await productsApi.get(productId);
       setProduct(next);
-      const [nextPricing, nextPolicy, nextImages] = await Promise.all([
+      const [nextPricing, nextPolicy, nextInfo] = await Promise.all([
         productsApi.getPricing(productId).catch(() => null),
         productsApi.getPolicy(productId).catch(() => null),
-        productsApi.images.list(productId).catch(() => []),
+        productsApi.getInfoSections(productId).catch(() => null),
       ]);
       setPricing(nextPricing);
       setPolicy(nextPolicy);
-      setImages(nextImages);
+      setInfoSections(nextInfo?.sections ?? []);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 404
         ? 'Товар не найден — возможно, он удалён.'
@@ -153,40 +159,85 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             )}
           </SettingsCard>
 
-          <SettingsCard title="Правила аренды" description="Отмена, залог и запас времени до выдачи.">
+          <SettingsCard
+            title="Правила аренды"
+            description="Отмена, залог и запас времени до выдачи."
+            action={
+              <Button variant="secondary" size="sm" aria-label="Редактировать правила аренды" onClick={() => setEditingPolicy(true)}>
+                <Pencil size={13} /> {policy ? 'Редактировать' : 'Добавить'}
+              </Button>
+            }
+          >
             {policy ? (
               <DetailList>
                 <DetailRow label="Бронь не позднее" value={policy.leadTimeHours != null ? `${policy.leadTimeHours} ч до начала` : null} />
-                <DetailRow label="Отмена" value={policy.isCancellationAllowed ? 'Разрешена' : 'Запрещена'} />
-                <DetailRow label="Залог" value={policy.deposit != null ? formatPrice(policy.deposit) : null} />
+                <DetailRow
+                  label="Отмена"
+                  value={policy.isCancellationAllowed ? 'Разрешена' : 'Запрещена'}
+                  hint={policy.cancellationTiers?.length ? `${policy.cancellationTiers.length} ступени возврата` : undefined}
+                />
+                <DetailRow
+                  label="Залог"
+                  value={policy.deposit ? (policy.deposit.unit === 'percent' ? `${policy.deposit.value} % от суммы` : formatPrice(policy.deposit.value)) : null}
+                />
                 <DetailRow label="Неявка" value={policy.noShowChargePercent != null ? `${policy.noShowChargePercent} %` : null} />
               </DetailList>
             ) : (
               <p className="text-sm text-gray-500">Правила не заданы — действуют условия платформы.</p>
             )}
           </SettingsCard>
+          <SettingsCard
+            title="Что входит"
+            description="Комплект, что взять с собой и что нужно знать заранее."
+            action={
+              <Button variant="secondary" size="sm" aria-label="Редактировать состав комплекта" onClick={() => setEditingInfo(true)}>
+                <Pencil size={13} /> {infoSections.length > 0 ? 'Редактировать' : 'Добавить'}
+              </Button>
+            }
+          >
+            {infoSections.length === 0 ? (
+              <p className="text-sm text-gray-500">Ничего не указано. Клиенты чаще спрашивают именно об этом.</p>
+            ) : (
+              <div className="space-y-3">
+                {infoSections.map(section => (
+                  <div key={section.kind}>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{infoSectionLabel(section.kind)}</p>
+                    <ul className="mt-1 list-inside list-disc text-sm text-gray-900">
+                      {section.items.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SettingsCard>
         </div>
 
-        <SettingsCard title="Фото" description={`${images.length} из 10`}>
-          {images.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-gray-200 px-4 py-8 text-center">
-              <ImageOff size={20} className="text-gray-300" />
-              <p className="text-sm text-gray-500">Фото пока нет. Карточка без фото продаётся хуже.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {images.map(image => (
-                <img
-                  key={image.imageId}
-                  src={image.url}
-                  alt={image.originalFileName ?? ''}
-                  className="aspect-square w-full rounded-md border border-gray-200 object-cover"
-                />
-              ))}
-            </div>
-          )}
-        </SettingsCard>
+        <div className="rounded-lg border border-gray-200 bg-white">
+          <ProductImagesSection productId={productId} />
+        </div>
       </div>
+
+      <ProductInfoSectionsDialog
+        open={editingInfo}
+        productId={productId}
+        sections={infoSections}
+        onClose={() => setEditingInfo(false)}
+        onSaved={next => {
+          setInfoSections(next);
+          setEditingInfo(false);
+        }}
+      />
+
+      <ProductPolicyDialog
+        open={editingPolicy}
+        productId={productId}
+        policy={policy}
+        onClose={() => setEditingPolicy(false)}
+        onSaved={next => {
+          setPolicy(next);
+          setEditingPolicy(false);
+        }}
+      />
     </SectionPage>
   );
 }

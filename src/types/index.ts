@@ -1147,14 +1147,25 @@ export interface ProductPricingPolicy {
   status: string;
 }
 
+export interface ProductCancellationTier {
+  thresholdHoursBeforeStart: number;
+  refundPercent: number;
+}
+
+/** A deposit is an amount or a share, so it carries its own unit. */
+export interface ProductDeposit {
+  unit: string;
+  value: number;
+}
+
 export interface ProductPolicy {
   productPolicyId?: string;
   productId?: string;
   leadTimeHours: number | null;
-  cancellationTiers: { hoursBefore: number; refundPercent: number }[] | null;
+  cancellationTiers: ProductCancellationTier[] | null;
   isCancellationAllowed: boolean;
   noShowChargePercent: number | null;
-  deposit: number | null;
+  deposit: ProductDeposit | null;
   updatedAt?: string;
 }
 
