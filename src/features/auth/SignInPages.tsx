@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthShell, Notice } from './authShared';
+import { AuthLink, AuthShell, Notice, authControlClass } from './authShared';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
 import { authPath, type Navigate } from './authUtils';
@@ -97,48 +97,47 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
   if (step === 'code') {
     return (
-      <AuthShell title="Введите код из SMS">
+      <AuthShell
+        title="Введите код из SMS"
+        subtitle={<>Отправили код на <span className="font-medium text-foreground">+7 {digits}</span>. Код действует 10 минут.</>}
+        footer={
+          <>
+            <AuthLink onClick={() => void begin()}>Отправить код ещё раз</AuthLink>
+            <AuthLink onClick={() => setStep('phone')} tone="muted">Изменить номер</AuthLink>
+          </>
+        }
+      >
         {error && <Notice kind="error">{error}</Notice>}
-        <p className="mb-4 text-xs text-gray-500">
-          Отправили код на <span className="font-medium text-gray-700">+7 {digits}</span>. Код действует 10 минут.
-        </p>
 
-        <form onSubmit={handleCodeSubmit} className="space-y-4">
+        <form onSubmit={handleCodeSubmit} className="space-y-5">
           <PasscodeInput label="Код из SMS" value={code} onChange={setCode} length={started?.codeLength ?? 6} autoFocus disabled={loading} />
 
           <Button
             type="submit"
             variant="primary"
-            size="md"
             loading={loading}
             disabled={code.length < (started?.codeLength ?? 6)}
-            className="w-full justify-center"
+            className={`w-full ${authControlClass}`}
           >
             Войти
           </Button>
         </form>
-
-        <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={() => void begin()} className="font-medium text-blue-700 hover:text-blue-800">
-            Отправить код ещё раз
-          </button>
-          <button type="button" onClick={() => setStep('phone')} className="font-medium text-blue-700 hover:text-blue-800">
-            Изменить номер
-          </button>
-        </div>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Введите номер телефона">
+    <AuthShell
+      title="Кабинет продавца"
+      subtitle="Войдите по номеру телефона — пришлём код в SMS. Пароль не нужен."
+    >
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handlePhoneSubmit} className="space-y-4">
-        <RuPhoneInput value={phone} onChange={setPhone} />
+      <form onSubmit={handlePhoneSubmit} className="space-y-5">
+        <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
 
-        <Button type="submit" variant="primary" size="md" loading={loading} className="w-full justify-center">
-          Продолжить
+        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
+          Получить код
         </Button>
       </form>
     </AuthShell>
@@ -210,22 +209,18 @@ function PushWaitingStep({
   }, [stage, started.verificationId, onNeedsCode, onSignedIn, onNeedsRegistration, onRestart]);
 
   return (
-    <AuthShell title="Подтвердите вход">
-      <p className="mb-4 text-xs text-gray-500">
-        Отправили запрос на <span className="font-medium text-gray-700">+7 {phone}</span>.
-      </p>
-
-      <div className="grid justify-items-center gap-4 py-2">
-        <div className="h-12 w-12 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
-        <p className="text-center text-xs text-gray-500">
+    <AuthShell
+      title="Подтвердите вход"
+      subtitle={<>Отправили запрос на <span className="font-medium text-foreground">+7 {phone}</span>.</>}
+      /* The wait can run for a while and the number may simply be wrong, so there has to be a way
+         out that is not waiting for a timeout. */
+      footer={<AuthLink onClick={onBack} tone="muted">Изменить номер</AuthLink>}
+    >
+      <div className="flex items-start gap-3.5">
+        <span className="mt-0.5 h-8 w-8 shrink-0 animate-spin rounded-full border-2 border-muted border-t-primary" />
+        <p className="text-sm leading-5 text-muted-foreground">
           Подтвердите вход на мобильном устройстве. Если подтверждение не придёт, мы пришлём код в SMS.
         </p>
-
-        {/* The wait can run for a while and the number may simply be wrong, so there has to be a
-            way out that is not waiting for a timeout. */}
-        <button type="button" onClick={onBack} className="text-xs font-medium text-blue-700 hover:text-blue-800">
-          Изменить номер
-        </button>
       </div>
     </AuthShell>
   );
@@ -274,36 +269,35 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
   };
 
   return (
-    <AuthShell title="Введите код доступа">
+    <AuthShell
+      title="С возвращением"
+      subtitle="Введите код доступа, который вы задали на этом устройстве."
+      footer={
+        <AuthLink
+          onClick={() => {
+            authApi.forgetLocalDevice();
+            onNavigate(authPath('/sign-in'), true);
+          }}
+        >
+          Войти по коду из SMS
+        </AuthLink>
+      }
+    >
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <PasscodeInput label="Код доступа" value={passcode} onChange={setPasscode} length={length} autoFocus disabled={loading} />
 
         <Button
           type="submit"
           variant="primary"
-          size="md"
           loading={loading}
           disabled={passcode.length < length}
-          className="w-full justify-center"
+          className={`w-full ${authControlClass}`}
         >
           Войти
         </Button>
       </form>
-
-      <div className="mt-4 border-t border-gray-100 pt-4 text-xs">
-        <button
-          type="button"
-          onClick={() => {
-            authApi.forgetLocalDevice();
-            onNavigate(authPath('/sign-in'), true);
-          }}
-          className="font-medium text-blue-700 hover:text-blue-800"
-        >
-          Войти по коду из SMS
-        </button>
-      </div>
     </AuthShell>
   );
 }
@@ -361,13 +355,29 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
   };
 
   return (
-    <AuthShell title="Быстрый вход">
+    <AuthShell
+      title="Быстрый вход"
+      subtitle={
+        step === 'create'
+          ? `Придумайте код из ${length} цифр, чтобы в следующий раз входить без SMS. Код работает только на этом устройстве.`
+          : 'Введите код ещё раз, чтобы не ошибиться.'
+      }
+      footer={
+        <>
+          {step === 'repeat' ? (
+            <AuthLink onClick={() => restart('')} disabled={loading} tone="muted">
+              Ввести другой код
+            </AuthLink>
+          ) : (
+            <AuthLink onClick={() => onNavigate('/')} tone="muted">
+              Пропустить
+            </AuthLink>
+          )}
+          {loading && <span className="text-sm text-muted-foreground">Сохраняем…</span>}
+        </>
+      }
+    >
       {error && <Notice kind="error">{error}</Notice>}
-      <p className="mb-5 text-xs leading-5 text-gray-500">
-        {step === 'create'
-          ? `Придумайте код из ${length} цифр, чтобы в следующий раз входить без письма. Код работает только на этом устройстве.`
-          : 'Введите код ещё раз, чтобы не ошибиться.'}
-      </p>
 
       <PasscodeInput
         key={step}
@@ -378,24 +388,6 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
         autoFocus
         disabled={loading}
       />
-
-      <div className="mt-5 flex items-center justify-between text-xs">
-        {step === 'repeat' ? (
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => restart('')}
-            className="font-medium text-gray-600 hover:text-gray-900"
-          >
-            Ввести другой код
-          </button>
-        ) : (
-          <button type="button" onClick={() => onNavigate('/')} className="font-medium text-blue-700 hover:text-blue-800">
-            Пропустить
-          </button>
-        )}
-        {loading && <span className="text-gray-500">Сохраняем...</span>}
-      </div>
     </AuthShell>
   );
 }

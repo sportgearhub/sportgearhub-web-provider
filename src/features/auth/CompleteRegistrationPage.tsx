@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
-import { AuthShell, Notice } from './authShared';
+import { AuthShell, Notice, authControlClass } from './authShared';
 import type { Navigate } from './authUtils';
 
 type FieldErrors = { name?: string; surname?: string };
@@ -20,9 +20,12 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
 
   if (!token) {
     return (
-      <AuthShell title="Регистрация">
-        <Notice kind="error">Ссылка недействительна или истекла.</Notice>
-        <Button onClick={() => onNavigate('/auth/sign-in')} variant="primary" className="w-full justify-center">
+      <AuthShell title="Ссылка недействительна" subtitle="Она истекла или уже была использована. Начните вход заново.">
+        <Button
+          onClick={() => onNavigate('/auth/sign-in')}
+          variant="primary"
+          className={`w-full ${authControlClass}`}
+        >
           Войти
         </Button>
       </AuthShell>
@@ -70,16 +73,17 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
   };
 
   return (
-    <AuthShell title="Как вас зовут?">
+    <AuthShell title="Как вас зовут?" subtitle="Имя видят сотрудники кабинета и поддержка.">
       {error && <Notice kind="error">{error}</Notice>}
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <Input
           label="Имя"
           value={form.name}
           onChange={e => setForm({ ...form, name: e.target.value })}
           autoComplete="given-name"
           error={fieldErrors.name}
+          className={authControlClass}
         />
         <Input
           label="Фамилия"
@@ -87,9 +91,10 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
           onChange={e => setForm({ ...form, surname: e.target.value })}
           autoComplete="family-name"
           error={fieldErrors.surname}
+          className={authControlClass}
         />
 
-        <Button type="submit" variant="primary" loading={loading} className="w-full justify-center">
+        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
           Продолжить
         </Button>
       </form>
