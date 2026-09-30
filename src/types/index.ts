@@ -21,7 +21,12 @@ export type ProviderStatus =
   | 'archived'
   | string;
 
-export type SellerKind = 'self_employed' | 'sole_proprietor' | 'company' | string;
+/**
+ * The three legal shapes a cabinet can have. Closed on purpose: it is the discriminant of
+ * SellerProfile and SellerProfileInput, and `| string` on a discriminant turns a union the
+ * compiler can check into three optional fields it cannot.
+ */
+export type SellerKind = 'self_employed' | 'sole_proprietor' | 'company';
 
 /** One row of the cabinet picker: a provider the user belongs to, as /auth/me lists it. */
 export interface ProviderSummary {
@@ -161,33 +166,52 @@ export interface SellerBusinessDetails {
   director: SellerDirector;
 }
 
-/** One shape switched on `kind`: `person` for a самозанятый, `business` for ИП and organisations, `company` on top for organisations. */
-/**
- * The seller's legal identity.
- *
- * The spec documents only `legal_identity_id`, `inn` and `kind` — but it also documents the PUT
- * with no request body at all, which cannot be right, so this entry is treated as incomplete
- * rather than as the whole truth. The registry-derived blocks are optional here: the pages that
- * show them already guard each one, so a response without them loses rows instead of breaking,
- * and a response with them keeps working.
- */
-export interface SellerProfile {
+/** What every legal identity carries, whatever shape it has. */
+interface SellerIdentityBase {
   legalIdentityId: string;
-  kind: SellerKind;
   inn: string;
-  person?: SellerPerson | null;
-  business?: SellerBusinessDetails | null;
-  company?: { kpp: string } | null;
   updatedAt?: string;
 }
 
-export interface SellerProfileInput {
-  kind: SellerKind;
-  inn: string;
-  taxationSystem?: string;
-  vatRate?: string;
-  person?: { lastName: string; firstName: string; middleName?: string | null };
+/**
+ * The seller's legal identity, which is a different payload for each kind — not one shape with
+ * three fields that may or may not be filled.
+ *
+ * A самозанятый is a person with an ИНН and nothing in the registry. ИП and organisations have a
+ * registry record instead, and the human being is its director. Only an organisation has a КПП.
+ * Written as a union so reading `company` off a самозанятый does not compile, rather than
+ * returning undefined at three in the afternoon.
+ */
+export type SellerProfile =
+  | (SellerIdentityBase & { kind: 'self_employed'; person: SellerPerson })
+  | (SellerIdentityBase & { kind: 'sole_proprietor'; business: SellerBusinessDetails })
+  | (SellerIdentityBase & { kind: 'company'; business: SellerBusinessDetails; company: { kpp: string } });
+
+/** The natural person, wherever this kind keeps one: their own name, or the director's. */
+export function sellerPerson(profile: SellerProfile): SellerPerson | null {
+  return profile.kind === 'self_employed' ? profile.person : profile.business.director;
 }
+
+export function sellerBusiness(profile: SellerProfile): SellerBusinessDetails | null {
+  return profile.kind === 'self_employed' ? null : profile.business;
+}
+
+export function sellerKpp(profile: SellerProfile): string | null {
+  return profile.kind === 'company' ? profile.company.kpp : null;
+}
+
+/**
+ * What is sent to create or change a legal identity — a different payload per kind, like the
+ * response, and a separate type from it because a request is not a response.
+ *
+ * A самозанятый gives their name; nothing else about them is registered anywhere. ИП and
+ * organisations give only the ИНН and how they are taxed: the registry supplies the name, the
+ * address and the director, and anything the client sent for those would be overwritten.
+ */
+export type SellerProfileInput =
+  | { kind: 'self_employed'; inn: string; person: { lastName: string; firstName: string; middleName?: string | null } }
+  | { kind: 'sole_proprietor'; inn: string; taxationSystem: string; vatRate: string }
+  | { kind: 'company'; inn: string; taxationSystem: string; vatRate: string };
 
 export interface LegalIdentityLookup {
   legalCountryCode: string;

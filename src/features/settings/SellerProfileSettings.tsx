@@ -3,6 +3,7 @@ import { Pencil, Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { ApiError, providerApi } from '../../lib/api-client';
+import { sellerBusiness, sellerKpp, sellerPerson } from '../../types';
 import type { PayoutDetails, SellerProfile } from '../../types';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
@@ -90,10 +91,13 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
     }
   };
 
-  const director = profile?.business?.director;
-  const personName = profile?.person
-    ? [profile.person.lastName, profile.person.firstName, profile.person.middleName].filter(Boolean).join(' ')
-    : director ? [director.lastName, director.firstName, director.middleName].filter(Boolean).join(' ') : '—';
+  // Which of these exists is decided by the kind, so they are read through the accessors rather
+  // than by testing fields that only some kinds have.
+  const business = profile ? sellerBusiness(profile) : null;
+  const person = profile ? sellerPerson(profile) : null;
+  const personName = person
+    ? [person.lastName, person.firstName, person.middleName].filter(Boolean).join(' ')
+    : '—';
 
   return (
     <SectionPage title="Информация о продавце" error={error}>
@@ -144,15 +148,18 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
               <DetailRow label="Форма собственности" value={kindLabel(profile.kind)} />
               <DetailRow
                 label="Система налогообложения"
-                value={profile.business ? taxationLabel(profile.business.taxationSystem) : taxationLabels.npd}
+                value={business ? taxationLabel(business.taxationSystem) : taxationLabels.npd}
               />
-              <DetailRow label="Ставка НДС" value={profile.business ? vatLabel(profile.business.vatRate) : vatLabels.none} />
-              <DetailRow label={profile.person ? 'ФИО' : director?.position ?? 'Руководитель'} value={personName} />
-              {profile.business && <DetailRow label="Наименование" value={profile.business.legalName} />}
-              {profile.business && <DetailRow label="Адрес регистрации" value={profile.business.legalAddress} />}
-              {profile.business && <DetailRow label={profile.kind === 'company' ? 'ОГРН' : 'ОГРНИП'} value={profile.business.registrationNumber} />}
+              <DetailRow label="Ставка НДС" value={business ? vatLabel(business.vatRate) : vatLabels.none} />
+              <DetailRow
+                label={profile.kind === 'self_employed' ? 'ФИО' : business?.director.position ?? 'Руководитель'}
+                value={personName}
+              />
+              {business && <DetailRow label="Наименование" value={business.legalName} />}
+              {business && <DetailRow label="Адрес регистрации" value={business.legalAddress} />}
+              {business && <DetailRow label={profile.kind === 'company' ? 'ОГРН' : 'ОГРНИП'} value={business.registrationNumber} />}
               <DetailRow label="ИНН" value={profile.inn} />
-              {profile.company && <DetailRow label="КПП" value={profile.company.kpp} />}
+              {sellerKpp(profile) && <DetailRow label="КПП" value={sellerKpp(profile)} />}
             </DetailList>
           </SettingsCard>
 

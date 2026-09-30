@@ -5,6 +5,7 @@ import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ApiError, providerApi } from '../../lib/api-client';
+import { sellerBusiness } from '../../types';
 import type { SellerProfile } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
 import { kindLabel, taxationSystemOptions, vatRateOptions } from '../providers/providerStatus';
@@ -32,12 +33,15 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
       .then(next => {
         if (cancelled) return;
         setProfile(next);
-        if (next.business) {
+        if (next.kind === 'self_employed') {
+          setPerson({
+            lastName: next.person.lastName,
+            firstName: next.person.firstName,
+            middleName: next.person.middleName ?? '',
+          });
+        } else {
           setTaxationSystem(next.business.taxationSystem);
           setVatRate(next.business.vatRate);
-        }
-        if (next.person) {
-          setPerson({ lastName: next.person.lastName, firstName: next.person.firstName, middleName: next.person.middleName ?? '' });
         }
       })
       .catch(err => {
@@ -51,23 +55,32 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
     };
   }, [provider.providerId]);
 
+  const business = profile ? sellerBusiness(profile) : null;
+
   const save = async () => {
     if (!profile) return;
-    if (profile.person && (!person.lastName.trim() || !person.firstName.trim())) {
+    if (profile.kind === 'self_employed' && (!person.lastName.trim() || !person.firstName.trim())) {
       setError('Укажите фамилию и имя.');
       return;
     }
     setSaving(true);
     setError('');
     try {
-      await providerApi.updateSellerProfile({
-        kind: profile.kind,
-        inn: profile.inn,
-        ...(profile.business ? { taxationSystem, vatRate } : {}),
-        ...(profile.person
-          ? { person: { lastName: person.lastName.trim(), firstName: person.firstName.trim(), middleName: person.middleName.trim() || null } }
-          : {}),
-      });
+      // The payload is the kind's, not a common shape with optional halves: a самозанятый sends a
+      // name, and a registered seller sends how it is taxed — the registry owns the rest.
+      await providerApi.updateSellerProfile(
+        profile.kind === 'self_employed'
+          ? {
+            kind: 'self_employed',
+            inn: profile.inn,
+            person: {
+              lastName: person.lastName.trim(),
+              firstName: person.firstName.trim(),
+              middleName: person.middleName.trim() || null,
+            },
+          }
+          : { kind: profile.kind, inn: profile.inn, taxationSystem, vatRate }
+      );
       onNavigate('/settings/seller');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить.');
@@ -89,11 +102,11 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
           <DetailList>
             <DetailRow label="Форма собственности" value={kindLabel(profile.kind)} hint="Не меняется" />
             <DetailRow label="ИНН" value={profile.inn} hint="Не меняется" />
-            {profile.business && <DetailRow label="Наименование" value={profile.business.legalName} />}
+            {business && <DetailRow label="Наименование" value={business.legalName} />}
           </DetailList>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {profile.business && (
+            {business && (
               <>
                 <Select
                   label="Система налогообложения"
@@ -109,7 +122,7 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
                 />
               </>
             )}
-            {profile.person && (
+            {profile.kind === 'self_employed' && (
               <>
                 <Input label="Фамилия" value={person.lastName} onChange={event => setPerson(current => ({ ...current, lastName: event.target.value }))} />
                 <Input label="Имя" value={person.firstName} onChange={event => setPerson(current => ({ ...current, firstName: event.target.value }))} />

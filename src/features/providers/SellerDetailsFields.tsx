@@ -47,15 +47,32 @@ export function sellerDraftError(draft: SellerDraft): string | null {
   return null;
 }
 
+/**
+ * The draft as the request for its kind. A самозанятый sends a name; ИП and organisations send how
+ * they are taxed and let the registry supply the rest. Built by branching rather than by spreading
+ * optional halves onto a common object, so each payload is complete by construction.
+ */
 export function sellerDraftToInput(draft: SellerDraft): SellerProfileInput {
-  return {
-    kind: draft.kind,
-    inn: sellerDraftInn(draft),
-    ...(isBusinessKind(draft.kind) ? { taxationSystem: draft.taxationSystem, vatRate: draft.vatRate } : {}),
-    ...(draft.kind === 'self_employed'
-      ? { person: { lastName: draft.person.lastName.trim(), firstName: draft.person.firstName.trim(), middleName: draft.person.middleName.trim() || null } }
-      : {}),
-  };
+  const inn = sellerDraftInn(draft);
+
+  if (draft.kind === 'self_employed') {
+    return {
+      kind: 'self_employed',
+      inn,
+      person: {
+        lastName: draft.person.lastName.trim(),
+        firstName: draft.person.firstName.trim(),
+        middleName: draft.person.middleName.trim() || null,
+      },
+    };
+  }
+
+  if (draft.kind === 'sole_proprietor' || draft.kind === 'company') {
+    return { kind: draft.kind, inn, taxationSystem: draft.taxationSystem, vatRate: draft.vatRate };
+  }
+
+  // Unreachable through the form: sellerDraftError() refuses an unchosen kind before this is called.
+  throw new Error('Форма собственности не выбрана.');
 }
 
 export function SellerKindChoice({ value, onChange }: { value: SellerKind | ''; onChange: (kind: SellerKind) => void }) {
