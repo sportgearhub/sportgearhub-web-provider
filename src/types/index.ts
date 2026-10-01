@@ -421,13 +421,16 @@ export interface OfferAuthoringOption {
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
+/** The booking's own status. Handover progress is separate — see FulfillmentSummary. */
 export type BookingStatus =
+  | 'awaiting_seller_confirmation'
   | 'pending'
   | 'confirmed'
-  | 'cancelled'
   | 'completed'
-  | 'no_show'
-  | 'pending_fulfillment';
+  | 'cancelled'
+  | 'expired'
+  | 'reversed'
+  | 'failed';
 
 /** Everything the API is willing to say about the customer outside a booking's own page. */
 export interface CustomerSummary {
@@ -445,8 +448,26 @@ export interface BookingProductSummary {
   fulfillmentLocationId: string | null;
 }
 
+/** What confirm, decline and cancel answer. */
+export interface BookingDecision {
+  bookingId: string;
+  status: BookingStatus;
+  reasonCode: string | null;
+  decidedAt: string;
+}
+
+/**
+ * Handover progress, beside the booking's own status rather than blended into it.
+ *
+ * The three `*_allowed` flags are what a row's buttons are driven by: they are the same rules the
+ * command endpoints enforce, so a button enabled here is accepted there. `handoverAllowed` is false
+ * for anything not yet `confirmed`, which is how an unpaid booking and an unanswered request stay
+ * un-handed-over without the console having to know the rule.
+ */
 export interface FulfillmentSummary {
   stage: FulfillmentStage;
+  handoverAllowed: boolean;
+  returnAllowed: boolean;
   completionAllowed: boolean;
   hasIssue: boolean;
 }
@@ -722,7 +743,6 @@ export interface ProductPolicy {
   productPolicyId?: string;
   productId?: string;
   leadTimeHours: number | null;
-  cancellationTiers: ProductCancellationTier[] | null;
   isCancellationAllowed: boolean;
   noShowChargePercent: number | null;
   deposit: ProductDeposit | null;
@@ -736,7 +756,6 @@ export interface ProductPolicy {
  */
 export interface ProductPolicyInput {
   leadTimeHours: number | null;
-  cancellationTiers: ProductCancellationTier[] | null;
   isCancellationAllowed: boolean | null;
   noShowChargePercent: number | null;
   deposit: ProductDeposit | null;

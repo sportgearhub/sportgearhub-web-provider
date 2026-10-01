@@ -603,20 +603,28 @@ PUT /api/v1/sellers/{seller_id}/products/{product_id}/policy
 {
   "lead_time_hours": 2,
   "is_cancellation_allowed": true,
-  "cancellation_tiers": [
-    { "threshold_hours_before_start": 48, "refund_percent": 100 },
-    { "threshold_hours_before_start": 24, "refund_percent": 50 },
-    { "threshold_hours_before_start": 2,  "refund_percent": 0 }
-  ],
   "no_show_charge_percent": 50,
   "deposit": { "unit": "percent", "value": 20 }
 }
 ```
 
-Tiers are read top down by hours remaining: cancel 30 hours before the start and the 24-hour tier
-applies, so 50%. Order them descending by `threshold_hours_before_start`.
-
 `lead_time_hours` is how far ahead a booking must be made.
+
+**`is_cancellation_allowed: false` now actually blocks a cancellation.** Until 2026-10-01 it was read
+only to build the estimate shown to the customer: the customer saw «отмена недоступна» and the
+cancellation went through anyway.
+
+> **Refund tiers are gone for now.** `cancellation_tiers` was removed from this endpoint on
+> 2026-10-01. A seller set «48h → 100%, 24h → 50%», the customer was faithfully told «cancel now, get
+> 50% back», and the cancellation read none of it — a hard-coded 12-hour window decided whether it was
+> allowed, and the refund was always the full amount. A customer at 30 hours was promised 50% and
+> given 100%; a customer at 6 hours was refused outright, though the seller's own terms allowed it.
+> A setting nothing honours is worse than no setting. **Cancelling now refunds everything**, deposit
+> included, and tiers return with the code that will enforce them.
+
+A booking can be cancelled until it **starts**, which replaced that 12-hour window. The old threshold
+was written down nowhere, so neither side could predict it; the start of the rental is a boundary
+both understand.
 
 ### Photos
 
@@ -630,12 +638,22 @@ files: <one or more files>
 
 `image/jpeg`, `image/png`, `image/webp`; 5 MB each; ten per card.
 
-`PUT …/images/order` sets the order — the first is the cover. `DELETE …/images/{image_id}` removes
-one. `GET` lists them with the `public_url` to render.
+`GET` lists them, each with a `url` to render, an `image_id`, and a `sort_order`.
 
-If an upload fails with a 500 and not a 400, that is ours, not yours: report it. It used to answer
-403 «Недостаточно прав для выполнения действия», which read like the seller lacking permission and
-was really the API unable to write to disk.
+`PUT …/images/order` takes **every** image id of the card, in the order you want:
+`{ "image_ids": ["…", "…"] }`. A partial list is refused — the endpoint sets positions, it does not
+move one item. The first is the cover.
+
+`DELETE …/images/{image_id}` removes one, file and row together.
+
+**The card's `media_preview_url` is the first uploaded photo.** Some seeded cards carry a stock URL
+in a column that nothing in the API writes; it is used only when a card has no photos at all. Upload
+one and it is replaced. There is no endpoint to set that column and there should not be.
+
+If an upload, a delete or a reorder fails with a 500 and not a 400, that is ours: report it. Until
+2026-09-30 delete answered 404 for a photo that was plainly in the list, reorder answered 400 for a
+complete and correct list, and uploads answered 403 «Недостаточно прав для выполнения действия» —
+which read like the seller lacking permission and was really the API unable to write to disk.
 
 ### Description sections
 
@@ -698,12 +716,29 @@ returned item, and neither could be filtered in the database.
 Handover progress is beside it, in `fulfillment`:
 
 ```json
-"fulfillment": { "stage": "pending_handover", "completion_allowed": false, "has_issue": false }
+"fulfillment": {
+  "stage": "pending_handover",
+  "handover_allowed": true,
+  "return_allowed": false,
+  "completion_allowed": false,
+  "has_issue": false
+}
 ```
 
 `stage` runs `pending_handover` → `active` → `returned` → `completed`, with `issue_reported` cutting
 across. A booking that has not been touched yet has no fulfillment row at all, and reads
 `pending_handover`.
+
+The three `*_allowed` flags are what the row's buttons should be driven by. They are the same rules
+the command endpoints enforce, so a button that is enabled here will be accepted there — and
+`handover_allowed` is false for a booking that is not `confirmed`, which is how an unpaid booking and
+an unanswered request stay un-handed-over.
+
+> **There is no separate fulfillment queue.** `GET /sellers/{seller_id}/fulfillment` was removed on
+> 2026-10-01. It read a table that only the first handover writes, so it answered `[]` to every call
+> ever made to it, and its row carried a bare product id with no title or photo. Use the booking list
+> with `tab=handover_today`, `tab=return_today` or `tab=active`; the row carries the product, the
+> customer and the three flags above.
 
 ### Confirming and declining a request
 
@@ -746,6 +781,23 @@ managers with the same request open.
 `expired`, the item is released, and the customer is told the seller did not answer. Show the age of a
 request, or sellers will not know they are on a clock.
 
+### Cancelling a booking
+
+```json
+POST /api/v1/sellers/{seller_id}/bookings/{booking_id}/cancel
+{ "reason_code": "equipment_damaged", "comment": "Велосипед сломался, приносим извинения." }
+```
+
+**The customer is refunded in full, always** — whatever the hour, and even on a product whose
+`is_cancellation_allowed` is false. Refund rules price a customer changing their mind; they have no
+business charging a customer for a seller who cannot deliver. The `comment` reaches the customer by
+email, so write it for them.
+
+Before 2026-10-01 a seller could not cancel at all: cancellation matched on the customer's id, so it
+existed only for them. Declining is available only *before* confirming — and gear breaks after.
+
+Terminal bookings answer `already_terminal`, which is safe to have double-tapped.
+
 ### Handing over and taking back
 
 ```
@@ -763,7 +815,10 @@ is simply one that has not been handed over yet — not an error and not a missi
 Each command answers with an `outcome`: `accepted`, `already_applied` (idempotent, safe to have
 double-tapped), or `rejected` with a reason code. Read it rather than assuming success from a 200.
 
-`GET …/fulfillment` is the current state, for a screen that needs it without the whole booking.
+`GET …/bookings/{booking_id}/fulfillment` is the per-booking state, for a screen that needs the
+handover and return notes, the condition summary and the issue summary without the whole booking. It
+works before the first handover too, reporting `pending_handover` — until 2026-10-01 it answered 404
+for any real booking, because the row it read did not exist yet.
 
 ---
 

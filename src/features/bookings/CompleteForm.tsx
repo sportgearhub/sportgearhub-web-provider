@@ -3,15 +3,14 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, bookingsApi } from '../../lib/api-client';
 import { rejectionMessage } from './commandResult';
-import type { FulfillmentItem } from '../../types';
 
 interface CompleteFormProps {
-  item: FulfillmentItem;
+  bookingId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function CompleteForm({ item, onSuccess, onCancel }: CompleteFormProps) {
+export function CompleteForm({ bookingId, onSuccess, onCancel }: CompleteFormProps) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +20,7 @@ export function CompleteForm({ item, onSuccess, onCancel }: CompleteFormProps) {
     setError('');
     const completedAt = new Date().toISOString();
     try {
-      const response = await bookingsApi.complete(item.bookingId, {
+      const response = await bookingsApi.complete(bookingId, {
         completedAt,
         note: notes.trim() || undefined,
       });

@@ -203,11 +203,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             {policy ? (
               <DetailList>
                 <DetailRow label="Бронь не позднее" value={policy.leadTimeHours != null ? `${policy.leadTimeHours} ч до начала` : null} />
-                <DetailRow
-                  label="Отмена"
-                  value={policy.isCancellationAllowed ? 'Разрешена' : 'Запрещена'}
-                  hint={policy.cancellationTiers?.length ? `${policy.cancellationTiers.length} ступени возврата` : undefined}
-                />
+                <DetailRow label="Отмена" value={policy.isCancellationAllowed ? 'Разрешена' : 'Запрещена'} />
                 <DetailRow
                   label="Залог"
                   value={policy.deposit ? (policy.deposit.unit === 'percent' ? `${policy.deposit.value} % от суммы` : formatPrice(policy.deposit.value)) : null}

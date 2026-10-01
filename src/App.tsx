@@ -7,7 +7,6 @@ import { ProviderPickerPage } from './features/providers/ProviderPickerPage';
 import { CreateProviderPage } from './features/providers/CreateProviderPage';
 import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/ConsoleLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-import { FulfillmentPage } from './features/fulfillment/FulfillmentPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
@@ -80,8 +79,7 @@ function DashboardRoute() {
 }
 
 function BookingsRoute() {
-  const { navigateTo } = useConsole();
-  return <BookingsPage onNavigate={navigateTo} />;
+  return <BookingsPage />;
 }
 
 function ProductsRoute() {
@@ -124,7 +122,6 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardRoute /> },
           { path: 'bookings', element: <BookingsRoute /> },
-          { path: 'fulfillment', element: <FulfillmentPage /> },
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },

@@ -3,15 +3,14 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ApiError, bookingsApi } from '../../lib/api-client';
 import { rejectionMessage } from './commandResult';
-import type { FulfillmentItem } from '../../types';
 
 interface HandoverFormProps {
-  item: FulfillmentItem;
+  bookingId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function HandoverForm({ item, onSuccess, onCancel }: HandoverFormProps) {
+export function HandoverForm({ bookingId, onSuccess, onCancel }: HandoverFormProps) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +20,7 @@ export function HandoverForm({ item, onSuccess, onCancel }: HandoverFormProps) {
     setError('');
     const handedOverAt = new Date().toISOString();
     try {
-      const response = await bookingsApi.handover(item.bookingId, {
+      const response = await bookingsApi.handover(bookingId, {
         handedOverAt,
         note: notes.trim() || undefined,
       });

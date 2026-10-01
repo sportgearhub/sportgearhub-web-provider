@@ -4,10 +4,9 @@ import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { ApiError, bookingsApi } from '../../lib/api-client';
 import { rejectionMessage } from './commandResult';
-import type { FulfillmentItem } from '../../types';
 
 interface IssueReportFormProps {
-  item: FulfillmentItem;
+  bookingId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -19,7 +18,7 @@ const severityOptions = [
   { value: 'critical', label: 'Критическая - безопасность или юридический риск' },
 ];
 
-export function IssueReportForm({ item, onSuccess, onCancel }: IssueReportFormProps) {
+export function IssueReportForm({ bookingId, onSuccess, onCancel }: IssueReportFormProps) {
   const [severity, setSeverity] = useState('medium');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +32,7 @@ export function IssueReportForm({ item, onSuccess, onCancel }: IssueReportFormPr
     setError('');
     setLoading(true);
     try {
-      const response = await bookingsApi.reportIssue(item.bookingId, {
+      const response = await bookingsApi.reportIssue(bookingId, {
         reasonCode: `fulfillment_${severity}`,
         description: description.trim(),
         evidenceRefs: [],

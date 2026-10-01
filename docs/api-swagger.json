@@ -2210,12 +2210,12 @@
         ]
       }
     },
-    "/api/v1/sellers/{seller_id}/fulfillment": {
-      "get": {
+    "/api/v1/sellers/{seller_id}/bookings/{booking_id}/cancel": {
+      "post": {
         "tags": [
           "Api"
         ],
-        "operationId": "EbashITSportgearhubApiEndpointsSellerFulfillmentGetSellerFulfillmentQueueEndpoint",
+        "operationId": "EbashITSportgearhubApiEndpointsSellerFulfillmentPostSellerBookingCancelEndpoint",
         "parameters": [
           {
             "name": "seller_id",
@@ -2226,51 +2226,34 @@
             }
           },
           {
-            "name": "fulfillment_stage",
-            "in": "query",
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "date_from",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "date_to",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "product_id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "guid",
-              "nullable": true
+              "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "x-name": "CancelSellerBookingRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerFulfillmentCancelSellerBookingRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerFulfillmentSellerFulfillmentSummaryResponse"
-                  }
+                  "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCheckoutCancelBookingResponse"
                 }
               }
             }
@@ -5333,12 +5316,6 @@
             "format": "int32",
             "nullable": true
           },
-          "cancellation_tiers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsPolicyPolicyCancellationTierResponse"
-            }
-          },
           "is_cancellation_allowed": {
             "type": "boolean",
             "nullable": true
@@ -5359,20 +5336,6 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsProductsPolicyPolicyCancellationTierResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "threshold_hours_before_start": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "refund_percent": {
-            "type": "number",
-            "format": "decimal"
           }
         }
       },
@@ -5693,13 +5656,6 @@
             "format": "int32",
             "nullable": true
           },
-          "cancellation_tiers": {
-            "type": "array",
-            "nullable": true,
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsPolicyPolicyCancellationTierRequest"
-            }
-          },
           "is_cancellation_allowed": {
             "type": "boolean",
             "nullable": true
@@ -5716,20 +5672,6 @@
                 "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsPolicyPolicyDepositRequest"
               }
             ]
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsProductsPolicyPolicyCancellationTierRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "threshold_hours_before_start": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "refund_percent": {
-            "type": "number",
-            "format": "decimal"
           }
         }
       },
@@ -6555,7 +6497,19 @@
         "type": "object",
         "additionalProperties": false
       },
-      "EbashITSportgearhubApiModelsSellerFulfillmentSellerFulfillmentSummaryResponse": {
+      "EbashITSportgearhubApiModelsCheckoutCancelBookingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingDetailResponse"
+          },
+          "cancellation_result": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCheckoutBookingCancellationResultResponse"
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingDetailResponse": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -6566,25 +6520,186 @@
           "booking_number": {
             "type": "string"
           },
-          "booking_type": {
+          "status": {
             "type": "string"
           },
-          "fulfillment_stage": {
-            "type": "string"
+          "status_reason": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonStatusReasonModel"
+              }
+            ]
           },
-          "handover_allowed": {
-            "type": "boolean"
+          "product": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingProductResponse"
           },
-          "return_allowed": {
-            "type": "boolean"
+          "schedule": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingScheduleResponse"
           },
-          "completion_allowed": {
-            "type": "boolean"
+          "selection_summary": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingSelectionSummaryResponse"
           },
+          "price": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingPriceResponse"
+          },
+          "cancellation": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingCancellationResponse"
+          },
+          "payment_summary": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingPaymentSummaryResponse"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonTimelineEventModel"
+            }
+          },
+          "support": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingSupportResponse"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonStatusReasonModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingProductResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
           "product_id": {
             "type": "string",
             "format": "guid"
           },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "seller_summary": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonSellerSummaryModel"
+              }
+            ]
+          },
+          "location": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonLocationModel"
+              }
+            ]
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonSellerSummaryModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "seller_id": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "seller_slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonLocationModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "house": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "fulfillment_location_id": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "city_id": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingScheduleResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
           "start_at": {
             "type": "string",
             "format": "date-time"
@@ -6596,16 +6711,244 @@
           "quantity": {
             "type": "integer",
             "format": "int32"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
-      "EbashITSportgearhubApiModelsSellerFulfillmentSellerFulfillmentListRequest": {
+      "EbashITSportgearhubApiModelsBookingsBookingSelectionSummaryResponse": {
         "type": "object",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "properties": {
+          "variant_selection": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonStructuredOptionModel"
+            }
+          },
+          "booking_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonStructuredOptionModel"
+            }
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingPriceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total_price": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "prepaid_service_amount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "deposit_amount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "total_charge_amount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingCancellationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "is_cancellable": {
+            "type": "boolean"
+          },
+          "policy_summary": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonPolicySummaryModel"
+              }
+            ]
+          },
+          "estimated_result": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonCancellationEstimateModel"
+              }
+            ]
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonPolicySummaryModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "preview_status": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonCancellationEstimateModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "refund_mode": {
+            "type": "string",
+            "nullable": true
+          },
+          "refund_percent": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "applied_threshold_hours_before_start": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingPaymentSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "payment_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "customer_payment_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "total_amount_minor_units": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "estimated_refund_days": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "customer_next_action": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonPaymentNextActionModel"
+              }
+            ]
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonPaymentNextActionModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "method": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonTimelineEventModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "event_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsBookingsBookingSupportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "correlation_ref": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCheckoutBookingCancellationResultResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "customer_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiEndpointsSellerFulfillmentCancelSellerBookingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "EbashITSportgearhubApiModelsSellerFulfillmentSellerFulfillmentCommandResponse": {
         "type": "object",
@@ -6941,24 +7284,6 @@
           }
         }
       },
-      "EbashITSportgearhubApiModelsCommonStatusReasonModel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "reason": {
-            "type": "string",
-            "nullable": true
-          },
-          "code": {
-            "type": "string",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "EbashITSportgearhubApiModelsSellerBookingsSellerBookingProductResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -7062,28 +7387,6 @@
             "type": "boolean"
           },
           "notes": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsCommonPolicySummaryModel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "source": {
-            "type": "string",
-            "nullable": true
-          },
-          "scope": {
-            "type": "string",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "nullable": true
-          },
-          "preview_status": {
             "type": "string",
             "nullable": true
           }
@@ -7227,6 +7530,12 @@
         "properties": {
           "stage": {
             "type": "string"
+          },
+          "handover_allowed": {
+            "type": "boolean"
+          },
+          "return_allowed": {
+            "type": "boolean"
           },
           "completion_allowed": {
             "type": "boolean"

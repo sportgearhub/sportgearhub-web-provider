@@ -39,13 +39,12 @@ import type {
   OfferInfoSection,
   BookingListItem,
   BookingDetail,
-  BookingStatus,
+  BookingDecision,
   FulfillmentCommandResult,
   FulfillmentDetail,
-  FulfillmentItem,
 } from '../types';
 
-import { camelToSnake, keysToCamel, keysToSnake } from './case-convert';
+import { keysToCamel, keysToSnake } from './case-convert';
 import { providerUrl } from './active-provider';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -922,18 +921,39 @@ export const providerMembersApi = {
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
 export const bookingsApi = {
-  list: (params: {
-    status?: BookingStatus;
-    dateFrom?: string;
-    dateTo?: string;
-    productId?: string;
-  }) => {
-    // Query keys are snake_case on the wire like every other field; a camelCase one is not an error,
-    // it is silently ignored, and the caller gets an unfiltered list back.
+  /**
+   * The seller's bookings, filtered and paged by the server, with the same RSQL rules as the
+   * catalogue: `-start_at` for descending, and an allowlist of booking_id, booking_number, status,
+   * product_id, start_at, end_at, quantity, total_price, created_at, updated_at.
+   */
+  list: (params: { tab?: string; filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
     const qs = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(camelToSnake(k), String(v)));
-    return providerRequest<BookingListItem[]>(`/bookings?${qs}`);
+    if (params.tab) qs.set('tab', params.tab);
+    if (params.filter) qs.set('filter', params.filter);
+    if (params.sort) qs.set('sort', params.sort);
+    qs.set('page', String(params.page ?? 1));
+    qs.set('pageSize', String(params.pageSize ?? 20));
+    return providerRequest<Paged<BookingListItem>>(`/bookings?${qs}`);
   },
+
+  /** How many bookings sit behind each tab. The keys are what `tab` accepts. */
+  tabCounts: () => providerRequest<{ counts: Record<string, number> }>('/bookings/tab-counts'),
+
+  /** Opens the customer's payment window — the booking becomes `pending`, not `confirmed`. */
+  confirm: (bookingId: string) =>
+    providerRequest<BookingDecision>(`/bookings/${bookingId}/confirm`, { method: 'POST' }),
+
+  decline: (bookingId: string, data: { reasonCode: string; comment?: string }) =>
+    providerRequest<BookingDecision>(`/bookings/${bookingId}/decline`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  cancel: (bookingId: string, data: { reasonCode: string; comment?: string }) =>
+    providerRequest<BookingDecision>(`/bookings/${bookingId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   get: (bookingId: string) => providerRequest<BookingDetail>(`/bookings/${bookingId}`),
 
@@ -994,9 +1014,9 @@ export const bookingsApi = {
 
 // ─── Fulfillment Queue ────────────────────────────────────────────────────────
 
-export const fulfillmentApi = {
-  getQueue: () => providerRequest<FulfillmentItem[]>('/fulfillment'),
-};
+// The fulfillment queue was removed on 2026-10-01. It read a table only the first handover writes,
+// so it answered [] to every call ever made to it. The booking list carries the same work — with
+// the product and the customer attached — behind tab=handover_today, return_today or active.
 
 // ─── Acquiring ────────────────────────────────────────────────────────────────
 

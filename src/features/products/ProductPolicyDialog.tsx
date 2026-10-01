@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, Save, Trash2, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { ApiError, productsApi } from '../../lib/api-client';
-import type { ProductCancellationTier, ProductPolicy } from '../../types';
+import type { ProductPolicy } from '../../types';
 
 const DEPOSIT_UNITS = [
   { value: 'rub', label: '₽' },
@@ -31,7 +31,6 @@ export function ProductPolicyDialog({
   const [noShow, setNoShow] = useState('');
   const [depositUnit, setDepositUnit] = useState('rub');
   const [depositValue, setDepositValue] = useState('');
-  const [tiers, setTiers] = useState<ProductCancellationTier[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,7 +41,6 @@ export function ProductPolicyDialog({
     setNoShow(policy?.noShowChargePercent != null ? String(policy.noShowChargePercent) : '');
     setDepositUnit(policy?.deposit?.unit ?? 'rub');
     setDepositValue(policy?.deposit?.value != null ? String(policy.deposit.value) : '');
-    setTiers(policy?.cancellationTiers ?? []);
     setError('');
   }, [open, policy]);
 
@@ -55,7 +53,6 @@ export function ProductPolicyDialog({
         isCancellationAllowed: cancellable,
         noShowChargePercent: noShow.trim() === '' ? null : Number(noShow),
         deposit: depositValue.trim() === '' ? null : { unit: depositUnit, value: Number(depositValue) },
-        cancellationTiers: cancellable && tiers.length > 0 ? tiers : null,
       });
       onSaved(next);
     } catch (err) {
@@ -64,9 +61,6 @@ export function ProductPolicyDialog({
       setSaving(false);
     }
   };
-
-  const patchTier = (index: number, patch: Partial<ProductCancellationTier>) =>
-    setTiers(current => current.map((tier, i) => (i === index ? { ...tier, ...patch } : tier)));
 
   return (
     <Modal open={open} onClose={onClose} title="Правила аренды" size="md">
@@ -121,42 +115,6 @@ export function ProductPolicyDialog({
             Разрешить отмену брони
           </label>
 
-          {cancellable && (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs text-gray-500">
-                Сколько вернуть клиенту в зависимости от того, за сколько часов он отменил.
-              </p>
-              {tiers.map((tier, index) => (
-                <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                  <Input
-                    label="Не позднее чем за, ч"
-                    type="number"
-                    min="0"
-                    value={String(tier.thresholdHoursBeforeStart)}
-                    onChange={event => patchTier(index, { thresholdHoursBeforeStart: Number(event.target.value) || 0 })}
-                  />
-                  <Input
-                    label="Возврат, %"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={String(tier.refundPercent)}
-                    onChange={event => patchTier(index, { refundPercent: Number(event.target.value) || 0 })}
-                  />
-                  <Button variant="ghost" size="sm" aria-label="Удалить ступень" onClick={() => setTiers(current => current.filter((_, i) => i !== index))}>
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setTiers(current => [...current, { thresholdHoursBeforeStart: 24, refundPercent: 100 }])}
-              >
-                <Plus size={13} /> Добавить ступень
-              </Button>
-            </div>
-          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">

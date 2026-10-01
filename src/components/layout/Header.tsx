@@ -22,7 +22,6 @@ import { cn } from '../../lib/utils';
 const navItems: { label: string; path: string }[] = [
   { label: 'Дашборд', path: '/' },
   { label: 'Заказы', path: '/bookings' },
-  { label: 'Выдача', path: '/fulfillment' },
   { label: 'Каталог', path: '/products' },
 ];
 

@@ -8,7 +8,7 @@ console only sees the surface it is allowed to call.
 |---|---|---|---|
 | [`app.json`](app.json) | Sportgearhub App API | the customer app: auth, discovery, marketplace products, checkout, bookings | 46 paths · 48 operations |
 | [`seller.json`](seller.json) | Sportgearhub Seller CRM API | the seller console: auth, onboarding, everything under `/api/v1/seller` | 82 paths · 98 operations |
-| [`admin.json`](admin.json) | Sportgearhub Admin API | the internal console: auth and everything under `/internal` | 62 paths · 67 operations |
+| [`admin.json`](admin.json) | Sportgearhub Admin API | the internal console: auth and everything under `/internal` | 63 paths · 68 operations |
 
 Auth (`/api/v1/auth`, `/connect`) is in all three, because all three sign in the same way.
 

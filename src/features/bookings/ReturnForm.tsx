@@ -4,10 +4,9 @@ import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { ApiError, bookingsApi } from '../../lib/api-client';
 import { rejectionMessage } from './commandResult';
-import type { FulfillmentItem } from '../../types';
 
 interface ReturnFormProps {
-  item: FulfillmentItem;
+  bookingId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -19,7 +18,7 @@ const conditionOptions = [
   { value: 'damaged', label: 'Повреждено - требует внимания' },
 ];
 
-export function ReturnForm({ item, onSuccess, onCancel }: ReturnFormProps) {
+export function ReturnForm({ bookingId, onSuccess, onCancel }: ReturnFormProps) {
   const [condition, setCondition] = useState('good');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +29,7 @@ export function ReturnForm({ item, onSuccess, onCancel }: ReturnFormProps) {
     setError('');
     const returnedAt = new Date().toISOString();
     try {
-      const response = await bookingsApi.return(item.bookingId, {
+      const response = await bookingsApi.return(bookingId, {
         returnedAt,
         note: notes.trim() || undefined,
         conditionSummary: [{ key: 'condition', value: condition }],
