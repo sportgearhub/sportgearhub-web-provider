@@ -348,6 +348,8 @@ function storeToken(token: OidcTokenResponse, scope: string) {
   } catch {
     // In private or restricted storage contexts, keep the token for this tab only.
   }
+
+  scheduleRefresh();
 }
 
 function jwtExpiresIn(jwt: string): number {
@@ -445,6 +447,8 @@ function clearStoredDevice() {
 
 function clearStoredToken() {
   authToken = null;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = null;
   try {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch {
@@ -481,37 +485,99 @@ async function oidcTokenRequest(body: URLSearchParams, scope: string) {
   return token;
 }
 
-async function refreshGrant(token: StoredOidcToken) {
+/**
+ * How close to expiry counts as expired.
+ *
+ * Wide enough to cover a request that waits behind others and a browser clock that disagrees with
+ * the server's by a little. A token inside this window is renewed before it is used rather than
+ * sent and retried after a 401, which costs a round trip and a moment of a broken page.
+ */
+const REFRESH_SKEW_MS = 60_000;
+
+/** One refresh at a time. Six parallel calls on a stale token need one new token, not six. */
+let refreshInFlight: Promise<OidcTokenResponse | null> | null = null;
+
+function refreshGrant(token: StoredOidcToken) {
   if (!token.refresh_token) {
     clearStoredToken();
-    return null;
+    return Promise.resolve(null);
   }
+
+  if (refreshInFlight) return refreshInFlight;
 
   const scope = PROVIDER_AUTH_SCOPE;
+  refreshInFlight = oidcTokenRequest(new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: AUTH_CLIENT_ID,
+    refresh_token: token.refresh_token,
+    scope,
+  }), scope)
+    .catch(() => {
+      clearStoredToken();
+      return null;
+    })
+    .finally(() => { refreshInFlight = null; });
 
-  try {
-    return await oidcTokenRequest(new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: AUTH_CLIENT_ID,
-      refresh_token: token.refresh_token,
-      scope,
-    }), scope);
-  } catch {
-    clearStoredToken();
-    return null;
-  }
+  return refreshInFlight;
+}
+
+function tokenIsFresh(token: StoredOidcToken) {
+  return tokenHasRequiredScopes(token) && token.expires_at - REFRESH_SKEW_MS > Date.now();
 }
 
 async function getAccessToken() {
   if (!authToken) return null;
-
-  const refreshSkewMs = 30_000;
-  if (tokenHasRequiredScopes(authToken) && authToken.expires_at - refreshSkewMs > Date.now()) {
-    return authToken.access_token;
-  }
+  if (tokenIsFresh(authToken)) return authToken.access_token;
 
   const refreshed = await refreshGrant(authToken);
   return refreshed?.access_token ?? null;
+}
+
+// ─── Keeping an open page signed in ───────────────────────────────────────────
+
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Renew in the background, before the next call needs it.
+ *
+ * A console left open on the bookings list makes no requests for an hour and then makes one the
+ * moment somebody clicks «Выдать» — and that is the worst time to discover the token died. The
+ * timer lands just inside the skew window, so the renewal happens while nobody is waiting.
+ *
+ * Timers in a background tab are throttled or stopped outright, so the clock is not trusted alone:
+ * coming back to the tab, or back online, re-checks and renews if the moment has passed.
+ */
+function scheduleRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = null;
+  if (!authToken?.refresh_token) return;
+
+  // setTimeout clamps above ~24.8 days; nothing here is near that, but never schedule the past.
+  const delay = Math.max(1_000, authToken.expires_at - REFRESH_SKEW_MS - Date.now());
+  refreshTimer = setTimeout(() => {
+    if (authToken) void refreshGrant(authToken);
+  }, delay);
+}
+
+function refreshIfDue() {
+  if (!authToken || tokenIsFresh(authToken)) return;
+  void refreshGrant(authToken);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshIfDue();
+  });
+  window.addEventListener('online', refreshIfDue);
+  window.addEventListener('focus', refreshIfDue);
+
+  // A token restored from storage has an expiry but no timer behind it — the tab that scheduled
+  // the last one is gone. Arm it for this page, and renew now if the tab was closed through the
+  // moment it was due.
+  if (authToken) {
+    if (tokenIsFresh(authToken)) scheduleRefresh();
+    else refreshIfDue();
+  }
 }
 
 type ApiRequestInit = RequestInit & { auth?: boolean };
