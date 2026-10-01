@@ -1,7 +1,7 @@
 import { clearSelectedProvider } from '../lib/active-provider';
 import { createContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import type { AuthUser, ProviderSummary, Session } from '../types';
-import { ApiError, authApi } from '../lib/api-client';
+import { authApi, onUnauthorized } from '../lib/api-client';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -17,7 +17,6 @@ interface AuthContextType {
   acceptInvitation: (invitationId: string) => Promise<Session>;
   signOut: () => Promise<void>;
   reloadSession: () => Promise<Session | null>;
-  sessionExpired: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,26 +43,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sessionExpired, setSessionExpired] = useState(false);
 
   const adopt = (session: Session) => {
     setUser(session.user);
     setProviders(session.providers);
-    setSessionExpired(false);
     return session;
   };
+
+  /**
+   * A session that ended while the console was open.
+   *
+   * The token is already gone by the time this runs — the client dropped it after the refresh
+   * failed — so the only question is where the person lands. A device they have trusted asks for
+   * its passcode; anything else starts from the phone. This replaces the location rather than
+   * routing, because every page's state was built on a session that no longer exists and a reload
+   * is the honest way to be rid of it.
+   */
+  useEffect(() => onUnauthorized(() => {
+    if (isPublicAuthEntry()) return;
+    clearSelectedProvider();
+    const next = authApi.hasTrustedDevice() ? '/auth/passcode' : '/auth/sign-in';
+    window.location.replace(next);
+  }), []);
 
   const reloadSession = useCallback(async () => {
     setLoading(true);
     try {
       const session = await loadSession();
       return session ? adopt(session) : null;
-    } catch (error) {
+    } catch {
+      // A 401 here has already been announced by the client, which is what sends the person back
+      // to the passcode; there is nothing left for this to flag.
       setUser(null);
       setProviders([]);
-      if (error instanceof ApiError && error.status === 401) {
-        setSessionExpired(true);
-      }
       return null;
     } finally {
       setLoading(false);
@@ -104,7 +116,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.signout().catch(() => undefined);
     setUser(null);
     setProviders([]);
-    setSessionExpired(false);
   };
 
   return (
@@ -120,7 +131,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         acceptInvitation,
         signOut,
         reloadSession,
-        sessionExpired,
       }}
     >
       {children}

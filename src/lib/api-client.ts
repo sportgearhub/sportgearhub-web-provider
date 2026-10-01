@@ -361,6 +361,7 @@ function jwtExpiresIn(jwt: string): number {
 }
 
 function storeSimpleToken({ accessToken, refreshToken }: SimpleTokenResponse) {
+  announcedUnauthorized = false;
   storeToken({
     access_token: accessToken,
     token_type: 'Bearer',
@@ -515,9 +516,30 @@ async function getAccessToken() {
 
 type ApiRequestInit = RequestInit & { auth?: boolean };
 
+/**
+ * Told when a session has really ended — the access token was refused and the refresh token could
+ * not replace it. The client cannot navigate, so whoever can subscribes here.
+ */
+type UnauthorizedHandler = () => void;
+const unauthorizedHandlers = new Set<UnauthorizedHandler>();
+
+export function onUnauthorized(handler: UnauthorizedHandler) {
+  unauthorizedHandlers.add(handler);
+  return () => { unauthorizedHandlers.delete(handler); };
+}
+
+/** Guards against every failed call on a dead session announcing the same expiry. */
+let announcedUnauthorized = false;
+
+function announceUnauthorized() {
+  if (announcedUnauthorized) return;
+  announcedUnauthorized = true;
+  unauthorizedHandlers.forEach(handler => handler());
+}
+
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
-async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: ApiRequestInit = {}, isRetry = false): Promise<T> {
   const { auth = true, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers);
   const accessToken = auth ? await getAccessToken() : null;
@@ -562,7 +584,16 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
         errors?: Record<string, string[]>;
       }>(await res.json().catch(() => ({ message: res.statusText })));
       if (auth && res.status === 401) {
+        // The access token can die between the expiry check and the server reading it — a clock
+        // that disagrees, a token revoked, a request that waited behind others. One refresh and one
+        // replay before concluding the session is over; `isRetry` stops that becoming a loop when
+        // the refresh token is dead too.
+        if (!isRetry && authToken?.refresh_token) {
+          const refreshed = await refreshGrant(authToken);
+          if (refreshed) return request<T>(path, options, true);
+        }
         clearStoredToken();
+        announceUnauthorized();
       }
 
       // A validation failure carries the useful text per field; its top-level message is only
