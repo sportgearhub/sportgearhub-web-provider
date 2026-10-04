@@ -35,10 +35,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, VariantPr
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant, size, children, loading, className, disabled, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button';
+    // Slot renders *into* the child, so it must receive exactly one element — and the spinner
+    // expression beside {children} made two, which threw «React.Children.only». A link borrowing
+    // the button's clothes gets the class name and nothing else; it also has no `disabled`.
+    if (asChild) {
+      return (
+        <Slot ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+          {children}
+        </Slot>
+      );
+    }
 
     return (
-      <Comp
+      <button
         ref={ref}
         disabled={disabled || loading}
         className={cn(buttonVariants({ variant, size }), className)}
@@ -51,7 +60,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           </svg>
         )}
         {children}
-      </Comp>
+      </button>
     );
   }
 );

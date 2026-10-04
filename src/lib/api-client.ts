@@ -695,7 +695,12 @@ async function request<T>(path: string, options: ApiRequestInit = {}, isRetry = 
 
   if (canDedupe) {
     inFlightGetRequests.set(requestKey, promise);
-    promise.finally(() => inFlightGetRequests.delete(requestKey));
+    // `.finally` returns a *new* promise. When the request rejects, that derived one rejects too
+    // with nobody listening — which is why a handled 404 still reached the console as an unhandled
+    // rejection. The caller keeps the original; this chain only cleans up.
+    promise
+      .finally(() => inFlightGetRequests.delete(requestKey))
+      .catch(() => undefined);
   }
 
   return promise;
