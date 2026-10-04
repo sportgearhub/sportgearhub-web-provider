@@ -7,6 +7,7 @@ import {
   FloatingTextarea,
   FormPage,
   FormSection,
+  FloatingSelect,
   FormStepper,
   PickerRow,
 } from '../../components/form';
@@ -16,16 +17,17 @@ import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../..
 import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
 import type { EquipmentAttribute } from '../../lib/api-client';
 import { toAttributeMap } from '../../types';
-import type { ProductCategory, ProviderLocation, RentalTier } from '../../types';
+import type { ProductCategory, ProductStatus, ProviderLocation, RentalTier } from '../../types';
 import { ProductAttributeFields, attributeError } from './ProductAttributeFields';
 import { ProductImagesSection } from './ProductImagesSection';
 
-type StepKey = 'about' | 'attributes' | 'price' | 'media';
+type StepKey = 'about' | 'attributes' | 'price' | 'policy' | 'media';
 
 /** Which step a validation error belongs to, so a failed save lands on the field it is about. */
 function stepFor(errorKey: string): StepKey {
   if (errorKey.startsWith('attr:')) return 'attributes';
   if (errorKey === 'pricing') return 'price';
+  if (errorKey.startsWith('policy')) return 'policy';
   return 'about';
 }
 
@@ -46,6 +48,12 @@ type Draft = {
   pricingMode: string;
   baseAmount: string;
   tiers: RentalTier[];
+  // Условия отмены — a gate on publication, so the card cannot be finished without them.
+  leadTimeHours: string;
+  cancellationAllowed: boolean;
+  noShowChargePercent: string;
+  depositUnit: string;
+  depositValue: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -59,6 +67,11 @@ const emptyDraft = (): Draft => ({
   pricingMode: DEFAULT_PRICING_MODE,
   tiers: STANDARD_TIERS.map(tier => ({ ...tier })),
   baseAmount: '',
+  leadTimeHours: '',
+  cancellationAllowed: true,
+  noShowChargePercent: '',
+  depositUnit: 'rub',
+  depositValue: '',
 });
 
 /**
@@ -74,6 +87,9 @@ export function ProductForm({
   onNavigate: (path: string) => void;
 }) {
   const isEdit = Boolean(productId);
+  const [status, setStatus] = useState<ProductStatus>('draft');
+  /** Only a draft or a returned card is waiting to be handed over; an active one is just edited. */
+  const shouldSubmit = status === 'draft' || status === 'changes_requested';
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [locations, setLocations] = useState<ProviderLocation[]>([]);
@@ -98,12 +114,15 @@ export function ProductForm({
       productId ? productsApi.get(productId) : Promise.resolve(null),
       productId ? productsApi.getPricing(productId).catch(() => null) : Promise.resolve(null),
       productId ? productsApi.getAttributes(productId).catch(() => null) : Promise.resolve(null),
+      // A card with no cancellation terms yet answers 404; that is «не задано», not a failure.
+      productId ? productsApi.getPolicy(productId).catch(() => null) : Promise.resolve(null),
     ])
-      .then(([nextCategories, nextLocations, product, pricing, productAttributes]) => {
+      .then(([nextCategories, nextLocations, product, pricing, productAttributes, policy]) => {
         if (cancelled) return;
         setCategories(nextCategories);
         setLocations(nextLocations);
         if (product) {
+          setStatus(product.status);
           setDraft(current => ({
             ...current,
             title: product.title,
@@ -119,6 +138,11 @@ export function ProductForm({
             pricingMode: pricing?.pricingMode || DEFAULT_PRICING_MODE,
             baseAmount: pricing?.baseAmount != null ? String(pricing.baseAmount) : '',
             tiers: pricing?.rentalTiers?.length ? pricing.rentalTiers : STANDARD_TIERS.map(tier => ({ ...tier })),
+            leadTimeHours: policy?.leadTimeHours != null ? String(policy.leadTimeHours) : '',
+            cancellationAllowed: policy?.isCancellationAllowed ?? true,
+            noShowChargePercent: policy?.noShowChargePercent != null ? String(policy.noShowChargePercent) : '',
+            depositUnit: policy?.deposit?.unit ?? 'rub',
+            depositValue: policy?.deposit?.value != null ? String(policy.deposit.value) : '',
           }));
         }
       })
@@ -160,6 +184,7 @@ export function ProductForm({
     const list: Array<{ key: StepKey; label: string }> = [{ key: 'about', label: 'О товаре' }];
     if (attributes.length > 0) list.push({ key: 'attributes', label: 'Характеристики' });
     list.push({ key: 'price', label: 'Цена' });
+    list.push({ key: 'policy', label: 'Правила' });
     if (productId) list.push({ key: 'media', label: 'Фото' });
     return list;
   }, [attributes.length, productId]);
@@ -172,6 +197,8 @@ export function ProductForm({
     if (key === 'about') return Boolean(draft.title.trim() && draft.categorySlug && Number(draft.quantity) > 0);
     if (key === 'attributes') return attributes.every(attribute => !attributeError(attribute, draft.attributes[attribute.key] ?? ''));
     if (key === 'price') return isTiered ? draft.tiers.some(tier => tier.price > 0) : Number(draft.baseAmount) > 0;
+    // Публикация требует условий отмены; «запрещена» is an answer, so the step is done either way.
+    if (key === 'policy') return !draft.cancellationAllowed || draft.leadTimeHours.trim() !== '';
     return false;
   };
 
@@ -220,6 +247,35 @@ export function ProductForm({
         rentalTiers: isTiered ? draft.tiers.filter(tier => tier.price > 0) : null,
         status: 'active',
       });
+
+      await productsApi.putPolicy(product.productId, {
+        leadTimeHours: draft.leadTimeHours.trim() === '' ? null : Number(draft.leadTimeHours),
+        isCancellationAllowed: draft.cancellationAllowed,
+        noShowChargePercent: draft.noShowChargePercent.trim() === '' ? null : Number(draft.noShowChargePercent),
+        deposit: draft.depositValue.trim() === ''
+          ? null
+          : { unit: draft.depositUnit, value: Number(draft.depositValue) },
+      });
+
+      // The API never promotes a draft on its own. Without this call a finished card stays a draft
+      // nobody is looking at — which is exactly what was happening.
+      if (shouldSubmit) {
+        try {
+          await productsApi.submitForReview(product.productId);
+        } catch (err) {
+          // Refused means something is still missing. The card's own sections say what, in the
+          // same words the endpoint judged it by, so they are read back rather than guessed at.
+          const gaps = await productsApi.get(product.productId)
+            .then(saved => (saved.sections ?? []).filter(section => !section.isComplete))
+            .catch(() => []);
+          setSaving(false);
+          setError(gaps.length > 0
+            ? `Карточка сохранена, но на проверку не ушла. Не хватает: ${gaps.map(gap => gap.title.toLowerCase()).join(', ')}.`
+            : err instanceof ApiError ? err.message : 'Карточка сохранена, но отправить на проверку не удалось.');
+          return;
+        }
+      }
+
       onNavigate(`/products/${product.productId}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить товар.');
@@ -368,6 +424,63 @@ export function ProductForm({
           </FormSection>
           )}
 
+          {currentStep === 'policy' && (
+            <FormSection
+              title="Правила аренды"
+              description="Условия отмены обязательны для публикации: без них карточку не примут на проверку."
+            >
+              <FieldRow>
+                <FloatingInput
+                  label="Бронь не позднее чем за, ч"
+                  type="number"
+                  min="0"
+                  value={draft.leadTimeHours}
+                  onChange={event => set('leadTimeHours', event.target.value)}
+                  hint="За сколько часов до начала клиент ещё может забронировать. Пусто — без ограничения."
+                />
+                <FloatingInput
+                  label="Штраф за неявку, %"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={draft.noShowChargePercent}
+                  onChange={event => set('noShowChargePercent', event.target.value)}
+                  hint="Сколько удержать, если клиент не пришёл."
+                />
+              </FieldRow>
+
+              <FieldRow className="sm:grid-cols-[1fr_12rem]">
+                <FloatingInput
+                  label="Залог"
+                  type="number"
+                  min="0"
+                  value={draft.depositValue}
+                  onChange={event => set('depositValue', event.target.value)}
+                  hint="Пусто — залог не берётся."
+                />
+                <FloatingSelect
+                  label="Единица залога"
+                  value={draft.depositUnit}
+                  options={[
+                    { value: 'rub', label: '₽' },
+                    { value: 'percent', label: '% от суммы' },
+                  ]}
+                  onChange={value => set('depositUnit', value)}
+                />
+              </FieldRow>
+
+              <ChoiceCards
+                options={[
+                  { value: 'yes', title: 'Отмена разрешена', description: 'Клиент может отменить бронь сам.' },
+                  { value: 'no', title: 'Отмена запрещена', description: 'Бронь нельзя отменить после оплаты.' },
+                ]}
+                value={draft.cancellationAllowed ? 'yes' : 'no'}
+                onChange={(value: string) => set('cancellationAllowed', value === 'yes')}
+              />
+              {errors.policy && <p className="px-1 text-xs text-red-600">{errors.policy}</p>}
+            </FormSection>
+          )}
+
           {currentStep === 'media' && productId && (
             <FormSection title="Фото" description="Первое фото — главное: его видно в каталоге и в списках.">
               <ProductImagesSection productId={productId} />
@@ -393,8 +506,10 @@ export function ProductForm({
               </>
             }
             right={
+              // The button says what the click does. «Сохранить» on a draft was true and useless:
+              // it saved a card that then sat where nobody was looking at it.
               <Button variant="primary" loading={saving} onClick={() => void save()}>
-                {isEdit ? 'Сохранить' : 'Создать товар'}
+                {shouldSubmit ? 'Отправить на проверку' : 'Сохранить'}
               </Button>
             }
             error={error}
