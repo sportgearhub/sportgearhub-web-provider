@@ -406,7 +406,17 @@ function MediaSheet({
     }, 600);
   };
 
+  /**
+   * Whether this drag is carrying files from outside the page.
+   *
+   * Reordering a photo is a drag too, and it bubbles to the sheet exactly like a file does — which
+   * is why dragging a tile raised the upload overlay on top of the grid the tile was being dropped
+   * into. A tile carries `text/plain`; only the desktop carries `Files`.
+   */
+  const carriesFiles = (event: DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
+
   const onDrop = (event: DragEvent) => {
+    if (!carriesFiles(event)) return;
     event.preventDefault();
     setDragging(false);
     if (!full) accept(Array.from(event.dataTransfer.files));
@@ -427,7 +437,11 @@ function MediaSheet({
       {/* The whole sheet is the drop target, not just the dashed box — a file let go anywhere in
           here plainly means "take this". */}
       <div
-        onDragOver={event => { event.preventDefault(); if (!full) setDragging(true); }}
+        onDragOver={event => {
+          if (!carriesFiles(event)) return;
+          event.preventDefault();
+          if (!full) setDragging(true);
+        }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }}
         onDrop={onDrop}
         className={`relative space-y-5 rounded-xl transition ${dragging ? 'ring-2 ring-blue-400 ring-offset-4' : ''}`}
