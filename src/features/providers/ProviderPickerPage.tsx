@@ -3,7 +3,6 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Plus, UserRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { BrandWordmark } from '../../components/layout/BrandWordmark';
 import { FocusFrame } from '../../components/layout/FocusFrame';
 import { useAuth } from '../../context/useAuth';
@@ -80,7 +79,7 @@ export function ProviderPickerPage() {
         <BrandWordmark />
         <span className="text-sm text-muted-foreground">Кабинет партнёра</span>
       </div>
-      <Card className="space-y-4 p-6">
+      <div className="space-y-4 px-4 py-2 sm:rounded-xl sm:border sm:bg-card sm:p-6 sm:shadow-sm">
         <h1 className="text-center text-xl font-semibold text-gray-950">Выберите кабинет</h1>
         <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-gray-600">
@@ -161,17 +160,25 @@ export function ProviderPickerPage() {
         >
           <Plus size={14} /> Добавить кабинет
         </button>
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <Button type="button" variant="secondary" onClick={() => void signOut()}>
+        {/* Full-width rows on a phone, where a thumb reaches the bottom of the screen and not the
+            middle of a row; side by side once there is width to spare. */}
+        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+          <Button type="button" variant="secondary" className="w-full justify-center sm:w-auto" onClick={() => void signOut()}>
             Выйти
           </Button>
           {providers.length > 0 && (
-            <Button type="button" variant="primary" disabled={!selected} onClick={() => enter(selected)}>
+            <Button
+              type="button"
+              variant="primary"
+              className="h-12 w-full justify-center sm:h-9 sm:w-auto"
+              disabled={!selected}
+              onClick={() => enter(selected)}
+            >
               Далее <ChevronRight size={14} />
             </Button>
           )}
         </div>
-      </Card>
+      </div>
     </FocusFrame>
   );
 }

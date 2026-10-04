@@ -123,7 +123,7 @@ export function ColumnHeader({
                     value={query}
                     onChange={event => setQuery(event.target.value)}
                     placeholder="Поиск"
-                    className="h-8 w-full rounded-lg border border-gray-300 pl-8 pr-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                    className="h-8 w-full rounded-lg border border-gray-300 pl-8 pr-2 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:text-sm"
                   />
                 </div>
               </div>

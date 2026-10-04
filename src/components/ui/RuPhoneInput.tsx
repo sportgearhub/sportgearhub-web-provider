@@ -18,7 +18,7 @@ export function RuPhoneInput({
   size = 'md',
   onChange,
 }: RuPhoneInputProps) {
-  const control = size === 'lg' ? 'h-12 text-[15px]' : 'h-9 text-sm';
+  const control = size === 'lg' ? 'h-12 text-base' : 'h-9 text-sm';
   const corners = size === 'lg' ? ['rounded-l-xl', 'rounded-r-xl'] : ['rounded-l-md', 'rounded-r-md'];
   return (
     <div className="flex flex-col gap-1.5">

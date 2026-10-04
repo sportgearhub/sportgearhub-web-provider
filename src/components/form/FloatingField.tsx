@@ -21,7 +21,7 @@ import { AnchoredPopover } from '../ui/AnchoredPopover';
  * label next to it that has not floated yet.
  */
 export const fieldBox =
-  'peer block w-full rounded-lg border bg-white px-3.5 pb-2 pt-6 text-sm text-gray-900 outline-none transition placeholder-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500';
+  'peer block w-full rounded-lg border bg-white px-3.5 pb-2 pt-6 text-base sm:text-sm text-gray-900 outline-none transition placeholder-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500';
 export const fieldLabel =
   'pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-500 transition-all peer-focus:top-2.5 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-blue-600 peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-xs';
 

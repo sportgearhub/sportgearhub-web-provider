@@ -96,7 +96,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     return (
       <AuthShell
         title="Введите код из SMS"
-        subtitle={<>Отправили код на <span className="font-medium text-foreground">+7 {digits}</span>. Код действует 10 минут.</>}
+        subtitle={<>Код отправлен на +7 {digits}. Действует 10 минут.</>}
         footer={
           <>
             <AuthLink onClick={() => void begin()}>Отправить код ещё раз</AuthLink>
@@ -125,14 +125,14 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   return (
     <AuthShell
       title="Кабинет продавца"
-      subtitle="Войдите по номеру телефона — пришлём код в SMS. Пароль не нужен."
+      subtitle="Пришлём код в SMS."
     >
       {toast.node}
       <form onSubmit={handlePhoneSubmit} className="space-y-5">
         <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
 
         <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
-          Получить код
+          Войти
         </Button>
       </form>
     </AuthShell>
@@ -271,7 +271,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
   return (
     <AuthShell
       title="С возвращением"
-      subtitle="Введите код доступа, который вы задали на этом устройстве."
+      subtitle="Код доступа этого устройства."
       footer={
         <AuthLink
           onClick={() => {

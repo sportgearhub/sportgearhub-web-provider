@@ -35,7 +35,8 @@ export function PasscodeInput({
           autoComplete="one-time-code"
           disabled={disabled}
           aria-label={label}
-          className="absolute inset-0 h-full w-full cursor-default text-transparent caret-transparent opacity-0"
+          // 16px even though it is invisible: iOS decides whether to zoom from the font size.
+          className="absolute inset-0 h-full w-full cursor-default text-base text-transparent caret-transparent opacity-0"
         />
         {/* Capped rather than fixed: a row of dots stretched edge to edge reads as an input
             missing something, but six cells still have to fit a 320px phone. */}

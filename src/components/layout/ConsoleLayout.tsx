@@ -24,6 +24,20 @@ const pageConfig: Record<string, PageConfig> = {
   '/settings/account': { title: '' },
 };
 
+/**
+ * Routes that are a job rather than a place. On a phone these take the whole screen: a way back
+ * and the name of the task in the header, and no section bar underneath, because the job is the
+ * only thing on screen until it is done or abandoned.
+ */
+function taskFor(relativePath: string): { title: string; backTo: string } | null {
+  if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products' };
+  const editing = relativePath.match(/^\/products\/([^/]+)\/edit$/);
+  if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}` };
+  if (relativePath === '/settings/shop-edit') return { title: 'Профиль проката', backTo: '/settings/shop' };
+  if (relativePath === '/settings/seller-edit') return { title: 'Данные продавца', backTo: '/settings/seller' };
+  return null;
+}
+
 function pageFor(relativePath: string): PageConfig {
   // Product pages carry their own headings, breadcrumb included.
   if (relativePath.startsWith('/products')) return { title: '' };
@@ -64,14 +78,17 @@ export function ConsoleLayout() {
   const navigateTo = (path: string) => navigate(path);
 
   const page = headerContent ?? pageFor(relativePath);
+  const task = taskFor(relativePath);
   const status = statusMeta(provider.status);
   const showStatusBanner = provider.status !== 'active' && relativePath !== '/';
 
   return (
     <ProviderContextProvider provider={provider}>
       <div className="flex h-screen flex-col overflow-hidden bg-background">
-        <Header currentPath={relativePath} onNavigate={navigateTo} />
-        <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
+        <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
+        {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
+            row of every list sits underneath it. Task routes have no bar and need no gap. */}
+        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-background ${task ? '' : 'pb-16 lg:pb-0'}`}>
           <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
               <div className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">

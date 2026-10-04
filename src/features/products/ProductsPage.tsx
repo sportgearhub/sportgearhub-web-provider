@@ -243,7 +243,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="Поиск по названию"
-              className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+              className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:text-sm"
             />
           </div>
           <ColumnSettings columns={columns} onChange={setColumns} />

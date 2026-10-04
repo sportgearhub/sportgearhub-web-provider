@@ -29,8 +29,8 @@ export function AuthShell({
   footer?: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-2">
-      <div className="flex min-h-screen flex-col px-5 pb-10 pt-7 sm:px-8 lg:px-14 xl:px-20">
+    <div className="min-h-[100dvh] bg-background lg:grid lg:grid-cols-2">
+      <div className="flex min-h-[100dvh] flex-col px-5 pb-8 pt-7 sm:px-8 lg:px-14 xl:px-20">
         <header className="shrink-0">
           <BrandWordmark />
         </header>
@@ -63,7 +63,7 @@ export function AuthShell({
  * they are the only thing on the page. The console's own forms stay compact, so this is applied
  * here rather than changed in the primitives.
  */
-export const authControlClass = 'h-12 rounded-xl text-[15px]';
+export const authControlClass = 'h-12 rounded-xl text-base';
 
 /** A secondary action: a link, since nothing here competes with the primary button. */
 export function AuthLink({

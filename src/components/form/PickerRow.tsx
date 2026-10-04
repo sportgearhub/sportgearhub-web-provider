@@ -213,7 +213,7 @@ function PickerDialog({
                 value={query}
                 onChange={event => setQuery(event.target.value)}
                 placeholder="Поиск"
-                className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:text-sm"
               />
               {query && (
                 <button
