@@ -8,6 +8,7 @@ import { CreateProviderPage } from './features/providers/CreateProviderPage';
 import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/ConsoleLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
+import { BookingDetailPage } from './features/bookings/BookingDetailPage';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductForm } from './features/products/ProductForm';
@@ -79,7 +80,14 @@ function DashboardRoute() {
 }
 
 function BookingsRoute() {
-  return <BookingsPage />;
+  const { navigateTo } = useConsole();
+  return <BookingsPage onNavigate={navigateTo} />;
+}
+
+function BookingDetailRoute() {
+  const { navigateTo } = useConsole();
+  const { bookingId = '' } = useParams();
+  return <BookingDetailPage bookingId={bookingId} onNavigate={navigateTo} />;
 }
 
 function ProductsRoute() {
@@ -122,6 +130,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardRoute /> },
           { path: 'bookings', element: <BookingsRoute /> },
+          { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },

@@ -55,6 +55,11 @@ export const vatRateOptions = [
 ];
 
 export const DOCS_BASE_URL = (import.meta.env.VITE_DOCS_BASE_URL || 'https://docs.sportgearhub.ru').replace(/\/$/, '');
+
+/** The customer-facing storefront, where a published card is seen the way a client sees it. */
+export const STOREFRONT_BASE_URL = (import.meta.env.VITE_STOREFRONT_BASE_URL || 'https://sportgearhub.ru').replace(/\/$/, '');
+
+export const storefrontProductUrl = (productId: string) => `${STOREFRONT_BASE_URL}/offers/${productId}`;
 export const AGREEMENT_URL = `${DOCS_BASE_URL}/docs/legal/providers/provider-agreement`;
 
 /** ИНН checksum as the ФНС defines it: 10 digits for organisations, 12 for people and ИП. */

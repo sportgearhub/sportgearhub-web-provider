@@ -487,17 +487,53 @@ export interface BookingListItem {
   updatedAt: string;
 }
 
+/** The card as a booking's detail describes it — more than the list row carries. */
+export interface BookingProductDetail extends BookingProductSummary {
+  description: string | null;
+  fulfillmentLocationName: string | null;
+  fulfillmentLocationAddress: string | null;
+}
+
+/** The detail adds the e-mail; the list row deliberately leaves it out. */
+export interface BookingCustomerDetail extends CustomerSummary {
+  email: string | null;
+}
+
+export interface BookingSchedule {
+  startAt: string;
+  endAt: string;
+  quantity: number;
+}
+
+/**
+ * Handover state on the detail. Not the same shape as the list row's summary: this one answers
+ * with a `status` and the two permissions it knows, and carries the operator's notes.
+ */
+export interface BookingFulfillmentState {
+  status: string;
+  completionAllowed: boolean;
+  issueReportingAllowed: boolean;
+  notes: string | null;
+}
+
+export interface PolicySummary {
+  source: string;
+  scope: string;
+  status: string;
+  previewStatus: string;
+}
+
 export interface BookingDetail {
   bookingId: string;
   bookingNumber: string;
   status: BookingStatus;
   statusReason: string | null;
-  product: BookingProductSummary;
-  customer: CustomerSummary | null;
-  schedule: Record<string, unknown> | null;
-  selectionSummary: Record<string, unknown> | null;
-  fulfillment: FulfillmentSummary;
-  sellerPolicySummary: Record<string, unknown> | null;
+  product: BookingProductDetail;
+  customer: BookingCustomerDetail | null;
+  schedule: BookingSchedule | null;
+  selectionSummary: { bookingOptions: Record<string, unknown> | null } | null;
+  fulfillment: BookingFulfillmentState;
+  sellerPolicySummary: PolicySummary | null;
   support: { correlationRef: string } | null;
   createdAt: string;
   updatedAt: string;

@@ -8,7 +8,9 @@ import { SectionPage } from '../../components/layout/SectionPage';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { Pagination } from '../../components/table/TableControls';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
-import type { BookingListItem, FulfillmentStage, Pagination as PageInfo } from '../../types';
+import type { BookingListItem, Pagination as PageInfo } from '../../types';
+import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { CopyValue } from '../../components/ui/CopyValue';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { CompleteForm } from './CompleteForm';
@@ -57,25 +59,6 @@ const SLICES: Slice[] = [
   { value: 'cancelled', label: 'Отменённые', filter: () => 'status=in=(cancelled,expired,failed)' },
 ];
 
-const STATUS_META: Record<string, { label: string; variant: 'green' | 'yellow' | 'blue' | 'gray' | 'red' | 'teal' }> = {
-  awaiting_seller_confirmation: { label: 'Ждёт подтверждения', variant: 'yellow' },
-  pending: { label: 'Ждёт оплаты', variant: 'yellow' },
-  confirmed: { label: 'Оплачено', variant: 'green' },
-  completed: { label: 'Завершено', variant: 'gray' },
-  cancelled: { label: 'Отменено', variant: 'red' },
-  expired: { label: 'Истекло', variant: 'gray' },
-  reversed: { label: 'Возврат платежа', variant: 'red' },
-  failed: { label: 'Оплата не прошла', variant: 'red' },
-};
-
-const STAGE_META: Record<FulfillmentStage, { label: string; variant: 'yellow' | 'blue' | 'teal' | 'green' | 'red' }> = {
-  pending_handover: { label: 'Ожидает выдачи', variant: 'yellow' },
-  active: { label: 'На руках', variant: 'blue' },
-  returned: { label: 'Возвращено', variant: 'teal' },
-  completed: { label: 'Выдача закрыта', variant: 'green' },
-  issue_reported: { label: 'Есть обращение', variant: 'red' },
-};
-
 type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
 
 /**
@@ -86,7 +69,7 @@ type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
  * was removed on 2026-10-01. Handover and return are tabs here, on rows that already carry the
  * product and the customer.
  */
-export function BookingsPage() {
+export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [tab, setTab] = useState('all');
@@ -217,6 +200,7 @@ export function BookingsPage() {
                   key={booking.bookingId}
                   booking={booking}
                   busy={busy === booking.bookingId}
+                  onOpen={() => onNavigate(`/bookings/${booking.bookingId}`)}
                   onConfirm={() => void confirm(booking)}
                   onAction={action => setActing({ booking, action })}
                 />
@@ -239,37 +223,30 @@ export function BookingsPage() {
   );
 }
 
-function formatWindow(startAt: string, endAt: string) {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  if (Number.isNaN(start.getTime())) return '—';
-  const sameDay = start.toDateString() === end.toDateString();
-  const day = (date: Date) => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  const time = (date: Date) => date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  return sameDay
-    ? `${day(start)}, ${time(start)} — ${time(end)}`
-    : `${day(start)}, ${time(start)} — ${day(end)}, ${time(end)}`;
-}
-
 function BookingRow({
   booking,
   busy,
+  onOpen,
   onConfirm,
   onAction,
 }: {
   booking: BookingListItem;
   busy: boolean;
+  onOpen: () => void;
   onConfirm: () => void;
   onAction: (action: Action) => void;
 }) {
-  const status = STATUS_META[booking.status] ?? { label: booking.status, variant: 'gray' as const };
+  const status = bookingStatusMeta(booking.status);
   const fulfillment = booking.fulfillment;
-  const stage = fulfillment ? STAGE_META[fulfillment.stage] : null;
+  const stage = fulfillmentStageMeta(fulfillment?.stage);
   const awaiting = booking.status === 'awaiting_seller_confirmation';
   const closed = booking.status === 'cancelled' || booking.status === 'expired' || booking.status === 'failed';
 
   return (
-    <li className="flex flex-wrap items-start gap-3 px-4 py-3">
+    <li
+      onClick={onOpen}
+      className="flex cursor-pointer flex-wrap items-start gap-3 px-4 py-3 transition hover:bg-blue-50/40"
+    >
       {booking.product.mediaPreviewUrl ? (
         <img
           src={mediaUrl(booking.product.mediaPreviewUrl)}
@@ -296,14 +273,12 @@ function BookingRow({
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-600">
           <span>{booking.customer?.fullName ?? 'Клиент'}</span>
           {booking.customer?.phone && (
-            <a href={`tel:${booking.customer.phone}`} className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline">
-              <Phone size={11} /> {booking.customer.phone}
-            </a>
+            <CopyValue value={booking.customer.phone} label="Телефон клиента" icon={<Phone size={11} />} />
           )}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" onClick={event => event.stopPropagation()}>
         {awaiting && (
           <>
             <Button size="sm" variant="primary" loading={busy} onClick={onConfirm}>Подтвердить</Button>

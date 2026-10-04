@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { ExternalLink, Pencil } from 'lucide-react';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
@@ -15,6 +15,7 @@ import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { infoSectionLabel } from './infoSections';
+import { storefrontProductUrl } from '../providers/providerStatus';
 import type {
   OfferInfoSection,
   Product,
@@ -29,7 +30,7 @@ import { formatPrice, productStatus } from './productStatus';
  * between: what the product is, what it costs, what the rules are and what it looks like are all
  * facets of the same card, and on a phone they simply stack.
  */
-type DetailTab = 'about' | 'price' | 'policy' | 'included';
+type DetailTab = 'about' | 'price' | 'policy' | 'included' | 'preview';
 
 /** The card's parts, as siblings rather than a column to scroll. */
 const DETAIL_TABS = [
@@ -37,6 +38,7 @@ const DETAIL_TABS = [
   { value: 'price' as const, label: 'Цена' },
   { value: 'policy' as const, label: 'Правила' },
   { value: 'included' as const, label: 'Что входит' },
+  { value: 'preview' as const, label: 'Предпросмотр' },
 ];
 
 export function ProductDetailPage({ productId, onNavigate }: { productId: string; onNavigate: (path: string) => void }) {
@@ -242,6 +244,10 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
               </div>
             )}
           </SettingsCard>}
+
+          {tab === 'preview' && (
+            <ProductPreview productId={productId} published={product.status === 'active'} />
+          )}
         </div>
 
         <div className="space-y-4">
@@ -272,5 +278,50 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         }}
       />
     </SectionPage>
+  );
+}
+
+/**
+ * The card as a customer meets it, on the storefront.
+ *
+ * Embedded rather than linked away, because the question being asked is «что видит клиент» and the
+ * answer should not cost the seller their place on this page. The storefront may refuse to be
+ * framed — that is its right, and the link beside it is the way through when it does; the frame is
+ * the convenience, not the only route.
+ */
+function ProductPreview({ productId, published }: { productId: string; published: boolean }) {
+  const url = storefrontProductUrl(productId);
+
+  return (
+    <SettingsCard
+      title="Предпросмотр"
+      description="Карточка на сайте — то, что видит клиент."
+      action={
+        <Button variant="secondary" size="sm" asChild>
+          <a href={url} target="_blank" rel="noreferrer">
+            <ExternalLink size={13} /> Открыть на сайте
+          </a>
+        </Button>
+      }
+    >
+      {!published && (
+        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+          Карточка ещё не в продаже, поэтому на сайте её может не быть. Отправьте её на проверку —
+          после публикации здесь появится то же, что увидит клиент.
+        </p>
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+        <iframe
+          src={url}
+          title="Предпросмотр карточки"
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          className="h-[70vh] w-full bg-white"
+        />
+      </div>
+
+      <p className="mt-2 break-all text-xs text-gray-500">{url}</p>
+    </SettingsCard>
   );
 }
