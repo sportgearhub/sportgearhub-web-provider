@@ -8,7 +8,7 @@ import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
-import type { BookingDetail } from '../../types';
+import type { BookingDetail, FulfillmentDetail } from '../../types';
 import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
@@ -27,6 +27,7 @@ type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
  */
 export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string; onNavigate: (path: string) => void }) {
   const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [fulfillment, setFulfillment] = useState<FulfillmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -37,7 +38,13 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
     setLoading(true);
     setError('');
     try {
-      setBooking(await bookingsApi.get(bookingId));
+      const [next, state] = await Promise.all([
+        bookingsApi.get(bookingId),
+        // No row yet simply means nothing has been handed over — not an error.
+        bookingsApi.getFulfillment(bookingId).catch(() => null),
+      ]);
+      setBooking(next);
+      setFulfillment(state);
     } catch (err) {
       setError(err instanceof ApiError
         ? err.status === 404 ? 'Бронирование не найдено.' : err.message
@@ -111,7 +118,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       {action && (
         <div className="mb-4 max-w-2xl">
           {action === 'handover' && <HandoverForm bookingId={bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setAction(null)} />}
-          {action === 'return' && <ReturnForm bookingId={bookingId} onSuccess={done('Возврат записан.')} onCancel={() => setAction(null)} />}
+          {action === 'return' && <ReturnForm bookingId={bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setAction(null)} />}
           {action === 'complete' && <CompleteForm bookingId={bookingId} onSuccess={done('Бронирование завершено.')} onCancel={() => setAction(null)} />}
           {action === 'issue' && <IssueReportForm bookingId={bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setAction(null)} />}
           {action === 'decline' && <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />}
@@ -126,14 +133,15 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')}>Отклонить</Button>
             </>
           )}
-          {booking.fulfillment?.completionAllowed && (
-            <Button variant="primary" onClick={() => setAction('complete')}>Завершить</Button>
+          {/* The API decides which moves are open — the same rules the commands enforce. */}
+          {fulfillment?.handover?.handoverAllowed && (
+            <Button variant="primary" onClick={() => setAction('handover')}>Записать выдачу</Button>
           )}
-          {!awaiting && (
-            <>
-              <Button variant="secondary" onClick={() => setAction('handover')}>Записать выдачу</Button>
-              <Button variant="secondary" onClick={() => setAction('return')}>Записать возврат</Button>
-            </>
+          {fulfillment?.return?.returnAllowed && (
+            <Button variant="primary" onClick={() => setAction('return')}>Принять возврат</Button>
+          )}
+          {fulfillment?.completion?.completionAllowed && (
+            <Button variant="secondary" onClick={() => setAction('complete')}>Завершить</Button>
           )}
           {booking.fulfillment?.issueReportingAllowed && (
             <Button variant="ghost" onClick={() => setAction('issue')}>

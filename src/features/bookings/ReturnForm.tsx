@@ -53,7 +53,7 @@ export function ReturnForm({ bookingId, onSuccess, onCancel }: ReturnFormProps) 
     <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-gray-900">Зафиксировать возврат</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Запишите возврат оборудования и его состояние.</p>
+        <p className="text-xs text-gray-500 mt-0.5">Запишите состояние снаряжения. Приём возврата закрывает аренду — отдельно завершать её не нужно.</p>
       </div>
 
       <div className="bg-teal-50 border border-teal-100 rounded-lg px-4 py-3">

@@ -151,7 +151,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
             {booking.customer?.fullName ?? 'Клиент'} · {booking.product.title}
           </p>
           {action === 'handover' && <HandoverForm bookingId={booking.bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setActing(null)} />}
-          {action === 'return' && <ReturnForm bookingId={booking.bookingId} onSuccess={done('Возврат записан.')} onCancel={() => setActing(null)} />}
+          {action === 'return' && <ReturnForm bookingId={booking.bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setActing(null)} />}
           {action === 'complete' && <CompleteForm bookingId={booking.bookingId} onSuccess={done('Бронирование завершено.')} onCancel={() => setActing(null)} />}
           {action === 'issue' && <IssueReportForm bookingId={booking.bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setActing(null)} />}
           {action === 'decline' && <DeclineForm bookingId={booking.bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setActing(null)} />}
