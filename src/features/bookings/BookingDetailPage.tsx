@@ -219,7 +219,32 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
             </DetailList>
           </SettingsCard>
 
-          {booking.support?.correlationRef && (
+          {booking.receipts?.length > 0 && (
+          <SettingsCard title="Чеки" description="Фискальные чеки по этой брони.">
+            <DetailList>
+              {booking.receipts.map(receipt => (
+                <DetailRow key={receipt.receiptId} label={receipt.operation === 'refund' ? 'Возврат' : 'Оплата'}>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-medium text-gray-900">{receipt.total} ₽</span>
+                    <Badge variant={receipt.status === 'completed' ? 'green' : 'gray'}>{receipt.status}</Badge>
+                    {receipt.ofdReceiptUrl && (
+                      <a
+                        href={receipt.ofdReceiptUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-medium text-blue-700 hover:underline"
+                      >
+                        Открыть чек
+                      </a>
+                    )}
+                  </span>
+                </DetailRow>
+              ))}
+            </DetailList>
+          </SettingsCard>
+        )}
+
+        {booking.support?.correlationRef && (
             <SettingsCard title="Поддержка" description="Назовите этот номер, если пишете нам о брони.">
               <CopyValue value={booking.support.correlationRef} label="номер обращения" className="text-xs" />
             </SettingsCard>

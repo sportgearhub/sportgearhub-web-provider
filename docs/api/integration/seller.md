@@ -322,6 +322,35 @@ DELETE …/products/{id}                 only while nothing references it
 Creating a product gives you a **draft**, never something on sale. `submit-for-review` is refused
 until every section is filled, and the response tells you which are not.
 
+**These four actions take no request body and no parameters.** `POST` them with no content at all —
+no `Content-Type`, no `{}`. Until 2026-10-04 `activate`, `deactivate` and `archive` declared a
+request body holding one optional `reason_code`, so a bodyless `POST` answered **415 Unsupported
+Media Type** before reaching the handler, and the endpoints could not be called at all.
+
+`reason_code` is gone rather than moved: no service ever read it, so it was a field that implied the
+reason was recorded somewhere when nothing was. If you need a reason kept against a status change,
+say so and it can be built properly.
+
+**`activate` only works from `paused`.** This is the part worth getting right in the UI, because the
+status it is usually offered from is the wrong one:
+
+| From | `activate` | What to offer instead |
+|---|---|---|
+| `paused` | ✅ → `active` | — |
+| `changes_requested` | ❌ 400 | `submit-for-review` |
+| `draft` | ❌ 400 | `submit-for-review` |
+| `rejected` | ❌ 400 | `submit-for-review` |
+| `pending_review` | ❌ 400 | nothing — an administrator is looking at it |
+
+A seller does not put a card back on sale themselves after an administrator sent it back. They fix
+what was asked and submit it again; approval is the administrator's. The refusal says so —
+`Only a paused rental product can be switched back on. Submit it for review instead.` — but until
+the 415 was fixed that sentence never reached anyone, so a card in `changes_requested` looked simply
+stuck.
+
+So: show **Submit for review** for `draft`, `changes_requested` and `rejected`, and **Activate** only
+for `paused`.
+
 `GET …/products/{id}` carries a `sections` array — one entry per part of the card, each with
 `is_complete` and a Russian `missing` sentence when it is not:
 
@@ -838,6 +867,34 @@ double-tapped), or `rejected` with a reason code. Read it rather than assuming s
 handover and return notes, the condition summary and the issue summary without the whole booking. It
 works before the first handover too, reporting `pending_handover` — until 2026-10-01 it answered 404
 for any real booking, because the row it read did not exist yet.
+
+---
+
+## Fiscal receipts
+
+`GET /api/v1/sellers/{seller_id}/bookings/{booking_id}` carries `receipts`:
+
+```json
+"receipts": [
+  { "operation": "sell", "status": "done", "total": 4800.00,
+    "ofd_receipt_url": "https://ofd.ru/rec/9960440300123456", "fiscal_document_number": "14215" }
+]
+```
+
+You see it because it is **your** revenue being fiscalized: under the agent model your ИНН and legal
+name are on the receipt as the supplier. The receipt itself is issued by the platform, which collected
+the money on your behalf.
+
+`status` runs `pending` → `registered` → `done`, or `failed`. A `failed` receipt is **not yours to
+fix** — the platform handles it, and the usual cause is something in your legal data that the
+fiscalization operator rejected, which you would be asked about separately.
+
+`operation` is `sell` for the payment and `sell_refund` for a refund, so a refunded booking shows two.
+
+An empty array means the booking was never paid, or it was paid before fiscalization was switched on.
+
+> This is not your tax reporting. It records that a receipt was issued for a rental; what you owe on
+> that income is between you and the ФНС.
 
 ---
 

@@ -523,6 +523,19 @@ export interface PolicySummary {
   previewStatus: string;
 }
 
+/** A fiscal receipt the platform issued for this booking — the seller's proof it was rung up. */
+export interface FiscalReceipt {
+  receiptId: string;
+  operation: string;
+  status: string;
+  total: number;
+  fiscalDocumentNumber: string | null;
+  fiscalSign: string | null;
+  ofdReceiptUrl: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
 export interface BookingDetail {
   bookingId: string;
   bookingNumber: string;
@@ -535,6 +548,7 @@ export interface BookingDetail {
   fulfillment: BookingFulfillmentState;
   sellerPolicySummary: PolicySummary | null;
   support: { correlationRef: string } | null;
+  receipts: FiscalReceipt[];
   createdAt: string;
   updatedAt: string;
 }

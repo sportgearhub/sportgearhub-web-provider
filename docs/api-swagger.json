@@ -1279,24 +1279,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "guid"
+              "type": "string"
             }
           }
         ],
-        "requestBody": {
-          "x-name": "PostActivateSellerProductRequest",
-          "description": "",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerProductsPostActivateSellerProductRequest"
-              }
-            }
-          },
-          "required": true,
-          "x-position": 1
-        },
         "responses": {
           "200": {
             "description": "Success",
@@ -1339,24 +1325,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "guid"
+              "type": "string"
             }
           }
         ],
-        "requestBody": {
-          "x-name": "PostArchiveSellerProductRequest",
-          "description": "",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerProductsPostArchiveSellerProductRequest"
-              }
-            }
-          },
-          "required": true,
-          "x-position": 1
-        },
         "responses": {
           "200": {
             "description": "Success",
@@ -1399,24 +1371,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "guid"
+              "type": "string"
             }
           }
         ],
-        "requestBody": {
-          "x-name": "PostDeactivateSellerProductRequest",
-          "description": "",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerProductsPostDeactivateSellerProductRequest"
-              }
-            }
-          },
-          "required": true,
-          "x-position": 1
-        },
         "responses": {
           "200": {
             "description": "Success",
@@ -5634,36 +5592,6 @@
           }
         }
       },
-      "EbashITSportgearhubApiEndpointsSellerProductsPostActivateSellerProductRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "reason_code": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsPostArchiveSellerProductRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "reason_code": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsPostDeactivateSellerProductRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "reason_code": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "EbashITSportgearhubApiModelsProductsPricingPricingSummaryPreviewResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -6590,6 +6518,12 @@
           "payment_summary": {
             "$ref": "#/components/schemas/EbashITSportgearhubApiModelsBookingsBookingPaymentSummaryResponse"
           },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonFiscalReceiptModel"
+            }
+          },
           "timeline": {
             "type": "array",
             "items": {
@@ -6927,6 +6861,47 @@
           },
           "method": {
             "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonFiscalReceiptModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "fiscal_document_number": {
+            "type": "string",
+            "nullable": true
+          },
+          "fiscal_sign": {
+            "type": "string",
+            "nullable": true
+          },
+          "ofd_receipt_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         }
@@ -7428,6 +7403,12 @@
                 "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonPolicySummaryModel"
               }
             ]
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonFiscalReceiptModel"
+            }
           },
           "support": {
             "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingSupportResponse"

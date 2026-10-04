@@ -88,8 +88,12 @@ export function ProductForm({
 }) {
   const isEdit = Boolean(productId);
   const [status, setStatus] = useState<ProductStatus>('draft');
-  /** Only a draft or a returned card is waiting to be handed over; an active one is just edited. */
-  const shouldSubmit = status === 'draft' || status === 'changes_requested';
+  /**
+   * Which cards are waiting to be handed over. A rejected one is in the same position as one sent
+   * back for changes: fixed, then submitted again. An active or paused card is simply being
+   * edited, and one already with a moderator must not be resubmitted underneath them.
+   */
+  const shouldSubmit = status === 'draft' || status === 'changes_requested' || status === 'rejected';
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [locations, setLocations] = useState<ProviderLocation[]>([]);

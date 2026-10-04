@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Pencil } from 'lucide-react';
+import { ExternalLink, Pencil, Send } from 'lucide-react';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
@@ -103,7 +103,18 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   }
 
   const meta = productStatus(product.status);
-  const canSell = product.status === 'active';
+  /**
+   * What a card can do next is its status's business, not a guess from «is it selling».
+   *
+   * `activate` only works from `paused`. A seller does not put a card back on sale themselves
+   * after an administrator sent it back — they fix what was asked and submit again, and approval
+   * stays the administrator's. Offering «Вернуть в продажу» from changes_requested was a button
+   * whose only outcome was a refusal.
+   */
+  const canSubmit = product.status === 'draft' || product.status === 'changes_requested' || product.status === 'rejected';
+  const canPause = product.status === 'active';
+  const canActivate = product.status === 'paused';
+  const underReview = product.status === 'pending_review';
 
   return (
     <SectionPage
@@ -123,14 +134,16 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
           >
             <Pencil size={14} /> Редактировать
           </Button>
+          {canSubmit && (
+            <Button variant="primary" size="sm" loading={busy} onClick={() => void run(() => productsApi.submitForReview(productId))}>
+              <Send size={13} /> Отправить на проверку
+            </Button>
+          )}
           <ActionMenu
             label="Ещё"
             items={[
-              product.status === 'draft'
-                ? { label: 'Отправить на проверку', onClick: () => void run(() => productsApi.submitForReview(productId)) }
-                : canSell
-                  ? { label: 'Снять с продажи', onClick: () => void run(() => productsApi.deactivate(productId)) }
-                  : { label: 'Вернуть в продажу', onClick: () => void run(() => productsApi.activate(productId)) },
+              ...(canPause ? [{ label: 'Снять с продажи', onClick: () => void run(() => productsApi.deactivate(productId)) }] : []),
+              ...(canActivate ? [{ label: 'Вернуть в продажу', onClick: () => void run(() => productsApi.activate(productId)) }] : []),
               { label: 'В архив', danger: true, onClick: () => void run(() => productsApi.archive(productId)) },
             ]}
             disabled={busy}
@@ -138,6 +151,35 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         </div>
       }
     >
+      {/* The status, said in words, where it is read before anything else. A card that came back
+          from review looks identical to one that was never sent; the difference is what to do next,
+          so the page says it. */}
+      {(canSubmit || underReview || product.status === 'suspended') && (
+        <div
+          className={`mb-4 rounded-xl border px-4 py-3 text-sm leading-5 ${
+            product.status === 'changes_requested' || product.status === 'rejected'
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : product.status === 'suspended'
+                ? 'border-red-200 bg-red-50 text-red-900'
+                : 'border-blue-200 bg-blue-50 text-blue-900'
+          }`}
+        >
+          {product.status === 'changes_requested' && (
+            <>Карточку вернули на доработку. Исправьте замечания и отправьте её на проверку снова — вернуть в продажу самостоятельно нельзя.</>
+          )}
+          {product.status === 'rejected' && (
+            <>Карточку отклонили. Исправьте и отправьте на проверку снова.</>
+          )}
+          {product.status === 'draft' && (
+            <>Черновик виден только вам. Заполните карточку и отправьте на проверку.</>
+          )}
+          {underReview && <>Карточка у модератора. Пока идёт проверка, её статус менять нельзя.</>}
+          {product.status === 'suspended' && (
+            <>Карточку остановила платформа. Снять ограничение может только администратор.</>
+          )}
+        </div>
+      )}
+
       {/* Above the grid, not inside the left column: a row of tabs there pushed the left column's
           first card down by its own height and left the sidebar hanging above it. */}
       <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="mb-4 inline-flex max-w-full" />
