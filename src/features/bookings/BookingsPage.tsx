@@ -191,8 +191,8 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
         )}
 
         {!loading && bookings.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <ul className="divide-y divide-gray-100">
+          <div className="overflow-hidden md:rounded-xl md:border md:border-gray-200 md:bg-white">
+            <ul className="space-y-2 md:space-y-0 md:divide-y md:divide-gray-100">
               {bookings.map(booking => (
                 <BookingRow
                   key={booking.bookingId}
@@ -243,8 +243,14 @@ function BookingRow({
   return (
     <li
       onClick={onOpen}
-      className="flex cursor-pointer flex-wrap items-start gap-3 px-4 py-3 transition hover:bg-blue-50/40"
+      className="cursor-pointer rounded-xl bg-white p-3 transition hover:bg-blue-50/40 md:flex md:flex-wrap md:items-start md:gap-3 md:rounded-none md:px-4 md:py-3"
     >
+      <span className="mb-2 flex flex-wrap items-center gap-1.5 md:hidden">
+        <Badge variant={status.variant}>{status.label}</Badge>
+        {stage && !closed && <Badge variant={stage.variant}>{stage.label}</Badge>}
+        {fulfillment?.hasIssue && <Badge variant="red">обращение</Badge>}
+      </span>
+      <span className="flex items-start gap-3 md:contents">
       {booking.product.mediaPreviewUrl ? (
         <img
           src={mediaUrl(booking.product.mediaPreviewUrl)}
@@ -260,9 +266,11 @@ function BookingRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-900">{booking.product.title}</span>
-          <Badge variant={status.variant}>{status.label}</Badge>
-          {stage && !closed && <Badge variant={stage.variant}>{stage.label}</Badge>}
-          {fulfillment?.hasIssue && <Badge variant="red">обращение</Badge>}
+          <span className="hidden flex-wrap items-center gap-2 md:flex">
+            <Badge variant={status.variant}>{status.label}</Badge>
+            {stage && !closed && <Badge variant={stage.variant}>{stage.label}</Badge>}
+            {fulfillment?.hasIssue && <Badge variant="red">обращение</Badge>}
+          </span>
         </div>
         <p className="mt-0.5 text-xs text-gray-500">
           №{booking.bookingNumber} · {formatWindow(booking.startAt, booking.endAt)}
@@ -276,7 +284,9 @@ function BookingRow({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2" onClick={event => event.stopPropagation()}>
+      </span>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-2 md:mt-0" onClick={event => event.stopPropagation()}>
         {awaiting && (
           <>
             <Button size="sm" variant="primary" loading={busy} onClick={onConfirm}>Подтвердить</Button>

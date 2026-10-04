@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock, Package, Send, ShoppingBag } from 'lucide-react';
+import { AlertCircle, ArrowRight, Building2, CheckCircle2, ChevronRight, Circle, Clock, Package, Send, ShoppingBag } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
+import { CabinetSwitchDialog } from '../providers/CabinetSwitchDialog';
 import { statusMeta } from '../providers/providerStatus';
 
 interface DashboardPageProps {
@@ -37,6 +38,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const load = async () => {
     try {
@@ -73,8 +75,23 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     <div className="space-y-6 p-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Добрый день, {user?.name.split(' ')[0]}</h2>
-        <p className="text-sm text-gray-500">{today} · {provider.displayName}</p>
+        <p className="text-sm text-gray-500">{today}</p>
+        {/* The header used to carry the cabinet's name on every screen. Without it on a phone,
+            the one place that must say which cabinet you are in is the one you land on. */}
+        <button
+          type="button"
+          onClick={() => setSwitching(true)}
+          className="mt-2 flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-left lg:hidden"
+        >
+          <Building2 size={16} className="shrink-0 text-gray-400" />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{provider.displayName}</span>
+          <ChevronRight size={15} className="shrink-0 text-gray-400" />
+        </button>
       </div>
+
+      {switching && (
+        <CabinetSwitchDialog open currentProviderId={provider.providerId} onClose={() => setSwitching(false)} />
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">

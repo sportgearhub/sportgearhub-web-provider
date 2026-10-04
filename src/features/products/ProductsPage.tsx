@@ -251,7 +251,9 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        {/* The frame belongs to the table. On a phone the rows are the cards, so the container
+            steps out of the way rather than becoming a card around cards. */}
+        <div className="overflow-hidden md:rounded-xl md:border md:border-gray-200 md:bg-white">
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="border-b border-gray-200 bg-gray-50/80">
@@ -307,9 +309,12 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
           {/* Phones get the same rows read downwards: the photo, the title in full, and the two
               numbers that matter under it. Nothing is off the edge and nothing is abbreviated. */}
-          <ul className="divide-y divide-gray-100 md:hidden">
+          {/* Each row is its own card with the status above the name, the way the references
+              read: the state is what a seller scans for, and it should not be hunted for under
+              the thing it describes. */}
+          <ul className="space-y-2 md:hidden">
             {loading && Array.from({ length: 5 }, (_, row) => (
-              <li key={`m-skeleton-${row}`} className="flex items-center gap-3 px-4 py-3">
+              <li key={`m-skeleton-${row}`} className="flex items-center gap-3 rounded-xl bg-white p-3">
                 <Skeleton className="h-14 w-14 shrink-0" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <Skeleton className="h-3.5 w-2/3" />
@@ -318,37 +323,37 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               </li>
             ))}
             {!loading && products.length === 0 && (
-              <li className="px-4 py-12 text-center text-sm text-gray-600">
+              <li className="rounded-xl bg-white px-4 py-12 text-center text-sm text-gray-600">
                 {filter || tab !== 'all' ? 'Ничего не нашлось. Попробуйте изменить фильтры.' : 'В каталоге пока пусто.'}
               </li>
             )}
             {!loading && products.map(product => {
               const meta = productStatus(product.status);
               return (
-                <li key={product.productId}>
+                <li key={product.productId} className="overflow-hidden rounded-xl bg-white">
                   <button
                     type="button"
                     onClick={() => onNavigate(`/products/${product.productId}`)}
-                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition active:bg-gray-50"
+                    className="w-full p-3 text-left transition active:bg-gray-50"
                   >
-                    <Thumb url={product.mediaPreviewUrl} title={product.title} size="lg" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium leading-5 text-gray-900">{product.title}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                        <span>{product.category?.title ?? '—'}</span>
-                        <span aria-hidden="true">·</span>
-                        <span className={product.quantity > 0 ? '' : 'text-amber-700'}>{product.quantity} шт</span>
-                        {product.price != null && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="font-medium text-gray-900">{formatPrice(product.price)}</span>
-                          </>
-                        )}
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant={meta.variant}>{meta.label}</Badge>
+                      {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
+                    </span>
+                    <span className="mt-2.5 flex items-start gap-3">
+                      <Thumb url={product.mediaPreviewUrl} title={product.title} size="lg" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium leading-5 text-gray-900">{product.title}</span>
+                        <span className="mt-1 block text-xs text-gray-500">{product.category?.title ?? '—'}</span>
                       </span>
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <Badge variant={meta.variant}>{meta.label}</Badge>
-                        {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
-                      </span>
+                    </span>
+                    <span className="mt-2.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+                      {product.price != null && (
+                        <span className="rounded-lg bg-gray-100 px-2 py-1 text-sm font-medium text-gray-900">
+                          {formatPrice(product.price)}
+                        </span>
+                      )}
+                      <span className={product.quantity > 0 ? '' : 'text-amber-700'}>{product.quantity} шт</span>
                     </span>
                   </button>
                 </li>
@@ -357,6 +362,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           </ul>
 
           {pageInfo && !loading && (
+            <div className="mt-2 rounded-xl bg-white md:mt-0 md:rounded-none">
             <Pagination
               page={pageInfo.page}
               totalPages={pageInfo.totalPages}
@@ -365,6 +371,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               onPage={setPage}
               onPageSize={setPageSize}
             />
+            </div>
           )}
         </div>
       </div>
