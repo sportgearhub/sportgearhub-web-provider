@@ -146,32 +146,31 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-        <div className="space-y-4">
-          <SettingsCard title="Товар" description="Что забронировали.">
-            <div className="flex gap-3">
-              {booking.product.mediaPreviewUrl ? (
-                <img
-                  src={mediaUrl(booking.product.mediaPreviewUrl)}
-                  alt=""
-                  className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
-                />
-              ) : (
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
-                  <ImageOff size={18} />
-                </span>
+      <div className="max-w-3xl space-y-4">
+        <SettingsCard title="Товар" description="Что забронировали.">
+          <div className="flex gap-3">
+            {booking.product.mediaPreviewUrl ? (
+              <img
+                src={mediaUrl(booking.product.mediaPreviewUrl)}
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
+              />
+            ) : (
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
+                <ImageOff size={18} />
+              </span>
+            )}
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onNavigate(`/products/${booking.product.productId}`)}
+                className="text-left text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline"
+              >
+                {booking.product.title}
+              </button>
+              {booking.product.categoryTitle && (
+                <p className="mt-0.5 text-xs text-gray-500">{booking.product.categoryTitle}</p>
               )}
-              <div className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => onNavigate(`/products/${booking.product.productId}`)}
-                  className="text-left text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline"
-                >
-                  {booking.product.title}
-                </button>
-                {booking.product.categoryTitle && (
-                  <p className="mt-0.5 text-xs text-gray-500">{booking.product.categoryTitle}</p>
-                )}
               </div>
             </div>
           </SettingsCard>
@@ -187,7 +186,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
                     {booking.product.fulfillmentLocationAddress && (
                       <CopyValue
                         value={booking.product.fulfillmentLocationAddress}
-                        label="Адрес"
+                        label="адрес"
                         className="mt-0.5 text-xs"
                       />
                     )}
@@ -203,20 +202,18 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               <p className="whitespace-pre-line text-sm text-gray-800">{booking.fulfillment.notes}</p>
             </SettingsCard>
           )}
-        </div>
 
-        <div className="space-y-4">
           <SettingsCard title="Клиент" description="Кому выдаём.">
             <DetailList>
               <DetailRow label="Имя" value={booking.customer?.fullName} />
               <DetailRow label="Телефон">
                 {booking.customer?.phone
-                  ? <CopyValue value={booking.customer.phone} label="Телефон клиента" icon={<Phone size={12} />} />
+                  ? <CopyValue value={booking.customer.phone} label="телефон клиента" icon={<Phone size={12} />} />
                   : <span className="text-gray-400">Не указан</span>}
               </DetailRow>
               <DetailRow label="Почта">
                 {booking.customer?.email
-                  ? <CopyValue value={booking.customer.email} label="Почта клиента" icon={<Mail size={12} />} />
+                  ? <CopyValue value={booking.customer.email} label="почту клиента" icon={<Mail size={12} />} />
                   : <span className="text-gray-400">Не указана</span>}
               </DetailRow>
             </DetailList>
@@ -224,10 +221,9 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
           {booking.support?.correlationRef && (
             <SettingsCard title="Поддержка" description="Назовите этот номер, если пишете нам о брони.">
-              <CopyValue value={booking.support.correlationRef} label="Номер обращения" className="text-xs" />
+              <CopyValue value={booking.support.correlationRef} label="номер обращения" className="text-xs" />
             </SettingsCard>
           )}
-        </div>
       </div>
     </SectionPage>
   );

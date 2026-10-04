@@ -1,87 +1,68 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { AnchoredPopover } from './AnchoredPopover';
 import { cn } from '../../lib/utils';
 
 /**
- * A value worth taking with you — a phone number, an address, a reference.
+ * A value you take with you — a phone number, an address, a reference.
  *
- * Not a `tel:` link. On the desktop where a seller actually works, following one hands the number
- * to whatever application claimed the protocol, or to nothing at all; what the person wanted was
- * the number, to paste into the thing they already use. This shows it in full and copies it in one
- * press, and says so afterwards, because a copy that gives no sign is indistinguishable from a
- * click that missed.
+ * One press copies it. Not a `tel:` link, which on a desktop hands the number to whatever claimed
+ * the protocol rather than to the person; and not a menu either, because a menu asking «скопировать
+ * это?» after you clicked the thing you wanted to copy is a question with one answer.
+ *
+ * The icon turns into a tick and says so, because a copy that gives no sign is indistinguishable
+ * from a click that missed.
  */
 export function CopyValue({
   value,
-  label,
   icon,
   children,
   className,
+  /** Announced to screen readers and shown on hover, e.g. «Телефон клиента». */
+  label,
 }: {
   value: string;
-  /** What the value is, shown above it in the flyout. */
-  label?: string;
   icon?: ReactNode;
-  /** The trigger's text; defaults to the value itself. */
   children?: ReactNode;
   className?: string;
+  label?: string;
 }) {
-  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [failed, setFailed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
+      setFailed(false);
     } catch {
-      // Clipboard access can be refused outright (an insecure origin, a locked-down browser).
-      // Selecting the text by hand still works, so the flyout stays open rather than claiming
-      // something happened.
-      setCopied(false);
+      // Refused on an insecure origin or by a locked-down browser. Selecting by hand still works,
+      // so the value stays on screen and the control says it could not do it rather than lying.
+      setFailed(true);
     }
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { setCopied(false); setFailed(false); }, 2000);
   };
 
   return (
-    <>
-      <button
-        ref={anchorRef}
-        type="button"
-        onClick={event => { event.stopPropagation(); setOpen(current => !current); }}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className={cn(
-          'inline-flex items-center gap-1 rounded-lg px-1 -mx-1 font-medium text-blue-700 transition hover:bg-blue-50 hover:text-blue-800',
-          className
-        )}
-      >
-        {icon}
-        {children ?? value}
-      </button>
-
-      <AnchoredPopover anchorRef={anchorRef} open={open} onClose={() => setOpen(false)} width={220}>
-        <div className="px-3 py-2.5" onClick={event => event.stopPropagation()}>
-          {label && <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>}
-          <p className="mt-0.5 select-all break-all text-sm font-medium text-gray-950">{value}</p>
-          <button
-            type="button"
-            onClick={() => void copy()}
-            className={cn(
-              'mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition',
-              copied ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-            )}
-          >
-            {copied ? <><Check size={14} /> Скопировано</> : <><Copy size={14} /> Скопировать</>}
-          </button>
-        </div>
-      </AnchoredPopover>
-    </>
+    <button
+      type="button"
+      onClick={event => { event.stopPropagation(); void copy(); }}
+      title={failed ? 'Не удалось скопировать' : copied ? 'Скопировано' : label ? `Скопировать: ${label}` : 'Скопировать'}
+      aria-label={label ? `Скопировать ${label}: ${value}` : `Скопировать ${value}`}
+      className={cn(
+        'group -mx-1 inline-flex max-w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-left font-medium transition',
+        copied ? 'text-emerald-700' : failed ? 'text-red-600' : 'text-blue-700 hover:bg-blue-50 hover:text-blue-800',
+        className
+      )}
+    >
+      {icon}
+      <span className="min-w-0 break-all">{children ?? value}</span>
+      {copied
+        ? <Check size={14} className="shrink-0" />
+        : <Copy size={14} className="shrink-0 opacity-50 transition group-hover:opacity-100" />}
+    </button>
   );
 }
