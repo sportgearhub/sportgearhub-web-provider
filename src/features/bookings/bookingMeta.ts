@@ -47,17 +47,24 @@ export function formatWindow(startAt?: string | null, endAt?: string | null) {
 }
 
 /** Midnight today and midnight tomorrow, with this browser's offset — the bounds a day filter needs. */
-export function dayBounds() {
-  const start = new Date();
+/** Midnight local time, as an offset-bearing ISO string the RSQL filter understands. */
+export function isoMidnight(date: Date) {
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00${sign}${pad(offset / 60)}:${pad(offset % 60)}`;
+}
+
+/** Midnight today and midnight tomorrow — the bounds a day filter needs. */
+export function dayBounds(day = new Date()) {
+  const start = new Date(day);
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
-  const iso = (date: Date) => {
-    const offset = -date.getTimezoneOffset();
-    const sign = offset >= 0 ? '+' : '-';
-    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00${sign}${pad(offset / 60)}:${pad(offset % 60)}`;
-  };
-  return { from: iso(start), to: iso(end) };
+  return { from: isoMidnight(start), to: isoMidnight(end) };
 }
 
+/** Same day, in the browser's zone. */
+export function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}

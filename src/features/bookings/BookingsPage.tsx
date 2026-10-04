@@ -15,6 +15,7 @@ import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
+import { BookingsCalendar } from './BookingsCalendar';
 
 /**
  * The slices of the list.
@@ -57,6 +58,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [tab, setTab] = useState('all');
+  const [view, setView] = useState<'list' | 'calendar'>('list');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -159,6 +161,18 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
       error={error}
     >
       <div className="space-y-3">
+        {/* The same bookings, asked about differently: a list answers «что мне сделать», a month
+            answers «что происходит во вторник». */}
+        <SegmentedTabs
+          className="inline-flex"
+          items={[{ value: 'list', label: 'Список' }, { value: 'calendar', label: 'Календарь' }]}
+          value={view}
+          onChange={setView}
+        />
+
+        {view === 'calendar' && <BookingsCalendar onOpen={bookingId => onNavigate(`/bookings/${bookingId}`)} />}
+
+        {view === 'list' && <>
         <SegmentedTabs items={tabItems} value={tab} onChange={setTab} />
 
         <div className="relative">
@@ -221,6 +235,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
             )}
           </div>
         )}
+        </>}
       </div>
     </SectionPage>
   );
