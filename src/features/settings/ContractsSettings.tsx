@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { SectionPage } from '../../components/layout/SectionPage';
+import { SkeletonDetail } from '../../components/ui/Skeleton';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, providerApi } from '../../lib/api-client';
 import type { Agreement, PayoutDetails } from '../../types';
 import { AGREEMENT_URL, DOCS_BASE_URL } from '../providers/providerStatus';
@@ -42,13 +43,14 @@ export function ContractsSettings() {
   const status = agreement ? agreementStatus[agreement.status] ?? { label: agreement.status, variant: 'gray' as const } : null;
 
   return (
-    <SectionPage
-      title="Договоры"
-      description="Все договоры вашего кабинета с платформой. Договор, по которому вы работаете сейчас, отмечен значком «Активен»."
-      error={error}
-    >
+    <div className="space-y-4 p-6">
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      <SettingsCard
+        title="Договоры"
+        description="Все договоры вашего кабинета с платформой. Действующий отмечен значком «Активен»."
+      >
       {loading ? (
-        <p className="mt-6 text-sm text-gray-500">Загружаем...</p>
+        <SkeletonDetail className="mt-6" rows={3} />
       ) : agreement && status ? (
         <div className="mt-6 max-w-3xl rounded-lg border">
           <button
@@ -94,7 +96,8 @@ export function ContractsSettings() {
         <DocLink href={`${DOCS_BASE_URL}/docs/legal/providers/payouts-and-reports`} label="Выплаты и отчётные документы" />
         <DocLink href={`${DOCS_BASE_URL}/docs/legal/providers/changelog`} label="Архив изменений" />
       </ul>
-    </SectionPage>
+          </SettingsCard>
+    </div>
   );
 }
 

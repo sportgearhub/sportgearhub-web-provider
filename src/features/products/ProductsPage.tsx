@@ -11,6 +11,7 @@ import {
   type SortState,
 } from '../../components/table/TableControls';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, mediaUrl, productCategoriesApi, productsApi } from '../../lib/api-client';
 import type { Pagination as PageInfo, ProductCategory, ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusMeta } from './productStatus';
@@ -260,9 +261,16 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {loading && (
-                  <tr><td colSpan={visible.length + 1} className="px-4 py-10 text-center text-sm text-gray-500">Загружаем каталог…</td></tr>
-                )}
+                {loading && Array.from({ length: 5 }, (_, row) => (
+                  <tr key={`skeleton-${row}`} aria-hidden="true">
+                    <td className="py-2 pl-3 pr-1"><Skeleton className="h-10 w-10" /></td>
+                    {visible.map((setting, column) => (
+                      <td key={setting.key} className="px-3 py-2">
+                        <Skeleton className={`h-3.5 ${column === 0 ? 'w-48' : 'w-16'}`} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
                 {!loading && products.length === 0 && (
                   <tr>
                     <td colSpan={visible.length + 1} className="px-4 py-12 text-center">

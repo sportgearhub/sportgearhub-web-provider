@@ -40,7 +40,8 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
   }, [provider.providerId]);
 
   return (
-    <SectionPage title="Профиль проката" error={error}>
+    <div className="space-y-4 p-6">
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="max-w-3xl">
         <SettingsCard
           title="Витрина проката"
@@ -72,7 +73,7 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           )}
         </SettingsCard>
       </div>
-    </SectionPage>
+    </div>
   );
 }
 

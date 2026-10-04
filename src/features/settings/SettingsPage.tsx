@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { EmailAttachDialog } from './EmailAttachDialog';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { SkeletonRows } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
@@ -15,7 +16,6 @@ import { SellerProfileEdit } from './SellerProfileEdit';
 import { ShopProfileEdit, ShopProfileView } from './ShopProfileSettings';
 import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
-import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
@@ -251,7 +251,8 @@ function EmployeesSettings() {
   };
 
   return (
-    <SectionPage title="Сотрудники" error={pageError}>
+    <div className="space-y-4 p-6">
+      {pageError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{pageError}</p>}
       <div className="max-w-4xl">
       <SettingsCard
         title="Доступы к кабинету"
@@ -293,7 +294,7 @@ function EmployeesSettings() {
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-sm text-gray-500">Загружаем сотрудников...</div>
+          <SkeletonRows rows={3} />
         ) : view === 'staff' ? (
           <div className="-mx-5 overflow-x-auto border-y border-gray-100">
             <table className="w-full min-w-[560px] table-fixed text-left text-sm">
@@ -439,7 +440,7 @@ function EmployeesSettings() {
         </div>
       </Modal>
       </div>
-    </SectionPage>
+    </div>
   );
 }
 
@@ -451,7 +452,7 @@ function AccountSettings() {
   const emailVerified = Boolean(email) && user?.emailVerified !== false;
 
   return (
-    <SectionPage title="Аккаунт">
+    <div className="p-6">
       <div className="max-w-3xl">
         <SettingsCard title="Ваши данные" description="Учётная запись, под которой вы вошли в кабинет.">
           <DetailList>
@@ -482,7 +483,7 @@ function AccountSettings() {
         </SettingsCard>
       </div>
       <EmailAttachDialog open={emailOpen} onClose={() => setEmailOpen(false)} />
-    </SectionPage>
+    </div>
   );
 }
 

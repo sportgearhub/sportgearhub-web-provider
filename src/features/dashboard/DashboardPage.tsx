@@ -3,6 +3,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock, Package, Send, Sh
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
@@ -33,6 +34,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { user, reloadSession } = useAuth();
   const provider = useProvider();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,6 +44,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       setError('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить дашборд.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -100,10 +104,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Товары в каталоге" value={dashboard?.counts?.activeProducts ?? 0} total={dashboard?.counts?.totalProducts} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/products')} />
-        <StatCard label="Черновики" value={dashboard?.counts?.draftProducts ?? 0} icon={<ShoppingBag size={18} className="text-teal-500" />} onClick={() => onNavigate('/products')} />
-        <StatCard label="Предстоящие бронирования" value={dashboard?.counts?.upcomingBookings ?? 0} icon={<Clock size={18} className="text-amber-500" />} onClick={() => onNavigate('/fulfillment')} />
-        <StatCard label="Всего бронирований" value={dashboard?.counts?.totalBookings ?? 0} icon={<CheckCircle2 size={18} className="text-green-500" />} />
+        <StatCard loading={loading} label="Товары в каталоге" value={dashboard?.counts?.activeProducts} total={dashboard?.counts?.totalProducts} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/products')} />
+        <StatCard loading={loading} label="Черновики" value={dashboard?.counts?.draftProducts} icon={<ShoppingBag size={18} className="text-teal-500" />} onClick={() => onNavigate('/products')} />
+        <StatCard loading={loading} label="Предстоящие бронирования" value={dashboard?.counts?.upcomingBookings} icon={<Clock size={18} className="text-amber-500" />} onClick={() => onNavigate('/bookings')} />
+        <StatCard loading={loading} label="Всего бронирований" value={dashboard?.counts?.totalBookings} icon={<CheckCircle2 size={18} className="text-green-500" />} onClick={() => onNavigate('/bookings')} />
       </div>
     </div>
   );
@@ -213,12 +217,14 @@ function StatCard({
   total,
   icon,
   onClick,
+  loading,
 }: {
   label: string;
-  value: number;
+  value?: number;
   total?: number;
   icon: React.ReactNode;
   onClick?: () => void;
+  loading?: boolean;
 }) {
   const body = (
     <>
@@ -226,10 +232,16 @@ function StatCard({
         <span className="text-xs text-gray-500">{label}</span>
         {icon}
       </div>
-      <p className="mt-2 text-2xl font-semibold text-gray-900">
-        {value}
-        {total !== undefined && total !== value && <span className="ml-1 text-sm font-normal text-gray-400">из {total}</span>}
-      </p>
+      {/* A zero while loading is not a placeholder, it is a wrong number that looks like a right
+          one — and it reads the same as a seller who genuinely has none. */}
+      {loading || value === undefined ? (
+        <Skeleton className="mt-3 h-6 w-12" />
+      ) : (
+        <p className="mt-2 text-2xl font-semibold text-gray-900">
+          {value}
+          {total !== undefined && total !== value && <span className="ml-1 text-sm font-normal text-gray-400">из {total}</span>}
+        </p>
+      )}
     </>
   );
   return onClick ? (

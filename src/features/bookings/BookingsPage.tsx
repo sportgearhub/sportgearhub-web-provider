@@ -3,6 +3,7 @@ import { AlertCircle, CalendarCheck, ChevronLeft, ImageOff, Phone } from 'lucide
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { SkeletonRows } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { Pagination } from '../../components/table/TableControls';
@@ -189,7 +190,11 @@ export function BookingsPage() {
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{notice}</p>
         )}
 
-        {loading && <Card><p className="text-sm text-gray-500">Загружаем заказы…</p></Card>}
+        {loading && (
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <SkeletonRows rows={4} />
+          </div>
+        )}
 
         {!loading && bookings.length === 0 && (
           <Card>

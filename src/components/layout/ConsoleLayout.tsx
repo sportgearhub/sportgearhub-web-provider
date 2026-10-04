@@ -12,8 +12,8 @@ export type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageB
 // Page names for the content column. Keyed by the console-relative path.
 const pageConfig: Record<string, PageConfig> = {
   '/': { title: '' },
-  '/bookings': { title: 'Заказы', subtitle: 'Бронирования клиентов' },
-  '/fulfillment': { title: 'Выдача и возврат', subtitle: 'Выдачи, возвраты и обращения' },
+  // Заказы draws its own heading, with the count in it, the way the catalogue does.
+  '/bookings': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },

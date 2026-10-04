@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pencil, Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { ApiError, providerApi } from '../../lib/api-client';
 import { sellerKpp, sellerPersonName, sellerRegistry } from '../../types';
@@ -9,7 +10,6 @@ import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SellerDetailsFields, SellerKindChoice, emptySellerDraft, sellerDraftError, sellerDraftToInput, type SellerDraft } from '../providers/SellerDetailsFields';
 import { kindLabel } from '../providers/providerStatus';
-import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 
 export const taxationLabel = (value: string) => taxationLabels[value] ?? value;
@@ -97,9 +97,10 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
   const personName = profile ? sellerPersonName(profile) : '—';
 
   return (
-    <SectionPage title="Информация о продавце" error={error}>
+    <div className="space-y-4 p-6">
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {loading ? (
-        <p className="text-sm text-gray-500">Загружаем...</p>
+        <SkeletonDetail rows={6} />
       ) : missing || !profile ? (
         <div className="max-w-2xl space-y-5">
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
@@ -193,6 +194,6 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
           </SettingsCard>
         </div>
       )}
-    </SectionPage>
+        </div>
   );
 }

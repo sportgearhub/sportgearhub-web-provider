@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Clock, MapPin, Plus, Save } from 'lucide-react';
 import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
+import { SkeletonRows } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { Input } from '../../components/ui/Input';
 import { ApiError, locationsApi } from '../../lib/api-client';
 import type { ProviderLocation, LocationSchedule } from '../../types';
@@ -122,17 +124,6 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className="p-6">
       <div className={embedded ? 'space-y-4' : 'mx-auto max-w-5xl space-y-4'}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Пункты проката</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Адреса, где вы выдаёте и принимаете снаряжение. Каждое предложение привязано к одному пункту.</p>
-          </div>
-          {!editing && (
-            <Button size="sm" variant="primary" onClick={startCreate}>
-              <Plus size={14} /> Добавить
-            </Button>
-          )}
-        </div>
         {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
         {editing && (
           <Card>
@@ -190,9 +181,17 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
           </Card>
         )}
         {!editing && (
-          <Card>
+          <SettingsCard
+            title="Пункты проката"
+            description="Адреса, где вы выдаёте и принимаете снаряжение. Каждый товар привязан к одному пункту."
+            action={
+              <Button size="sm" variant="primary" onClick={startCreate}>
+                <Plus size={14} /> Добавить
+              </Button>
+            }
+          >
             {loading ? (
-              <div className="py-10 text-center text-sm text-gray-500">Загружаем пункты проката...</div>
+              <SkeletonRows rows={2} />
             ) : locations.length === 0 ? (
               <div className="py-10 text-center">
                 <MapPin size={24} className="mx-auto text-gray-300" />
@@ -229,7 +228,7 @@ export function LocationsPage({ embedded = false }: { embedded?: boolean }) {
                 ))}
               </div>
             )}
-          </Card>
+          </SettingsCard>
         )}
       </div>
 

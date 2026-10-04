@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { ActionMenu } from '../../components/ui/ActionMenu';
+import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
@@ -90,7 +91,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
     }
   };
 
-  if (loading) return <p className="p-6 text-sm text-gray-500">Загружаем товар...</p>;
+  if (loading) return <div className="p-6"><SkeletonDetail rows={5} /></div>;
   if (!product) {
     return (
       <SectionPage title="Товар" error={error} breadcrumb={{ label: 'Каталог', path: '/products' }} onNavigate={onNavigate}>
@@ -135,10 +136,12 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         </div>
       }
     >
+      {/* Above the grid, not inside the left column: a row of tabs there pushed the left column's
+          first card down by its own height and left the sidebar hanging above it. */}
+      <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="mb-4 inline-flex max-w-full" />
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="space-y-4">
-          <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="inline-flex max-w-full" />
-
           {tab === 'about' && <SettingsCard
             title="О товаре"
             description="То, что клиент видит в карточке."

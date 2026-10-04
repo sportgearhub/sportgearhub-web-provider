@@ -3,7 +3,6 @@ import { CheckCircle2, Pencil, Save } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
-import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
@@ -60,12 +59,8 @@ export function PayoutsPage() {
   const isSbp = details?.method === 'sbp';
 
   return (
-    <SectionPage
-      title="Реквизиты выплат"
-      description="Счёт, на который платформа переводит выручку. Подключение в банке выполняет платформа после проверки кабинета."
-      error={error}
-      action={details ? statusBadge(details) : undefined}
-    >
+    <div className="space-y-4 p-6">
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {loading ? (
         <p className="text-sm text-gray-500">Загружаем выплаты...</p>
       ) : details && (
@@ -78,15 +73,18 @@ export function PayoutsPage() {
                 : 'ИП и организациям платформа переводит деньги на расчётный счёт.'
             }
             action={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label={`${details.hasDetails ? 'Редактировать' : 'Добавить'} реквизиты выплат`}
-                onClick={() => setEditing(true)}
-              >
-                <Pencil size={13} /> {details.hasDetails ? 'Редактировать' : 'Добавить'}
-              </Button>
+              <>
+                {statusBadge(details)}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  aria-label={`${details.hasDetails ? 'Редактировать' : 'Добавить'} реквизиты выплат`}
+                  onClick={() => setEditing(true)}
+                >
+                  <Pencil size={13} /> {details.hasDetails ? 'Редактировать' : 'Добавить'}
+                </Button>
+              </>
             }
           >
             {details.hasDetails ? (
@@ -128,7 +126,7 @@ export function PayoutsPage() {
           }}
         />
       )}
-    </SectionPage>
+        </div>
   );
 }
 

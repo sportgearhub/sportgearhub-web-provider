@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
-import { AlertCircle, Check, Image as ImageIcon, Pencil, Plus, RotateCw, Trash2, Upload, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronLeft, ChevronRight, Image as ImageIcon, Pencil, Plus, RotateCw, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { TopSheet } from '../../components/ui/TopSheet';
 import { SettingsCard } from '../../components/layout/SettingsCard';
@@ -9,8 +9,6 @@ import type { ProductImage } from '../../types';
 const MAX_IMAGES = 10;
 const MAX_FILE_MB = 5;
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
-/** How many thumbnails the card shows before it collapses the rest into a «+N» tile. */
-const PREVIEW_TILES = 5;
 
 function reorder<T>(items: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0) return items;
@@ -85,31 +83,7 @@ export function ProductImagesSection({ productId }: { productId: string }) {
             </Button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="grid w-full grid-cols-3 gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
-            aria-label="Редактировать фото"
-          >
-            {images.slice(0, PREVIEW_TILES).map((image, index) => (
-              <span
-                key={image.imageId}
-                className="relative block aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
-              >
-                <img src={mediaUrl(image.url)} alt="" className="h-full w-full object-cover" />
-                {index === 0 && (
-                  <span className="absolute inset-x-0 bottom-0 bg-gray-950/55 py-0.5 text-center text-[10px] font-medium text-white">
-                    Главное
-                  </span>
-                )}
-              </span>
-            ))}
-            {images.length > PREVIEW_TILES && (
-              <span className="flex aspect-square items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-500">
-                +{images.length - PREVIEW_TILES}
-              </span>
-            )}
-          </button>
+          <PhotoCarousel images={images} onEdit={() => setEditing(true)} />
         )}
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
@@ -124,6 +98,113 @@ export function ProductImagesSection({ productId }: { productId: string }) {
         onReload={() => void load()}
       />
     </>
+  );
+}
+
+// ─── Carousel ─────────────────────────────────────────────────────────────────
+
+/** How long each photo holds before the next one, when nobody is touching it. */
+const SLIDE_MS = 4000;
+
+/**
+ * The gallery as the seller checks it: one photo at a time, large enough to see.
+ *
+ * Six thumbnails at 90px in a sidebar prove a photo exists without showing what is in it, and a
+ * «+1» tile hides the rest behind a guess. This advances on its own so the whole set passes by
+ * without being asked, and stops the moment a pointer or a keyboard arrives — an animation that
+ * keeps moving while someone is trying to look at one frame is working against them.
+ */
+function PhotoCarousel({ images, onEdit }: { images: ProductImage[]; onEdit: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const count = images.length;
+  const go = useCallback((next: number) => setIndex(((next % count) + count) % count), [count]);
+
+  useEffect(() => { if (index > count - 1) setIndex(0); }, [count, index]);
+
+  useEffect(() => {
+    if (paused || count < 2) return;
+    const timer = setTimeout(() => setIndex(current => (current + 1) % count), SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [index, paused, count]);
+
+  const current = images[index] ?? images[0];
+  if (!current) return null;
+
+  return (
+    <div
+      className="group relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label="Редактировать фото"
+        className="block w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+      >
+        <span className="relative block aspect-[4/3]">
+          {/* Every frame stays mounted and fades, so switching does not flash a blank box while
+              the next file is fetched. */}
+          {images.map((image, position) => (
+            <img
+              key={image.imageId}
+              src={mediaUrl(image.url)}
+              alt=""
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+                position === index ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          ))}
+          {index === 0 && (
+            <span className="absolute left-2 top-2 rounded-lg bg-gray-950/60 px-2 py-0.5 text-[10px] font-medium text-white">
+              Главное
+            </span>
+          )}
+        </span>
+      </button>
+
+      {count > 1 && (
+        <>
+          <CarouselArrow side="left" onClick={() => go(index - 1)} />
+          <CarouselArrow side="right" onClick={() => go(index + 1)} />
+
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            {images.map((image, position) => (
+              <button
+                key={image.imageId}
+                type="button"
+                onClick={() => go(position)}
+                aria-label={`Фото ${position + 1} из ${count}`}
+                aria-current={position === index}
+                className={`h-1.5 rounded-full transition-all ${
+                  position === index ? 'w-5 bg-gray-800' : 'w-1.5 bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CarouselArrow({ side, onClick }: { side: 'left' | 'right'; onClick: () => void }) {
+  const Icon = side === 'left' ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={side === 'left' ? 'Предыдущее фото' : 'Следующее фото'}
+      className={`absolute top-[calc(50%-0.5rem)] flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm transition hover:bg-white focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-0 ${
+        side === 'left' ? 'left-2' : 'right-2'
+      }`}
+    >
+      <Icon size={16} />
+    </button>
   );
 }
 
