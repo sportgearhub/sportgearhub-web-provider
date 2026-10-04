@@ -13,7 +13,6 @@ import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './booking
 import { CopyValue } from '../../components/ui/CopyValue';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
-import { CompleteForm } from './CompleteForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
 
@@ -59,7 +58,7 @@ const SLICES: Slice[] = [
   { value: 'cancelled', label: 'Отменённые', filter: () => 'status=in=(cancelled,expired,failed)' },
 ];
 
-type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
+type Action = 'handover' | 'return' | 'issue' | 'decline';
 
 /**
  * Заказы — the one list of work.
@@ -152,7 +151,6 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
           </p>
           {action === 'handover' && <HandoverForm bookingId={booking.bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setActing(null)} />}
           {action === 'return' && <ReturnForm bookingId={booking.bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setActing(null)} />}
-          {action === 'complete' && <CompleteForm bookingId={booking.bookingId} onSuccess={done('Бронирование завершено.')} onCancel={() => setActing(null)} />}
           {action === 'issue' && <IssueReportForm bookingId={booking.bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setActing(null)} />}
           {action === 'decline' && <DeclineForm bookingId={booking.bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setActing(null)} />}
         </div>
@@ -291,9 +289,6 @@ function BookingRow({
         )}
         {fulfillment?.returnAllowed && (
           <Button size="sm" variant="secondary" onClick={() => onAction('return')}>Принять возврат</Button>
-        )}
-        {fulfillment?.completionAllowed && (
-          <Button size="sm" variant="primary" onClick={() => onAction('complete')}>Завершить</Button>
         )}
         {!closed && !awaiting && (
           <Button size="sm" variant="ghost" aria-label="Сообщить о проблеме" onClick={() => onAction('issue')}>

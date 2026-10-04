@@ -1088,7 +1088,6 @@ export const bookingsApi = {
     bookingId: string,
     data: {
       returnedAt: string;
-      conditionSummary?: { key: string; value: string }[];
       note?: string;
     }
   ) =>
@@ -1097,18 +1096,9 @@ export const bookingsApi = {
       body: JSON.stringify(data),
     }),
 
-  complete: (
-    bookingId: string,
-    data: {
-      completedAt: string;
-      note?: string;
-    }
-  ) =>
-    providerRequest<FulfillmentCommandResult>(`/bookings/${bookingId}/complete`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
+  // POST …/complete was removed on 2026-10-04: accepting the return closes the booking, and the
+  // second step did not even stick — a nightly payment poll kept rewriting completed back to
+  // confirmed. There is nothing left for a «Завершить» button to call.
   reportIssue: (
     bookingId: string,
     data: {

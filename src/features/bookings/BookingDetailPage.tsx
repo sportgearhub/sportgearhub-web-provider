@@ -12,11 +12,10 @@ import type { BookingDetail, FulfillmentDetail } from '../../types';
 import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
-import { CompleteForm } from './CompleteForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
 
-type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
+type Action = 'handover' | 'return' | 'issue' | 'decline';
 
 /**
  * One booking, in full.
@@ -119,7 +118,6 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         <div className="mb-4 max-w-2xl">
           {action === 'handover' && <HandoverForm bookingId={bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setAction(null)} />}
           {action === 'return' && <ReturnForm bookingId={bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setAction(null)} />}
-          {action === 'complete' && <CompleteForm bookingId={bookingId} onSuccess={done('Бронирование завершено.')} onCancel={() => setAction(null)} />}
           {action === 'issue' && <IssueReportForm bookingId={bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setAction(null)} />}
           {action === 'decline' && <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />}
         </div>
@@ -139,9 +137,6 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           )}
           {fulfillment?.return?.returnAllowed && (
             <Button variant="primary" onClick={() => setAction('return')}>Принять возврат</Button>
-          )}
-          {fulfillment?.completion?.completionAllowed && (
-            <Button variant="secondary" onClick={() => setAction('complete')}>Завершить</Button>
           )}
           {booking.fulfillment?.issueReportingAllowed && (
             <Button variant="ghost" onClick={() => setAction('issue')}>
