@@ -580,6 +580,18 @@ if (typeof window !== 'undefined') {
   }
 }
 
+/** What every paged list takes. `tab` is gone (api 16c62db): a slice is a filter, or an endpoint. */
+export type ListQuery = { filter?: string; sort?: string; page?: number; pageSize?: number };
+
+function listQuery({ filter, sort, page, pageSize }: ListQuery) {
+  const qs = new URLSearchParams();
+  if (filter) qs.set('filter', filter);
+  if (sort) qs.set('sort', sort);
+  qs.set('page', String(page ?? 1));
+  qs.set('pageSize', String(pageSize ?? 20));
+  return qs.toString();
+}
+
 type ApiRequestInit = RequestInit & { auth?: boolean };
 
 /**
@@ -1023,18 +1035,15 @@ export const bookingsApi = {
    * catalogue: `-start_at` for descending, and an allowlist of booking_id, booking_number, status,
    * product_id, start_at, end_at, quantity, total_price, created_at, updated_at.
    */
-  list: (params: { tab?: string; filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
-    const qs = new URLSearchParams();
-    if (params.tab) qs.set('tab', params.tab);
-    if (params.filter) qs.set('filter', params.filter);
-    if (params.sort) qs.set('sort', params.sort);
-    qs.set('page', String(params.page ?? 1));
-    qs.set('pageSize', String(params.pageSize ?? 20));
-    return providerRequest<Paged<BookingListItem>>(`/bookings?${qs}`);
-  },
+  list: (params: ListQuery = {}) =>
+    providerRequest<Paged<BookingListItem>>(`/bookings?${listQuery(params)}`),
 
-  /** How many bookings sit behind each tab. The keys are what `tab` accepts. */
-  tabCounts: () => providerRequest<{ counts: Record<string, number> }>('/bookings/tab-counts'),
+  /**
+   * Handed over and not yet returned. The one slice `filter` cannot express, because it reads the
+   * fulfillment row rather than a column of the booking.
+   */
+  active: (params: ListQuery = {}) =>
+    providerRequest<Paged<BookingListItem>>(`/bookings/active?${listQuery(params)}`),
 
   /** Opens the customer's payment window — the booking becomes `pending`, not `confirmed`. */
   confirm: (bookingId: string) =>
@@ -1140,18 +1149,20 @@ export const productsApi = {
    * group_name, category, fulfillment_location_id, created_at, updated_at), so an unknown one is a
    * 400 rather than a parameter that quietly does nothing.
    */
-  list: (params: { tab?: string; filter?: string; sort?: string; page?: number; pageSize?: number } = {}) => {
-    const qs = new URLSearchParams();
-    if (params.tab) qs.set('tab', params.tab);
-    if (params.filter) qs.set('filter', params.filter);
-    if (params.sort) qs.set('sort', params.sort);
-    qs.set('page', String(params.page ?? 1));
-    qs.set('pageSize', String(params.pageSize ?? 20));
-    return providerRequest<Paged<ProductSummary>>(`/products?${qs}`);
-  },
+  list: (params: ListQuery = {}) =>
+    providerRequest<Paged<ProductSummary>>(`/products?${listQuery(params)}`),
 
-  /** How many products sit behind each status tab, counted with the current filter ignored. */
-  tabCounts: () => providerRequest<{ counts: Record<string, number> }>('/products/tab-counts'),
+  /**
+   * The two questions a filter cannot ask, because neither is a column on the card: what is
+   * missing something (no photo, no active price, no cancellation terms, no pickup point), and
+   * what is complete but not yet on sale. Both are ordinary lists otherwise — filter, sort and
+   * paging all work, so needs-attention with `status==active` is «on sale and still incomplete».
+   */
+  needsAttention: (params: ListQuery = {}) =>
+    providerRequest<Paged<ProductSummary>>(`/products/needs-attention?${listQuery(params)}`),
+
+  readyToPublish: (params: ListQuery = {}) =>
+    providerRequest<Paged<ProductSummary>>(`/products/ready-to-publish?${listQuery(params)}`),
 
   get: (productId: string) => providerRequest<Product>(`/products/${productId}`),
 

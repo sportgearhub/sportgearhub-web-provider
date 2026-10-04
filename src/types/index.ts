@@ -606,7 +606,17 @@ export interface Paged<T> {
 // The catalogue unit. Resource, variant and offer collapsed into this on 2026-09-30; a booking
 // points straight at a product, and a "variant" is now just a group name several products share.
 
-export type ProductStatus = 'draft' | 'pending_review' | 'active' | 'inactive' | 'archived' | string;
+/** The card's lifecycle, as the API names it.  is the seller's pause;  is the
+ *  platform's, and only the platform lifts it. */
+export type ProductStatus =
+  | 'draft'
+  | 'pending_review'
+  | 'changes_requested'
+  | 'rejected'
+  | 'active'
+  | 'paused'
+  | 'suspended'
+  | 'archived';
 
 /** What a product says about its category in a list: the API sends the slug and a `title`. */
 export interface ProductCategoryRef {

@@ -784,6 +784,150 @@
         ]
       }
     },
+    "/api/v1/sellers/{seller_id}/products/needs-attention": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductsNeedingAttentionEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated allowlisted sort fields. Prefix a field with '-' for descending order. Example: -updatedAt,name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items requested per page.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagedResultOfSellerProductSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sellers/{seller_id}/products/ready-to-publish": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductsReadyToPublishEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated allowlisted sort fields. Prefix a field with '-' for descending order. Example: -updatedAt,name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items requested per page.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagedResultOfSellerProductSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/sellers/{seller_id}/products/{product_id}/policy": {
       "get": {
         "tags": [
@@ -1010,14 +1154,6 @@
             }
           },
           {
-            "name": "tab",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
             "name": "filter",
             "in": "query",
             "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
@@ -1108,44 +1244,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerSellerProductDetailResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "JWTBearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/sellers/{seller_id}/products/tab-counts": {
-      "get": {
-        "tags": [
-          "Api"
-        ],
-        "operationId": "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductTabCountsEndpoint",
-        "parameters": [
-          {
-            "name": "seller_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerProductsSellerProductTabCountsResponse"
                 }
               }
             }
@@ -2718,6 +2816,78 @@
         ]
       }
     },
+    "/api/v1/sellers/{seller_id}/bookings/active": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "operationId": "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerActiveBookingsEndpoint",
+        "parameters": [
+          {
+            "name": "seller_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated allowlisted sort fields. Prefix a field with '-' for descending order. Example: -updatedAt,name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items requested per page.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/sellers/{seller_id}/bookings/{booking_id}": {
       "get": {
         "tags": [
@@ -2781,14 +2951,6 @@
             }
           },
           {
-            "name": "tab",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
             "name": "filter",
             "in": "query",
             "description": "RSQL filter expression. Examples: status==active;name=contains=Ski, status=in=(active,draft).",
@@ -2830,44 +2992,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "JWTBearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/sellers/{seller_id}/bookings/tab-counts": {
-      "get": {
-        "tags": [
-          "Api"
-        ],
-        "operationId": "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerBookingTabCountsEndpoint",
-        "parameters": [
-          {
-            "name": "seller_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EbashITSportgearhubApiEndpointsSellerBookingsSellerBookingTabCountsResponse"
                 }
               }
             }
@@ -5299,116 +5423,6 @@
         "type": "object",
         "additionalProperties": false
       },
-      "EbashITSportgearhubApiModelsProductsPolicyProductPolicyResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "product_policy_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "product_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "lead_time_hours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "is_cancellation_allowed": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "no_show_charge_percent": {
-            "type": "number",
-            "format": "decimal",
-            "nullable": true
-          },
-          "deposit": {
-            "nullable": true,
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsPolicyPolicyDepositResponse"
-              }
-            ]
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsProductsPolicyPolicyDepositResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "unit": {
-            "type": "string"
-          },
-          "value": {
-            "type": "number",
-            "format": "decimal"
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductPolicyRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
-      "EbashITSportgearhubApiModelsProductsPricingPricingPolicyResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "pricing_policy_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "product_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "pricing_mode": {
-            "type": "string"
-          },
-          "base_amount": {
-            "type": "number",
-            "format": "decimal",
-            "nullable": true
-          },
-          "rental_tiers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonRentalPricingTierModel"
-            }
-          },
-          "status": {
-            "type": "string"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsCommonRentalPricingTierModel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "up_to_hours": {
-            "type": "number",
-            "format": "decimal"
-          },
-          "price": {
-            "type": "number",
-            "format": "decimal"
-          },
-          "label": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductPricingPolicyRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
       "RsqlParserNetLinqRsqlPagedResultOfSellerProductSummaryResponse": {
         "type": "object",
         "description": "Represents a page of query results with pagination metadata.",
@@ -5530,22 +5544,115 @@
           }
         }
       },
-      "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductsRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
-      "EbashITSportgearhubApiEndpointsSellerProductsSellerProductTabCountsResponse": {
+      "EbashITSportgearhubApiModelsProductsPolicyProductPolicyResponse": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "counts": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int32"
-            }
+          "product_policy_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "lead_time_hours": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "is_cancellation_allowed": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "no_show_charge_percent": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "deposit": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsPolicyPolicyDepositResponse"
+              }
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
+      },
+      "EbashITSportgearhubApiModelsProductsPolicyPolicyDepositResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductPolicyRequest": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "EbashITSportgearhubApiModelsProductsPricingPricingPolicyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pricing_policy_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "pricing_mode": {
+            "type": "string"
+          },
+          "base_amount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "rental_tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsCommonRentalPricingTierModel"
+            }
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsCommonRentalPricingTierModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "up_to_hours": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "price": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiEndpointsSellerProductsGetSellerProductPricingPolicyRequest": {
+        "type": "object",
+        "additionalProperties": false
       },
       "EbashITSportgearhubApiEndpointsSellerProductsPatchSellerProductRequest": {
         "type": "object",
@@ -7226,6 +7333,145 @@
         "type": "object",
         "additionalProperties": false
       },
+      "RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse": {
+        "type": "object",
+        "description": "Represents a page of query results with pagination metadata.",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "The items in the current page.",
+            "items": {
+              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse"
+            }
+          },
+          "pagination": {
+            "description": "The pagination metadata.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagination"
+              }
+            ]
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "booking_number": {
+            "type": "string"
+          },
+          "booking_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "product": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingProductSummaryResponse"
+          },
+          "customer": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingCustomerSummaryResponse"
+              }
+            ]
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fulfillment": {
+            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingFulfillmentSummaryResponse"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingProductSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "media_preview_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "fulfillment_location_id": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingCustomerSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "full_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingFulfillmentSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handover_allowed": {
+            "type": "boolean"
+          },
+          "return_allowed": {
+            "type": "boolean"
+          },
+          "completion_allowed": {
+            "type": "boolean"
+          },
+          "has_issue": {
+            "type": "boolean"
+          }
+        }
+      },
       "EbashITSportgearhubApiModelsSellerBookingsSellerBookingDetailResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -7405,162 +7651,6 @@
       "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerBookingByIdRequest": {
         "type": "object",
         "additionalProperties": false
-      },
-      "RsqlParserNetLinqRsqlPagedResultOfSellerBookingSummaryResponse": {
-        "type": "object",
-        "description": "Represents a page of query results with pagination metadata.",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "type": "array",
-            "description": "The items in the current page.",
-            "items": {
-              "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse"
-            }
-          },
-          "pagination": {
-            "description": "The pagination metadata.",
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RsqlParserNetLinqRsqlPagination"
-              }
-            ]
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingSummaryResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "booking_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "booking_number": {
-            "type": "string"
-          },
-          "booking_type": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "product": {
-            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingProductSummaryResponse"
-          },
-          "customer": {
-            "nullable": true,
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingCustomerSummaryResponse"
-              }
-            ]
-          },
-          "start_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "end_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "fulfillment": {
-            "$ref": "#/components/schemas/EbashITSportgearhubApiModelsSellerBookingsSellerBookingFulfillmentSummaryResponse"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingProductSummaryResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "product_id": {
-            "type": "string",
-            "format": "guid"
-          },
-          "title": {
-            "type": "string"
-          },
-          "media_preview_url": {
-            "type": "string",
-            "nullable": true
-          },
-          "category_slug": {
-            "type": "string",
-            "nullable": true
-          },
-          "category_title": {
-            "type": "string",
-            "nullable": true
-          },
-          "fulfillment_location_id": {
-            "type": "string",
-            "format": "guid",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingCustomerSummaryResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "full_name": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "EbashITSportgearhubApiModelsSellerBookingsSellerBookingFulfillmentSummaryResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "stage": {
-            "type": "string"
-          },
-          "handover_allowed": {
-            "type": "boolean"
-          },
-          "return_allowed": {
-            "type": "boolean"
-          },
-          "completion_allowed": {
-            "type": "boolean"
-          },
-          "has_issue": {
-            "type": "boolean"
-          }
-        }
-      },
-      "EbashITSportgearhubApiEndpointsSellerBookingsGetSellerBookingsRequest": {
-        "type": "object",
-        "additionalProperties": false
-      },
-      "EbashITSportgearhubApiEndpointsSellerBookingsSellerBookingTabCountsResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "counts": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
       },
       "EbashITSportgearhubApiEndpointsSellersGetSellerLookupRequest": {
         "type": "object",

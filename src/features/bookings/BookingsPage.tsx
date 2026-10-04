@@ -14,21 +14,46 @@ import { CompleteForm } from './CompleteForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
 
+/** Midnight today and midnight tomorrow, with this browser's offset — the bounds a day filter needs. */
+function dayBounds() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const iso = (date: Date) => {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00${sign}${pad(offset / 60)}:${pad(offset % 60)}`;
+  };
+  return { from: iso(start), to: iso(end) };
+}
+
 /**
- * The tabs the endpoint defines. `all` already excludes cancelled, expired and failed — the seller
- * wants work, not an archive — and the numbers need not sum, because a booking can sit on more
- * than one of these at once.
+ * The slices of the list.
+ *
+ * `tab` was removed on 2026-10-04 (api 16c62db). Everything that asks about the booking's own
+ * columns is a filter — including a day's handovers, where the console supplies the bounds — and
+ * the one question a filter cannot reach, what is out on hire right now, kept an endpoint, because
+ * it reads the fulfillment row rather than a column.
  */
-const TABS = [
-  { value: 'all', label: 'Все' },
-  { value: 'awaiting_confirmation', label: 'Ждут подтверждения' },
-  { value: 'awaiting_payment', label: 'Ждут оплаты' },
-  { value: 'upcoming', label: 'Предстоящие' },
-  { value: 'handover_today', label: 'Выдача сегодня' },
-  { value: 'return_today', label: 'Возврат сегодня' },
-  { value: 'active', label: 'На руках' },
-  { value: 'completed', label: 'Завершённые' },
-  { value: 'cancelled', label: 'Отменённые' },
+type Slice = { value: string; label: string; filter?: () => string; endpoint?: 'active' };
+
+const SLICES: Slice[] = [
+  { value: 'all', label: 'Все', filter: () => 'status=out=(cancelled,expired,failed)' },
+  { value: 'awaiting_confirmation', label: 'Ждут подтверждения', filter: () => 'status==awaiting_seller_confirmation' },
+  { value: 'awaiting_payment', label: 'Ждут оплаты', filter: () => 'status==pending' },
+  { value: 'handover_today', label: 'Выдача сегодня', filter: () => {
+    const { from, to } = dayBounds();
+    return `status==confirmed;start_at=ge=${from};start_at=lt=${to}`;
+  } },
+  { value: 'return_today', label: 'Возврат сегодня', filter: () => {
+    const { from, to } = dayBounds();
+    return `end_at=ge=${from};end_at=lt=${to}`;
+  } },
+  { value: 'active', label: 'На руках', endpoint: 'active' },
+  { value: 'completed', label: 'Завершённые', filter: () => 'status==completed' },
+  { value: 'cancelled', label: 'Отменённые', filter: () => 'status=in=(cancelled,expired,failed)' },
 ];
 
 const STATUS_META: Record<string, { label: string; variant: 'green' | 'yellow' | 'blue' | 'gray' | 'red' | 'teal' }> = {
@@ -63,7 +88,6 @@ type Action = 'handover' | 'return' | 'complete' | 'issue' | 'decline';
 export function BookingsPage() {
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [tab, setTab] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -77,7 +101,11 @@ export function BookingsPage() {
     setLoading(true);
     setError('');
     try {
-      const result = await bookingsApi.list({ tab, page, pageSize });
+      const slice = SLICES.find(item => item.value === tab);
+      const query = { filter: slice?.filter?.(), page, pageSize };
+      const result = slice?.endpoint === 'active'
+        ? await bookingsApi.active(query)
+        : await bookingsApi.list(query);
       setBookings(result.items ?? []);
       setPageInfo(result.pagination ?? null);
     } catch (err) {
@@ -87,20 +115,10 @@ export function BookingsPage() {
     }
   }, [tab, page, pageSize]);
 
-  const loadCounts = useCallback(async () => {
-    await bookingsApi.tabCounts()
-      .then(result => setCounts(result.counts ?? {}))
-      .catch(() => { /* the tabs work without their numbers */ });
-  }, []);
-
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { void loadCounts(); }, [loadCounts]);
   useEffect(() => { setPage(1); }, [tab, pageSize]);
 
-  const refresh = useCallback(() => {
-    void load();
-    void loadCounts();
-  }, [load, loadCounts]);
+  const refresh = useCallback(() => { void load(); }, [load]);
 
   const say = (message: string) => {
     setNotice(message);
@@ -126,10 +144,7 @@ export function BookingsPage() {
     }
   };
 
-  const tabItems = useMemo(
-    () => TABS.map(item => ({ ...item, count: counts[item.value] })),
-    [counts]
-  );
+  const tabItems = useMemo(() => SLICES.map(item => ({ value: item.value, label: item.label })), []);
 
   if (acting) {
     const { booking, action } = acting;

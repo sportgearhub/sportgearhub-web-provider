@@ -41,19 +41,24 @@ const STORAGE_KEY = 'sportgearhub.products.columns';
 const PAGE_SIZE_KEY = 'sportgearhub.products.pageSize';
 
 /**
- * The tabs are the endpoint's own, not the status column's, and they deliberately overlap: a card
- * can be in sale and still be missing a photograph, so it is counted under both «В продаже» and
- * «Требуют внимания». The numbers therefore add up to more than «Все», which is correct.
+ * The slices of the catalogue.
+ *
+ * `tab` was removed on 2026-10-04 (api 16c62db): anything that is a question about the card's own
+ * columns is a filter, and only the two that are not — what is missing something, and what is
+ * complete but unpublished — kept endpoints of their own. Those two still take filter, sort and
+ * paging, so they compose with everything else on this page.
  */
-const PRODUCT_TABS = [
-  { value: 'all', label: 'Все' },
-  { value: 'in_sale', label: 'В продаже' },
-  { value: 'ready_to_publish', label: 'Готовы к продаже' },
-  { value: 'needs_attention', label: 'Требуют внимания' },
-  { value: 'pending_review', label: 'На проверке' },
-  { value: 'changes_requested', label: 'На доработку' },
-  { value: 'removed_from_sale', label: 'Сняты с продажи' },
-  { value: 'archived', label: 'Архив' },
+type Slice = { value: string; label: string; filter?: string; endpoint?: 'needsAttention' | 'readyToPublish' };
+
+const SLICES: Slice[] = [
+  { value: 'all', label: 'Все', filter: 'status!=archived' },
+  { value: 'in_sale', label: 'В продаже', filter: 'status==active' },
+  { value: 'ready_to_publish', label: 'Готовы к продаже', endpoint: 'readyToPublish' },
+  { value: 'needs_attention', label: 'Требуют внимания', endpoint: 'needsAttention' },
+  { value: 'pending_review', label: 'На проверке', filter: 'status==pending_review' },
+  { value: 'changes_requested', label: 'На доработку', filter: 'status==changes_requested' },
+  { value: 'removed_from_sale', label: 'Сняты с продажи', filter: 'status=in=(paused,suspended)' },
+  { value: 'archived', label: 'Архив', filter: 'status==archived' },
 ];
 
 function loadColumns(): ColumnSetting[] {
@@ -89,7 +94,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [blocked, setBlocked] = useState<Record<string, ProductRoutability>>({});
-  const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -114,6 +118,8 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   const filter = useMemo(() => {
     const parts: string[] = [];
+    const slice = SLICES.find(item => item.value === tab);
+    if (slice?.filter) parts.push(slice.filter);
     if (debouncedQuery) parts.push(`title=contains=${quote(debouncedQuery)}`);
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (values.length === 0) return;
@@ -123,7 +129,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       parts.push(`${field}=in=(${values.map(quote).join(',')})`);
     });
     return parts.join(';');
-  }, [debouncedQuery, columnFilters]);
+  }, [tab, debouncedQuery, columnFilters]);
 
   // The endpoint's sort syntax is a `-` prefix for descending — `-updated_at` — not Spring Data's
   // `updated_at,desc`, which it rejects without saying which half it disliked.
@@ -145,7 +151,14 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     let cancelled = false;
     setLoading(true);
     setError('');
-    productsApi.list({ tab, filter: filter || undefined, sort: sortParam || undefined, page, pageSize })
+    const slice = SLICES.find(item => item.value === tab);
+    const query = { filter: filter || undefined, sort: sortParam || undefined, page, pageSize };
+    const request = slice?.endpoint === 'needsAttention'
+      ? productsApi.needsAttention(query)
+      : slice?.endpoint === 'readyToPublish'
+        ? productsApi.readyToPublish(query)
+        : productsApi.list(query);
+    request
       .then(result => {
         if (cancelled) return;
         setProducts(result.items ?? []);
@@ -163,10 +176,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     productCategoriesApi.list()
       .then(next => { if (!cancelled) setCategories(next); })
       .catch(() => { /* the column filter simply has nothing to offer */ });
-
-    productsApi.tabCounts()
-      .then(result => { if (!cancelled) setTabCounts(result.counts ?? {}); })
-      .catch(() => { /* tabs still work without their numbers */ });
 
     // One call answers "which of these can actually be booked" for the whole catalogue.
     productsApi.allRoutability()
@@ -221,7 +230,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     >
       <div className="space-y-3">
         <SegmentedTabs
-          items={PRODUCT_TABS.map(item => ({ ...item, count: tabCounts[item.value] }))}
+          items={SLICES.map(item => ({ value: item.value, label: item.label }))}
           value={tab}
           onChange={setTab}
         />

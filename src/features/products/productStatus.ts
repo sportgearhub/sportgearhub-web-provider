@@ -5,9 +5,12 @@ type BadgeVariant = 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'orange';
 export const productStatusMeta: Record<string, { label: string; variant: BadgeVariant; hint: string }> = {
   draft: { label: 'Черновик', variant: 'gray', hint: 'Виден только вам. Отправьте на проверку, когда заполните карточку.' },
   pending_review: { label: 'На проверке', variant: 'yellow', hint: 'Модератор смотрит карточку. Обычно это занимает один рабочий день.' },
+  changes_requested: { label: 'На доработку', variant: 'orange', hint: 'Проверяющий вернул карточку с комментарием — исправьте и отправьте снова.' },
+  rejected: { label: 'Отклонён', variant: 'red', hint: 'Карточку не приняли.' },
   active: { label: 'В продаже', variant: 'green', hint: 'Клиенты видят карточку и могут забронировать.' },
-  inactive: { label: 'Снят с продажи', variant: 'orange', hint: 'Скрыт от клиентов. Вернуть в продажу можно в любой момент.' },
-  archived: { label: 'В архиве', variant: 'red', hint: 'Убран из каталога навсегда.' },
+  paused: { label: 'Снят с продажи', variant: 'orange', hint: 'Скрыт от клиентов. Вернуть в продажу можно в любой момент.' },
+  suspended: { label: 'Заблокирован', variant: 'red', hint: 'Остановлен администратором платформы.' },
+  archived: { label: 'В архиве', variant: 'gray', hint: 'Убран из каталога навсегда.' },
 };
 
 export function productStatus(status: ProductStatus) {

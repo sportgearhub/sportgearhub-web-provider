@@ -486,7 +486,7 @@ seller had, with a price and a photo query for each.
 
 ```
 GET /api/v1/sellers/{seller_id}/products
-      ?tab=needs_attention
+      ?filter=status==active
       &filter=status==active;title=contains=велосипед
       &sort=-updated_at
       &page=1
@@ -557,22 +557,32 @@ or drop a card when two share a title.
 
 **`pageSize`** defaults to 20 and is capped at 100.
 
-### Tabs
+### The two slices a filter cannot express
+
+Everything you would reach for a status with is a filter:
 
 ```
-GET /api/v1/sellers/{seller_id}/products/tab-counts
-{ "counts": { "all": 57, "in_sale": 38, "ready_to_publish": 9, "needs_attention": 12, … } }
+?filter=status==active
+?filter=status=in=(paused,suspended)
+?filter=status==pending_review
 ```
 
-Every key is a value for `tab` on the list, so every number on screen can be opened. Keys:
-`all` · `in_sale` · `ready_to_publish` · `needs_attention` · `pending_review` · `changes_requested` ·
-`removed_from_sale` · `archived`.
+Two questions are not about the card's own columns, so they have their own endpoints:
 
-**The numbers do not sum to `all`, and that is correct.** `needs_attention` is a condition, not a
-status: a card can be on sale *and* missing a photo, and it counts on both tabs. `all` excludes the
-archive, because the archive is its own tab.
+```
+GET /sellers/{seller_id}/products/needs-attention      no photo, or no active price,
+                                                       or no cancellation terms, or no pickup point
+GET /sellers/{seller_id}/products/ready-to-publish     everything filled in, not yet on sale
+```
 
-`tab` narrows the set **before** `filter`, so the two combine.
+Both are ordinary lists — `filter`, `sort`, `page`, `pageSize` all work on them, so
+`needs-attention?filter=status==active` is "on sale and still missing something".
+
+**`needs_attention` is a condition, not a status.** A card can be on sale *and* missing a photo, so
+it appears in both. Counting the two and expecting them to partition the catalogue will not work.
+
+Required *attributes* are not part of either: they live in `jsonb` behind a value converter and SQL
+cannot check them. They still block publication — they are simply not in these two queries.
 
 ### Price
 
@@ -676,8 +686,8 @@ A `PUT` replaces the lot.
 ### What the seller sees
 
 ```
-GET /api/v1/sellers/{seller_id}/bookings?tab=awaiting_confirmation&sort=-created_at&page=1&pageSize=20
-GET /api/v1/sellers/{seller_id}/bookings/tab-counts
+GET /api/v1/sellers/{seller_id}/bookings?filter=status==awaiting_seller_confirmation&sort=-created_at
+GET /api/v1/sellers/{seller_id}/bookings/active
 GET /api/v1/sellers/{seller_id}/bookings/{booking_id}
 ```
 
@@ -694,9 +704,18 @@ photo and category, the customer's name and phone, the window, the quantity, and
 It deliberately omits the customer's **email**: a name identifies the booking and a phone reaches
 them. The email is in the detail, which is opened on purpose.
 
-Tabs: `all` · `awaiting_confirmation` · `awaiting_payment` · `upcoming` · `handover_today` ·
-`return_today` · `active` · `completed` · `cancelled`. `all` excludes cancelled, expired and failed —
-the seller wants work, not an archive. As with products, the numbers need not sum.
+Slices are filters, with one exception:
+
+```
+?filter=status==awaiting_seller_confirmation      waiting on you
+?filter=status==pending                           waiting on the customer to pay
+?filter=status=in=(cancelled,expired,failed)      closed without a rental
+?filter=status==confirmed;start_at=ge=2026-10-02T00:00:00%2B05:00;start_at=lt=2026-10-03T00:00:00%2B05:00
+                                                  handovers for one day — you supply the bounds
+```
+
+`GET /sellers/{seller_id}/bookings/active` is the exception: handed over and not yet returned. That
+reads the fulfillment row, which `filter` does not reach.
 
 ### `status` is the booking's status
 
@@ -737,8 +756,8 @@ an unanswered request stay un-handed-over.
 > **There is no separate fulfillment queue.** `GET /sellers/{seller_id}/fulfillment` was removed on
 > 2026-10-01. It read a table that only the first handover writes, so it answered `[]` to every call
 > ever made to it, and its row carried a bare product id with no title or photo. Use the booking list
-> with `tab=handover_today`, `tab=return_today` or `tab=active`; the row carries the product, the
-> customer and the three flags above.
+> with a `start_at` range for a day's handovers, or `GET .../bookings/active` for what is out right
+> now; the row carries the product, the customer and the three flags above.
 
 ### Confirming and declining a request
 
