@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CalendarCheck, ChevronLeft, ImageOff, Phone } from 'lucide-react';
+import { AlertCircle, CalendarCheck, ChevronLeft, ImageOff, Phone, Search } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -9,27 +9,12 @@ import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { Pagination } from '../../components/table/TableControls';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import type { BookingListItem, Pagination as PageInfo } from '../../types';
-import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { bookingStatusMeta, dayBounds, fulfillmentStageMeta, formatWindow } from './bookingMeta';
 import { CopyValue } from '../../components/ui/CopyValue';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
-
-/** Midnight today and midnight tomorrow, with this browser's offset — the bounds a day filter needs. */
-function dayBounds() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  const iso = (date: Date) => {
-    const offset = -date.getTimezoneOffset();
-    const sign = offset >= 0 ? '+' : '-';
-    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00${sign}${pad(offset / 60)}:${pad(offset % 60)}`;
-  };
-  return { from: iso(start), to: iso(end) };
-}
 
 /**
  * The slices of the list.
@@ -72,6 +57,8 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [tab, setTab] = useState('all');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
@@ -80,15 +67,22 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [busy, setBusy] = useState<string | null>(null);
   const [acting, setActing] = useState<{ booking: BookingListItem; action: Action } | null>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const slice = SLICES.find(item => item.value === tab);
-      const query = { filter: slice?.filter?.(), page, pageSize };
+      const parts = [slice?.filter?.(), debouncedQuery ? `booking_number=contains="${debouncedQuery}"` : '']
+        .filter(Boolean);
+      const request = { filter: parts.join(';') || undefined, page, pageSize };
       const result = slice?.endpoint === 'active'
-        ? await bookingsApi.active(query)
-        : await bookingsApi.list(query);
+        ? await bookingsApi.active(request)
+        : await bookingsApi.list(request);
       setBookings(result.items ?? []);
       setPageInfo(result.pagination ?? null);
     } catch (err) {
@@ -96,10 +90,10 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
     } finally {
       setLoading(false);
     }
-  }, [tab, page, pageSize]);
+  }, [tab, page, pageSize, debouncedQuery]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { setPage(1); }, [tab, pageSize]);
+  useEffect(() => { setPage(1); }, [tab, pageSize, debouncedQuery]);
 
   const refresh = useCallback(() => { void load(); }, [load]);
 
@@ -166,6 +160,17 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
     >
       <div className="space-y-3">
         <SegmentedTabs items={tabItems} value={tab} onChange={setTab} />
+
+        <div className="relative">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Номер бронирования"
+            inputMode="search"
+            className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:h-9 sm:text-sm"
+          />
+        </div>
 
         {notice && (
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{notice}</p>

@@ -45,3 +45,19 @@ export function formatWindow(startAt?: string | null, endAt?: string | null) {
     ? `${day(start)}, ${time(start)} — ${time(end)}`
     : `${day(start)}, ${time(start)} — ${day(end)}, ${time(end)}`;
 }
+
+/** Midnight today and midnight tomorrow, with this browser's offset — the bounds a day filter needs. */
+export function dayBounds() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const iso = (date: Date) => {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00${sign}${pad(offset / 60)}:${pad(offset % 60)}`;
+  };
+  return { from: iso(start), to: iso(end) };
+}
+

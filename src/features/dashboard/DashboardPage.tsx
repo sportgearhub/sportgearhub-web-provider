@@ -5,10 +5,11 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../context/useAuth';
-import { ApiError, dashboardApi, providerApi } from '../../lib/api-client';
+import { ApiError, bookingsApi, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
 import { CabinetSwitchDialog } from '../providers/CabinetSwitchDialog';
+import { dayBounds } from '../bookings/bookingMeta';
 import { statusMeta } from '../providers/providerStatus';
 
 interface DashboardPageProps {
@@ -39,6 +40,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [today, setToday] = useState<{ handover: number; ret: number; awaiting: number } | null>(null);
 
   const load = async () => {
     try {
@@ -55,6 +57,24 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     void load();
   }, [provider.providerId]);
 
+  // What the counter actually needs to know before anything else: what is going out today, what is
+  // coming back, and who is waiting on an answer. The list endpoint counts without fetching rows.
+  useEffect(() => {
+    let cancelled = false;
+    const { from, to } = dayBounds();
+    const count = (filter: string) =>
+      bookingsApi.list({ filter, pageSize: 1 }).then(result => result.pagination?.totalItems ?? 0).catch(() => 0);
+
+    void Promise.all([
+      count(`status==confirmed;start_at=ge=${from};start_at=lt=${to}`),
+      count(`end_at=ge=${from};end_at=lt=${to}`),
+      count('status==awaiting_seller_confirmation'),
+    ]).then(([handover, ret, awaiting]) => {
+      if (!cancelled) setToday({ handover, ret, awaiting });
+    });
+    return () => { cancelled = true; };
+  }, [provider.providerId]);
+
   const submit = async () => {
     setSubmitting(true);
     setError('');
@@ -69,13 +89,13 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   };
 
   const readiness = dashboard?.readiness ?? null;
-  const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayLabel = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="space-y-6 p-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Добрый день, {user?.name.split(' ')[0]}</h2>
-        <p className="text-sm text-gray-500">{today}</p>
+        <p className="text-sm text-gray-500">{todayLabel}</p>
         {/* The header used to carry the cabinet's name on every screen. Without it on a phone,
             the one place that must say which cabinet you are in is the one you land on. */}
         <button
@@ -119,6 +139,22 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           </ul>
         </Card>
       )}
+
+      {/* Before the catalogue's numbers, the day's. A seller opening the console at nine in the
+          morning is asking «что сегодня», not «сколько у меня карточек». */}
+      <section>
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h3 className="text-sm font-semibold text-gray-900">Сегодня</h3>
+          <button type="button" onClick={() => onNavigate('/scan')} className="text-sm font-medium text-blue-700 hover:underline">
+            Сканировать QR
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <TodayTile label="Выдать" value={today?.handover} onClick={() => onNavigate('/bookings')} />
+          <TodayTile label="Принять" value={today?.ret} onClick={() => onNavigate('/bookings')} />
+          <TodayTile label="Заявки" value={today?.awaiting} tone={today?.awaiting ? 'warn' : 'plain'} onClick={() => onNavigate('/bookings')} />
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard loading={loading} label="Товары в каталоге" value={dashboard?.counts?.activeProducts} total={dashboard?.counts?.totalProducts} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/products')} />
@@ -226,6 +262,34 @@ function itemHint(item: ProviderReadinessItem) {
   if (item.status === 'awaiting_registration') return 'реквизиты сохранены, ждём подключения банка';
   if (!item.hint) return 'не заполнено';
   return item.hint.split(',').map(part => meta?.hints[part.trim()] ?? part.trim()).join(', ');
+}
+
+/** One number from the day, big enough to read at arm's length across a counter. */
+function TodayTile({
+  label,
+  value,
+  onClick,
+  tone = 'plain',
+}: {
+  label: string;
+  value?: number;
+  onClick: () => void;
+  tone?: 'plain' | 'warn';
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border p-3 text-left transition ${
+        tone === 'warn' ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-white hover:border-blue-200'
+      }`}
+    >
+      <span className="block text-xs text-gray-500">{label}</span>
+      {value === undefined
+        ? <Skeleton className="mt-1.5 h-6 w-8" />
+        : <span className={`mt-1 block text-2xl font-semibold ${tone === 'warn' ? 'text-amber-900' : 'text-gray-900'}`}>{value}</span>}
+    </button>
+  );
 }
 
 function StatCard({
