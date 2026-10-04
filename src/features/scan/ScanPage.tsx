@@ -7,9 +7,8 @@ import { ApiError, bookingsApi } from '../../lib/api-client';
 import type { BookingListItem } from '../../types';
 
 /**
- * `BarcodeDetector` is a browser API, not a library, and it is not in the DOM typings yet. Chrome
- * and Android have it; Safari does not, which is why the typed entry below the camera is a first
- *-class way in rather than an apology.
+ * `BarcodeDetector` is a browser API rather than a library, and it is not in the DOM typings yet.
+ * Chrome and Android ship it; Safari does not.
  */
 type BarcodeDetectorLike = {
   detect: (source: CanvasImageSource) => Promise<Array<{ rawValue: string }>>;
@@ -18,6 +17,35 @@ declare global {
   interface Window {
     BarcodeDetector?: new (options?: { formats: string[] }) => BarcodeDetectorLike;
   }
+}
+
+/**
+ * The decoder, native where there is one.
+ *
+ * Writing a QR decoder is not the shortcut it looks like — finder patterns, perspective
+ * correction, version and mask detection, then Reed-Solomon over a Galois field, every one of them
+ * a place to be subtly wrong on a creased screen in bad light. `barcode-detector` is ZXing-C++
+ * compiled to WebAssembly behind the exact API the browser exposes, so the code below does not
+ * know which one it got.
+ *
+ * It is imported only when the native one is missing: a phone that has it never downloads the
+ * WebAssembly. The binary is served from our own origin rather than the package's default CDN —
+ * a counter on hotel wifi should not depend on jsDelivr being reachable, and Vite fingerprints and
+ * caches it like any other asset.
+ */
+async function loadDetector(): Promise<BarcodeDetectorLike> {
+  if (window.BarcodeDetector) return new window.BarcodeDetector({ formats: ['qr_code'] });
+
+  const [{ BarcodeDetector, prepareZXingModule }, { default: wasmUrl }] = await Promise.all([
+    import('barcode-detector/ponyfill'),
+    import('zxing-wasm/reader/zxing_reader.wasm?url'),
+  ]);
+  prepareZXingModule({
+    overrides: {
+      locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? wasmUrl : prefix + path),
+    },
+  });
+  return new BarcodeDetector({ formats: ['qr_code'] });
 }
 
 /**
@@ -33,7 +61,7 @@ declare global {
  */
 export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [manual, setManual] = useState('');
-  const [status, setStatus] = useState<'idle' | 'starting' | 'scanning' | 'unsupported' | 'denied'>('idle');
+  const [status, setStatus] = useState<'idle' | 'starting' | 'scanning' | 'denied'>('idle');
   const [looking, setLooking] = useState(false);
   const [error, setError] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -70,10 +98,6 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
   useEffect(() => stop, [stop]);
 
   const start = async () => {
-    if (!window.BarcodeDetector) {
-      setStatus('unsupported');
-      return;
-    }
     setStatus('starting');
     setError('');
     stopped.current = false;
@@ -87,9 +111,8 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      const detector = await loadDetector();
       setStatus('scanning');
-
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
       const tick = async () => {
         if (stopped.current || !videoRef.current) return;
         try {
@@ -130,25 +153,21 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
 
             {status !== 'scanning' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                {status === 'unsupported' || status === 'denied' ? (
+                {status === 'denied' ? (
                   <CameraOff size={28} className="text-gray-500" />
                 ) : (
                   <QrCode size={28} className="text-gray-500" />
                 )}
                 <p className="text-sm leading-5 text-gray-300">
-                  {status === 'unsupported'
-                    ? 'Этот браузер не умеет читать QR. Введите номер вручную — поле ниже.'
-                    : status === 'denied'
-                      ? 'Нет доступа к камере. Разрешите его в настройках браузера или введите номер вручную.'
-                      : status === 'starting'
-                        ? 'Включаем камеру…'
-                        : 'Камера выключена.'}
+                  {status === 'denied'
+                    ? 'Нет доступа к камере. Разрешите его в настройках браузера или введите номер вручную.'
+                    : status === 'starting'
+                      ? 'Готовим камеру…'
+                      : 'Камера выключена.'}
                 </p>
-                {status !== 'unsupported' && (
-                  <Button variant="secondary" size="sm" loading={status === 'starting'} onClick={() => void start()}>
-                    <ScanLine size={14} /> Включить камеру
-                  </Button>
-                )}
+                <Button variant="secondary" size="sm" loading={status === 'starting'} onClick={() => void start()}>
+                  <ScanLine size={14} /> Включить камеру
+                </Button>
               </div>
             )}
 
@@ -196,7 +215,8 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
         <p className="px-1 text-xs leading-5 text-gray-500">
           Прототип. Читается номер бронирования — тот же, что клиент видит в подтверждении. Отдельной
           ручки для сканирования в API пока нет: найденное открывается как обычное бронирование, где
-          уже есть выдача, возврат и обращение.
+          уже есть выдача, возврат и обращение. Камера работает во всех браузерах; поле ниже — на
+          случай треснувшего экрана или выключенной камеры.
         </p>
       </div>
     </SectionPage>
