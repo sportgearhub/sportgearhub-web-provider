@@ -4,7 +4,7 @@ import { useAuth } from '../../context/useAuth';
 import { selectProvider, useSelectedProviderId } from '../../lib/active-provider';
 import { ProviderContextProvider } from '../../features/providers/ProviderContext';
 import { statusMeta } from '../../features/providers/providerStatus';
-import { Header } from './Header';
+import { Header, MobileNavBar } from './Header';
 import { PageHeading, type PageBreadcrumb } from './PageHeading';
 
 export type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageBreadcrumb[] };
@@ -84,14 +84,22 @@ export function ConsoleLayout() {
 
   return (
     <ProviderContextProvider provider={provider}>
-      <div className="flex h-screen flex-col overflow-hidden bg-background">
-        <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
+      {/* Grey ground on a phone so the white sections read as cards; plain white on a desktop,
+          where the console is a page rather than an app. */}
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50 lg:bg-background">
+        {/* No app bar on a phone. A logo and a row of links at the top of a small screen cost a
+            fifth of it to say what the person already knows; the sections are at the bottom and
+            the page says its own name. A task keeps the bar, because it is the way back. */}
+        <div className={task ? '' : 'hidden lg:block'}>
+          <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
+        </div>
+        {!task && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
             row of every list sits underneath it. Task routes have no bar and need no gap. */}
         <main className={`relative min-h-0 flex-1 overflow-y-auto bg-background ${task ? '' : 'pb-16 lg:pb-0'}`}>
           <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
-              <div className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-6 sm:mt-4">
                 <span>
                   <span className="font-semibold">{status.label}.</span> {status.hint}
                 </span>

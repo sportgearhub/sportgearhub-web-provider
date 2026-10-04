@@ -20,15 +20,15 @@ export function SettingsCard({
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-3.5 sm:px-5 sm:py-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-950">{title}</h2>
           {description && <p className="mt-0.5 max-w-xl text-xs leading-5 text-gray-500">{description}</p>}
         </div>
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
       </header>
-      <div className="px-5 py-4">{children}</div>
-      {footer && <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3">{footer}</div>}
+      <div className="px-4 py-4 sm:px-5">{children}</div>
+      {footer && <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-3 sm:px-5">{footer}</div>}
     </section>
   );
 }

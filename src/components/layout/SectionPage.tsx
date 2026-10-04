@@ -23,7 +23,7 @@ export function SectionPage({
   children: ReactNode;
 }) {
   return (
-    <div className="p-6">
+    <div className="px-4 py-4 sm:p-6">
       {breadcrumb && onNavigate && (
         <button
           type="button"

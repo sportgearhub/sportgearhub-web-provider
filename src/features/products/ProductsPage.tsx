@@ -246,11 +246,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:text-sm"
             />
           </div>
-          <ColumnSettings columns={columns} onChange={setColumns} />
+          <span className="hidden md:block">
+            <ColumnSettings columns={columns} onChange={setColumns} />
+          </span>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="border-b border-gray-200 bg-gray-50/80">
                 <tr>
@@ -303,6 +305,57 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             </table>
           </div>
 
+          {/* Phones get the same rows read downwards: the photo, the title in full, and the two
+              numbers that matter under it. Nothing is off the edge and nothing is abbreviated. */}
+          <ul className="divide-y divide-gray-100 md:hidden">
+            {loading && Array.from({ length: 5 }, (_, row) => (
+              <li key={`m-skeleton-${row}`} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-14 w-14 shrink-0" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </li>
+            ))}
+            {!loading && products.length === 0 && (
+              <li className="px-4 py-12 text-center text-sm text-gray-600">
+                {filter || tab !== 'all' ? 'Ничего не нашлось. Попробуйте изменить фильтры.' : 'В каталоге пока пусто.'}
+              </li>
+            )}
+            {!loading && products.map(product => {
+              const meta = productStatus(product.status);
+              return (
+                <li key={product.productId}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(`/products/${product.productId}`)}
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition active:bg-gray-50"
+                  >
+                    <Thumb url={product.mediaPreviewUrl} title={product.title} size="lg" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium leading-5 text-gray-900">{product.title}</span>
+                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                        <span>{product.category?.title ?? '—'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className={product.quantity > 0 ? '' : 'text-amber-700'}>{product.quantity} шт</span>
+                        {product.price != null && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-medium text-gray-900">{formatPrice(product.price)}</span>
+                          </>
+                        )}
+                      </span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Badge variant={meta.variant}>{meta.label}</Badge>
+                        {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
           {pageInfo && !loading && (
             <Pagination
               page={pageInfo.page}
@@ -331,15 +384,16 @@ function plural(count: number) {
   }
 }
 
-function Thumb({ url, title }: { url: string | null; title: string }) {
+function Thumb({ url, title, size = 'sm' }: { url: string | null; title: string; size?: 'sm' | 'lg' }) {
+  const box = size === 'lg' ? 'h-14 w-14' : 'h-10 w-10';
   if (!url) {
     return (
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
-        <ImageOff size={15} />
+      <span className={`flex ${box} shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300`}>
+        <ImageOff size={size === 'lg' ? 18 : 15} />
       </span>
     );
   }
-  return <img src={mediaUrl(url)} alt={title} className="h-10 w-10 rounded-lg border border-gray-200 object-cover" />;
+  return <img src={mediaUrl(url)} alt={title} className={`${box} shrink-0 rounded-lg border border-gray-200 object-cover`} />;
 }
 
 function Cell({

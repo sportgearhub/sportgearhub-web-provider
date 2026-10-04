@@ -139,7 +139,6 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
         </div>
       </div>
 
-      {!task && <MobileNav currentPath={currentPath} onNavigate={onNavigate} isActive={isActive} />}
     </header>
   );
 }
@@ -152,17 +151,16 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
  * rather than a dropdown — a menu anchored under a trigger that already sits on the bottom edge
  * would open off the screen.
  */
-function MobileNav({
+export function MobileNavBar({
   currentPath,
   onNavigate,
-  isActive,
 }: {
   currentPath: string;
   onNavigate: (path: string) => void;
-  isActive: (path: string) => boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const inSettings = currentPath.startsWith('/settings');
+  const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
 
   return (
     <>

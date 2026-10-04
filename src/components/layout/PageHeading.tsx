@@ -25,7 +25,7 @@ export function PageHeading({
   if (!title && trail.length === 0) return null;
 
   return (
-    <div className="shrink-0 px-6 pb-4 pt-5">
+    <div className="shrink-0 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5">
       {trail.length > 0 && (
         <nav className="mb-1.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground" aria-label="Хлебные крошки">
           {trail.map((crumb, index) => (
@@ -46,7 +46,7 @@ export function PageHeading({
           ))}
         </nav>
       )}
-      {title && <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>}
+      {title && <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-xl sm:font-semibold">{title}</h1>}
       {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
     </div>
   );
