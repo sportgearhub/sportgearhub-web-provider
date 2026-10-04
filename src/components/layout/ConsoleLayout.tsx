@@ -14,6 +14,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/': { title: '' },
   // Заказы draws its own heading, with the count in it, the way the catalogue does.
   '/bookings': { title: '' },
+  '/scan': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },

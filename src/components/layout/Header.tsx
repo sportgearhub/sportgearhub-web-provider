@@ -12,6 +12,7 @@ import {
   MapPin,
   Package,
   Repeat,
+  ScanLine,
   Store,
   UserRound,
   Users,
@@ -28,6 +29,7 @@ const navItems: { label: string; path: string; icon: LucideIcon }[] = [
   { label: 'Дашборд', path: '/', icon: LayoutDashboard },
   { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
   { label: 'Каталог', path: '/products', icon: Package },
+  { label: 'Сканер', path: '/scan', icon: ScanLine },
 ];
 
 // Settings live in the profile menu, grouped as they are in the settings sidebar.

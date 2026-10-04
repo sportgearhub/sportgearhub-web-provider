@@ -9,6 +9,7 @@ import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/Co
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
+import { ScanPage } from './features/scan/ScanPage';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductForm } from './features/products/ProductForm';
@@ -84,6 +85,11 @@ function BookingsRoute() {
   return <BookingsPage onNavigate={navigateTo} />;
 }
 
+function ScanRoute() {
+  const { navigateTo } = useConsole();
+  return <ScanPage onNavigate={navigateTo} />;
+}
+
 function BookingDetailRoute() {
   const { navigateTo } = useConsole();
   const { bookingId = '' } = useParams();
@@ -131,6 +137,7 @@ const router = createBrowserRouter([
           { index: true, element: <DashboardRoute /> },
           { path: 'bookings', element: <BookingsRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
+          { path: 'scan', element: <ScanRoute /> },
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },
