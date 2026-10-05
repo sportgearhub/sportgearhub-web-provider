@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CalendarCheck, ChevronLeft, ImageOff, Phone, Search } from 'lucide-react';
+import { AlertCircle, CalendarCheck, ChevronLeft, ImageOff, Info, Phone, Search } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -16,6 +16,7 @@ import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
 import { BookingsCalendar } from './BookingsCalendar';
+import { BookingProductDialog } from './BookingProductPanel';
 
 /**
  * The slices of the list.
@@ -68,6 +69,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [acting, setActing] = useState<{ booking: BookingListItem; action: Action } | null>(null);
+  const [peek, setPeek] = useState<BookingListItem | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -218,6 +220,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
                   booking={booking}
                   busy={busy === booking.bookingId}
                   onOpen={() => onNavigate(`/bookings/${booking.bookingId}`)}
+                  onPeek={() => setPeek(booking)}
                   onConfirm={() => void confirm(booking)}
                   onAction={action => setActing({ booking, action })}
                 />
@@ -237,6 +240,16 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
         )}
         </>}
       </div>
+
+      {peek && (
+        <BookingProductDialog
+          open
+          productId={peek.product.productId}
+          productTitle={peek.product.title}
+          onClose={() => setPeek(null)}
+          onOpenProduct={() => onNavigate(`/products/${peek.product.productId}`)}
+        />
+      )}
     </SectionPage>
   );
 }
@@ -245,12 +258,14 @@ function BookingRow({
   booking,
   busy,
   onOpen,
+  onPeek,
   onConfirm,
   onAction,
 }: {
   booking: BookingListItem;
   busy: boolean;
   onOpen: () => void;
+  onPeek: () => void;
   onConfirm: () => void;
   onAction: (action: Action) => void;
 }) {
@@ -286,6 +301,15 @@ function BookingRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-900">{booking.product.title}</span>
+          {/* What is in the kit, without losing your place in the list. */}
+          <button
+            type="button"
+            onClick={event => { event.stopPropagation(); onPeek(); }}
+            aria-label={`Что входит — ${booking.product.title}`}
+            className="rounded-lg p-0.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+          >
+            <Info size={14} />
+          </button>
           <span className="hidden flex-wrap items-center gap-2 md:flex">
             <Badge variant={status.variant}>{status.label}</Badge>
             {stage && !closed && <Badge variant={stage.variant}>{stage.label}</Badge>}

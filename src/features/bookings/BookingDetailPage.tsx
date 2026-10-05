@@ -10,6 +10,7 @@ import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import type { BookingDetail, FulfillmentDetail } from '../../types';
 import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { BookingProductPanel } from './BookingProductPanel';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
@@ -172,6 +173,17 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
                 <p className="mt-0.5 text-xs text-gray-500">{booking.product.categoryTitle}</p>
               )}
               </div>
+            </div>
+
+            {/* The booking says which card; the card says what is in the kit and what deposit to
+                take. Those are the questions asked across a counter, so they are fetched here
+                rather than left on another screen. */}
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <BookingProductPanel
+                productId={booking.product.productId}
+                open
+                onOpenProduct={() => onNavigate(`/products/${booking.product.productId}`)}
+              />
             </div>
           </SettingsCard>
 
