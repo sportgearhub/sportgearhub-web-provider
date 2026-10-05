@@ -5329,22 +5329,12 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "opened_at": {
-            "type": "string",
-            "format": "date-time"
+          "message": {
+            "type": "string"
           },
           "decided_at": {
             "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "verdict": {
-            "type": "string",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
+            "format": "date-time"
           }
         }
       },

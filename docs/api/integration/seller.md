@@ -333,39 +333,27 @@ say so and it can be built properly.
 
 ### Why a card came back
 
-`GET …/products/{id}` carries `review` — the administrator's **latest decision**:
+`GET …/products/{id}` carries `review` — what the administrator is asking for:
 
 ```json
-"review": {
-  "opened_at": "2026-10-04T06:38:00Z",
-  "decided_at": "2026-10-04T06:41:00Z",
-  "verdict": "changes_requested",
-  "message": "На фотографии другой велосипед."
-}
+"status": "changesrequested",
+"review": { "message": "На фотографии другой велосипед.", "decided_at": "2026-10-04T06:41:00Z" }
 ```
 
 **Render `message` whenever `status` is `changes_requested` or `rejected`.** The administrator cannot
-send a card back without one — a message is required for both verdicts — so it is always there when
-it matters. Until 2026-10-05 this was written to the database and read only by the admin console: the
-seller saw `changes_requested` and no reason at all, which is not something they can act on.
+send a card back without one, so it is always there when it matters.
 
-`review` is `null` on a card that has never been reviewed. `verdict` is one of `approved`,
-`changes_requested` or `rejected`.
+`review` is `null` when there is nothing being asked — a card never reviewed, or one that was
+approved. Approval clears it: on a live card there is nothing to fix, and a leftover "replace the
+photo" would mislead.
 
-**It stays visible after you resubmit.** Submitting again opens a new review with no decision yet,
-and `review` keeps showing the *last decided* one — so the seller can re-read what was asked while
-they work, and check they have done it. Key the banner off `status`, not off the presence of
-`review`.
+**There is no verdict field and no history.** The verdict is the card's `status`; duplicating it
+would just create two answers to one question. And there is one request at a time — a decision is
+only possible on a card in `pending_review`, so earlier rounds are superseded rather than
+outstanding. The message survives resubmission, so the seller can re-read what was asked while
+fixing it; key the banner off `status`.
 
-Who decided is deliberately not returned. The verdict, the message and the time are; the member of
-staff is not.
-
-**There is one ask at a time, so there is one `review`.** A decision can only be made on a card in
-`pending_review`, and each submission opens at most one review — so the sequence is strictly submit →
-one decision → submit → one decision. Earlier rounds are superseded, not outstanding: what gates
-approval is the latest ask. There is no seller-facing history endpoint, because a list of asks the
-seller has already dealt with is not something they act on. Administrators keep the full thread for
-judging a card that has been round several times.
+Who decided is not returned.
 
 **`activate` only works from `paused`.** This is the part worth getting right in the UI, because the
 status it is usually offered from is the wrong one:

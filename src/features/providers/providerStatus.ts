@@ -46,10 +46,18 @@ export const taxationSystemOptions = [
   { value: 'eskhn', label: 'ЕСХН' },
 ];
 
+/**
+ * Ставки НДС в чеке.
+ *
+ * 5% and 7% are listed but cannot be chosen: the platform's till runs on ФФД 1.05, which has no
+ * such rates, and the API refuses them at onboarding with `seller.vat_rate_not_fiscalizable`.
+ * Leaving them out entirely would be worse — a seller who is genuinely on 5% would look for their
+ * rate, fail to find it, and pick a wrong one. Shown and explained, they know to write to support.
+ */
 export const vatRateOptions = [
   { value: 'none', label: 'Без НДС' },
-  { value: 'vat5', label: '5 %' },
-  { value: 'vat7', label: '7 %' },
+  { value: 'vat5', label: '5 %', disabled: true, description: 'Пока не поддерживается кассой — напишите в поддержку' },
+  { value: 'vat7', label: '7 %', disabled: true, description: 'Пока не поддерживается кассой — напишите в поддержку' },
   { value: 'vat10', label: '10 %' },
   { value: 'vat20', label: '20 %' },
 ];

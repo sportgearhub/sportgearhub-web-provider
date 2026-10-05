@@ -84,6 +84,7 @@
 | `seller.legal_identity_not_found` | ИНН не найден в реестре. Проверьте номер. |
 | `seller.person_required` | Укажите фамилию и имя как в налоговом учёте. |
 | `seller.taxation_system_required` | Укажите систему налогообложения. |
+| `seller.vat_rate_not_fiscalizable` | Ставки НДС 5% и 7% пока не поддерживаются: касса платформы работает по ФФД 1.05, где их нет. Напишите в поддержку. |
 
 ## Location
 

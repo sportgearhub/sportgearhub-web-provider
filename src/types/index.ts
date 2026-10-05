@@ -709,19 +709,19 @@ export interface ProductSection {
  * sections and the readiness breakdown, and it does not carry the list's grouping counters.
  */
 /**
- * The administrator's latest decision on a card.
+ * What the administrator is asking for on a card.
  *
- * It survives resubmission — submitting opens a new review with no decision yet, and this keeps
- * showing the last *decided* one, so a seller can re-read what was asked while fixing it. Which
- * is why the banner is keyed off `status` and not off this being present.
+ * There is no verdict here: the verdict is the card's `status`, and a second copy would be a
+ * second answer to one question. There is no history either — a decision is only possible on a
+ * card in `pending_review`, so earlier rounds are superseded rather than outstanding.
  *
- * Who decided is deliberately not returned: the verdict, the message and the time are.
+ * It survives resubmission so the seller can re-read the ask while fixing it, which is why the
+ * banner is keyed off `status`. Approval clears it: on a live card there is nothing to fix, and a
+ * leftover «замените фото» would mislead.
  */
 export interface ProductReview {
-  openedAt: string;
-  decidedAt: string | null;
-  verdict: 'approved' | 'changes_requested' | 'rejected' | null;
-  message: string | null;
+  message: string;
+  decidedAt: string;
 }
 
 export interface Product {
@@ -738,7 +738,7 @@ export interface Product {
   bookingApproval: string;
   infoSections: OfferInfoSection[];
   sections: ProductSection[];
-  /** `null` on a card that has never been reviewed. */
+  /** `null` when nothing is being asked: never reviewed, or approved. */
   review: ProductReview | null;
   createdAt: string;
   updatedAt: string;
