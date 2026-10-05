@@ -19,12 +19,15 @@ export function ProductPolicyDialog({
   policy,
   onClose,
   onSaved,
+  primaryLabel,
 }: {
   open: boolean;
   productId: string;
   policy: ProductPolicy | null;
   onClose: () => void;
   onSaved: (next: ProductPolicy) => void;
+  /** «Сохранить и отправить», when saving is only half of what the card needs. */
+  primaryLabel?: string;
 }) {
   const [leadTime, setLeadTime] = useState('');
   const [cancellable, setCancellable] = useState(true);
@@ -119,7 +122,7 @@ export function ProductPolicyDialog({
 
         <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
           <Button variant="secondary" disabled={saving} onClick={onClose}><X size={14} /> Отмена</Button>
-          <Button variant="primary" loading={saving} onClick={() => void save()}><Save size={14} /> Сохранить</Button>
+          <Button variant="primary" loading={saving} onClick={() => void save()}><Save size={14} /> {primaryLabel ?? 'Сохранить'}</Button>
         </div>
       </div>
     </Modal>

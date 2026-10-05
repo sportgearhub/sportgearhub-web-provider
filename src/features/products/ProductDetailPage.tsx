@@ -340,9 +340,13 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         productId={productId}
         sections={infoSections}
         onClose={() => setEditingInfo(false)}
+        primaryLabel={canSubmit ? 'Сохранить и отправить' : undefined}
         onSaved={next => {
           setInfoSections(next);
           setEditingInfo(false);
+          // Fixing what was asked and stopping leaves the card exactly where it was. Saving is half
+          // the job on a card that is waiting to go back.
+          if (canSubmit) void submit();
         }}
       />
 
@@ -351,9 +355,11 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         productId={productId}
         policy={policy}
         onClose={() => setEditingPolicy(false)}
+        primaryLabel={canSubmit ? 'Сохранить и отправить' : undefined}
         onSaved={next => {
           setPolicy(next);
           setEditingPolicy(false);
+          if (canSubmit) void submit();
         }}
       />
     </SectionPage>

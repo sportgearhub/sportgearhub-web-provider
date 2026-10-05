@@ -14,12 +14,15 @@ export function ProductInfoSectionsDialog({
   sections,
   onClose,
   onSaved,
+  primaryLabel,
 }: {
   open: boolean;
   productId: string;
   sections: OfferInfoSection[];
   onClose: () => void;
   onSaved: (next: OfferInfoSection[]) => void;
+  /** «Сохранить и отправить», when saving is only half of what the card needs. */
+  primaryLabel?: string;
 }) {
   const [items, setItems] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
@@ -67,7 +70,7 @@ export function ProductInfoSectionsDialog({
         ))}
         <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
           <Button variant="secondary" disabled={saving} onClick={onClose}><X size={14} /> Отмена</Button>
-          <Button variant="primary" loading={saving} onClick={() => void save()}><Save size={14} /> Сохранить</Button>
+          <Button variant="primary" loading={saving} onClick={() => void save()}><Save size={14} /> {primaryLabel ?? 'Сохранить'}</Button>
         </div>
       </div>
     </Modal>

@@ -13,6 +13,7 @@ import {
 } from '../../components/form';
 import { Button } from '../../components/ui/Button';
 import { SectionPage } from '../../components/layout/SectionPage';
+import { useToast } from '../../components/ui/Toast';
 import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../../lib/api-client';
 import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
 import type { EquipmentAttribute } from '../../lib/api-client';
@@ -88,6 +89,7 @@ export function ProductForm({
   onNavigate: (path: string) => void;
 }) {
   const isEdit = Boolean(productId);
+  const toast = useToast();
   const [status, setStatus] = useState<ProductStatus>('draft');
   const [review, setReview] = useState<ProductReview | null>(null);
   /**
@@ -278,7 +280,9 @@ export function ProductForm({
           setSaving(false);
           // Saved but not sent: both halves matter, and leaving either one out is how a seller
           // ends up re-entering work that was kept, or believing a card went that did not.
-          setError(`Изменения сохранены, но карточка не ушла на проверку. ${reason}`);
+          const message = `Изменения сохранены, но карточка не ушла на проверку. ${reason}`;
+          setError(message);
+          toast.show(message);
           return;
         }
       }
@@ -300,6 +304,7 @@ export function ProductForm({
       onNavigate={onNavigate}
       error={error}
     >
+      {toast.node}
       {loading ? (
         <p className="text-sm text-gray-500">Загружаем...</p>
       ) : (
@@ -312,6 +317,20 @@ export function ProductForm({
               <p className="text-sm font-medium text-amber-900">Что просили исправить</p>
               <p className="mt-1 whitespace-pre-line text-sm leading-5 text-amber-900">«{review.message}»</p>
             </div>
+          )}
+
+          {/* Why this card says «Сохранить» and not «Отправить на проверку». An approved card's
+              edits go live without review — the API has no draft-and-review mechanism yet — so
+              promising a review here would be a promise nothing keeps. */}
+          {isEdit && !shouldSubmit && status !== 'pending_review' && (
+            <p className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-5 text-gray-600">
+              Карточка уже прошла проверку: изменения публикуются сразу, повторная проверка не нужна.
+            </p>
+          )}
+          {isEdit && status === 'pending_review' && (
+            <p className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-5 text-blue-900">
+              Карточка сейчас у модератора. Изменения сохранятся, но на эту проверку уже не повлияют.
+            </p>
           )}
 
           <FormStepper
