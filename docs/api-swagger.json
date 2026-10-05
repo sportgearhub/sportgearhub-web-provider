@@ -5261,6 +5261,14 @@
               "$ref": "#/components/schemas/EbashITSportgearhubApiModelsProductsSellerProductSectionResponse"
             }
           },
+          "review": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EbashITSportgearhubApiModelsInternalProductReviewProductReviewResponse"
+              }
+            ]
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -5312,6 +5320,29 @@
             "type": "boolean"
           },
           "missing": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "EbashITSportgearhubApiModelsInternalProductReviewProductReviewResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "opened_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "verdict": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
             "type": "string",
             "nullable": true
           }

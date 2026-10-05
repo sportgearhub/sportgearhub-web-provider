@@ -187,11 +187,25 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
                 : 'border-blue-200 bg-blue-50 text-blue-900'
           }`}
         >
-          {product.status === 'changes_requested' && (
-            <>Карточку вернули на доработку. Исправьте замечания и отправьте её на проверку снова — вернуть в продажу самостоятельно нельзя.</>
-          )}
-          {product.status === 'rejected' && (
-            <>Карточку отклонили. Исправьте и отправьте на проверку снова.</>
+          {(product.status === 'changes_requested' || product.status === 'rejected') && (
+            <>
+              <p className="font-medium">
+                {product.status === 'changes_requested' ? 'Карточку вернули на доработку' : 'Карточку отклонили'}
+              </p>
+              {/* The administrator's own words. They cannot send a card back without them, so when
+                  the status says it came back, this is there. Keyed off the status rather than off
+                  `review` being present: it survives resubmission on purpose, so the seller can
+                  re-read the ask while fixing it. */}
+              {product.review?.message && (
+                <p className="mt-1.5 whitespace-pre-line">«{product.review.message}»</p>
+              )}
+              <p className="mt-1.5 text-xs opacity-80">
+                Исправьте и отправьте на проверку снова — вернуть в продажу самостоятельно нельзя.
+                {product.review?.decidedAt && (
+                  <> Решение от {new Date(product.review.decidedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}.</>
+                )}
+              </p>
+            </>
           )}
           {product.status === 'draft' && (
             <>Черновик виден только вам. Заполните карточку и отправьте на проверку.</>

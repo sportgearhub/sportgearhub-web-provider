@@ -708,6 +708,22 @@ export interface ProductSection {
  * GET /products/{id}. Not the list row: the detail carries description, booking approval, the info
  * sections and the readiness breakdown, and it does not carry the list's grouping counters.
  */
+/**
+ * The administrator's latest decision on a card.
+ *
+ * It survives resubmission — submitting opens a new review with no decision yet, and this keeps
+ * showing the last *decided* one, so a seller can re-read what was asked while fixing it. Which
+ * is why the banner is keyed off `status` and not off this being present.
+ *
+ * Who decided is deliberately not returned: the verdict, the message and the time are.
+ */
+export interface ProductReview {
+  openedAt: string;
+  decidedAt: string | null;
+  verdict: 'approved' | 'changes_requested' | 'rejected' | null;
+  message: string | null;
+}
+
 export interface Product {
   productId: string;
   status: ProductStatus;
@@ -722,6 +738,8 @@ export interface Product {
   bookingApproval: string;
   infoSections: OfferInfoSection[];
   sections: ProductSection[];
+  /** `null` on a card that has never been reviewed. */
+  review: ProductReview | null;
   createdAt: string;
   updatedAt: string;
 }

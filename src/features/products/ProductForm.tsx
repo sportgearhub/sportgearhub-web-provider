@@ -17,7 +17,7 @@ import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../..
 import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
 import type { EquipmentAttribute } from '../../lib/api-client';
 import { toAttributeMap } from '../../types';
-import type { ProductCategory, ProductStatus, ProviderLocation, RentalTier } from '../../types';
+import type { ProductCategory, ProductReview, ProductStatus, ProviderLocation, RentalTier } from '../../types';
 import { ProductAttributeFields, attributeError } from './ProductAttributeFields';
 import { submitRefusalMessage } from './productStatus';
 import { ProductImagesSection } from './ProductImagesSection';
@@ -89,6 +89,7 @@ export function ProductForm({
 }) {
   const isEdit = Boolean(productId);
   const [status, setStatus] = useState<ProductStatus>('draft');
+  const [review, setReview] = useState<ProductReview | null>(null);
   /**
    * Which cards are waiting to be handed over. A rejected one is in the same position as one sent
    * back for changes: fixed, then submitted again. An active or paused card is simply being
@@ -128,6 +129,7 @@ export function ProductForm({
         setLocations(nextLocations);
         if (product) {
           setStatus(product.status);
+          setReview(product.review ?? null);
           setDraft(current => ({
             ...current,
             title: product.title,
@@ -302,6 +304,16 @@ export function ProductForm({
         <p className="text-sm text-gray-500">Загружаем...</p>
       ) : (
         <FormPage>
+          {/* The ask, kept in front of the person answering it. The API keeps the last decided
+              review visible through resubmission for exactly this: fixing a card while the
+              objection is on another screen is how half of it gets missed. */}
+          {(status === 'changes_requested' || status === 'rejected') && review?.message && (
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-medium text-amber-900">Что просили исправить</p>
+              <p className="mt-1 whitespace-pre-line text-sm leading-5 text-amber-900">«{review.message}»</p>
+            </div>
+          )}
+
           <FormStepper
             steps={steps.map(item => ({
               label: item.label,
