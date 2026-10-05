@@ -21,6 +21,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/x/schedule': { title: '' },
   '/x/bookings': { title: '' },
   '/x/finances': { title: '' },
+  '/menu': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },
@@ -36,12 +37,37 @@ const pageConfig: Record<string, PageConfig> = {
  * and the name of the task in the header, and no section bar underneath, because the job is the
  * only thing on screen until it is done or abandoned.
  */
-function taskFor(relativePath: string): { title: string; backTo: string } | null {
-  if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products' };
+const SETTINGS_TITLES: Record<string, string> = {
+  '/settings/shop': 'Профиль проката',
+  '/settings/shop-edit': 'Профиль проката',
+  '/settings/locations': 'Пункты проката',
+  '/settings/employees': 'Сотрудники',
+  '/settings/seller': 'Информация о продавце',
+  '/settings/seller-edit': 'Данные продавца',
+  '/settings/payouts': 'Реквизиты выплат',
+  '/settings/contracts': 'Договоры',
+  '/settings/account': 'Аккаунт',
+};
+
+/**
+ * Screens that are somewhere you went, rather than one of the sections you switch between.
+ *
+ * On a phone they get a bar with a way back and the name of where you are — the shape every phone
+ * uses for a page opened from a list. `hideNav` separates the two kinds: a settings page is still
+ * inside the console and keeps the section bar, while writing a card takes the whole screen, since
+ * offering «Каталог» halfway through is offering to throw the draft away.
+ */
+function taskFor(relativePath: string): { title: string; backTo: string; hideNav: boolean } | null {
+  if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
   const editing = relativePath.match(/^\/products\/([^/]+)\/edit$/);
-  if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}` };
-  if (relativePath === '/settings/shop-edit') return { title: 'Профиль проката', backTo: '/settings/shop' };
-  if (relativePath === '/settings/seller-edit') return { title: 'Данные продавца', backTo: '/settings/seller' };
+  if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}`, hideNav: true };
+
+  const settings = SETTINGS_TITLES[relativePath];
+  if (settings) {
+    // An edit screen goes back to what it edits; a section goes back to the menu it came from.
+    const parent = relativePath.endsWith('-edit') ? relativePath.replace('-edit', '') : '/menu';
+    return { title: settings, backTo: parent, hideNav: relativePath.endsWith('-edit') };
+  }
   return null;
 }
 
@@ -110,10 +136,10 @@ export function ConsoleLayout() {
         <div className={task ? '' : 'hidden lg:block'}>
           <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
         </div>
-        {!task && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
+        {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
             row of every list sits underneath it. Task routes have no bar and need no gap. */}
-        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-background ${task ? '' : 'pb-16 lg:pb-0'}`}>
+        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-gray-50 lg:bg-background ${task?.hideNav ? '' : 'pb-16 lg:pb-0'}`}>
           <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
               <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-6 sm:mt-4">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmailAttachDialog } from './EmailAttachDialog';
-import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { SkeletonRows } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
@@ -105,34 +105,6 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
         </aside>
       )}
       <div className="min-h-0 min-w-0 flex-1 bg-white">
-        {/* A phone gets the sections as rows, not a dropdown: a settings list is read and chosen
-            from, and hiding seven destinations behind a closed control makes the person open it to
-            find out what the console can even do. */}
-        {showSidebar && (
-          <div className="space-y-4 px-3 py-3 md:hidden">
-            {sidebarGroups.map(group => (
-              <div key={group.title}>
-                <p className="px-1 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
-                <div className="overflow-hidden rounded-xl bg-white">
-                  {group.items.map((item, index) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onNavigate(item.path)}
-                      aria-current={item.id === section ? 'page' : undefined}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition active:bg-gray-50 ${
-                        index > 0 ? 'border-t border-gray-100' : ''
-                      } ${item.id === section ? 'text-blue-700' : 'text-gray-900'}`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                      <ChevronRight size={16} className="shrink-0 text-gray-400" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
         {tab === 'shop' && <ShopProfileView onNavigate={onNavigate} />}
         {tab === 'shop-edit' && <ShopProfileEdit onNavigate={onNavigate} />}
         {tab === 'seller' && <SellerProfileSettings onNavigate={onNavigate} />}

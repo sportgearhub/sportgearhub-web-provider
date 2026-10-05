@@ -15,12 +15,11 @@ import {
   Package,
   Repeat,
   ScanLine,
-  Sparkles,
   Store,
   UserRound,
+  LayoutGrid,
   Users,
   Wallet,
-  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
@@ -40,10 +39,12 @@ const navByWorkspace: Record<Workspace, NavItem[]> = {
     { label: 'Каталог', path: '/products', icon: Package },
     { label: 'Сканер', path: '/scan', icon: ScanLine },
   ],
+  // Four, because «Меню» is the fifth and five is what fits across a phone. Впечатления live one
+  // tap away on the home screen and in the menu, which is where a list of your own products
+  // belongs anyway — it is visited to change something, not all day.
   experience: [
     { label: 'Главная', path: '/x', icon: LayoutDashboard },
     { label: 'Расписание', path: '/x/schedule', icon: CalendarDays },
-    { label: 'Впечатления', path: '/x/experiences', icon: Sparkles },
     { label: 'Брони', path: '/x/bookings', icon: CalendarCheck },
     { label: 'Финансы', path: '/x/finances', icon: Wallet },
   ],
@@ -230,9 +231,8 @@ export function MobileNavBar({
   currentPath: string;
   onNavigate: (path: string) => void;
 }) {
-  const [sheetOpen, setSheetOpen] = useState(false);
   const { workspace } = useWorkspace();
-  const inSettings = currentPath.startsWith('/settings');
+  const inMenu = currentPath === '/menu' || currentPath.startsWith('/settings');
   const isActive = (path: string) =>
     path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
@@ -244,7 +244,7 @@ export function MobileNavBar({
       >
         <div className="flex">
           {navByWorkspace[workspace].map(item => {
-            const active = isActive(item.path) && !inSettings;
+            const active = isActive(item.path) && !inMenu;
             return (
               <button
                 key={item.path}
@@ -263,144 +263,20 @@ export function MobileNavBar({
           })}
           <button
             type="button"
-            onClick={() => setSheetOpen(true)}
-            aria-haspopup="dialog"
-            aria-current={inSettings ? 'page' : undefined}
+            onClick={() => onNavigate('/menu')}
+            aria-current={inMenu ? 'page' : undefined}
             className={cn(
               'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-              inSettings ? 'text-blue-700' : 'text-gray-500'
+              inMenu ? 'text-blue-700' : 'text-gray-500'
             )}
           >
-            <UserRound size={20} strokeWidth={inSettings ? 2.4 : 2} />
-            Профиль
+            <LayoutGrid size={20} strokeWidth={inMenu ? 2.4 : 2} />
+            Меню
           </button>
         </div>
       </nav>
 
-      {sheetOpen && (
-        <MobileProfileSheet
-          currentPath={currentPath}
-          onNavigate={path => { setSheetOpen(false); onNavigate(path); }}
-          onClose={() => setSheetOpen(false)}
-        />
-      )}
     </>
-  );
-}
-
-function MobileProfileSheet({
-  currentPath,
-  onNavigate,
-  onClose,
-}: {
-  currentPath: string;
-  onNavigate: (path: string) => void;
-  onClose: () => void;
-}) {
-  const { user, signOut } = useAuth();
-  const provider = useProvider();
-  const { workspace, setWorkspace } = useWorkspace();
-  const [switching, setSwitching] = useState(false);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end lg:hidden" role="dialog" aria-modal="true" aria-label="Профиль">
-      <div className="absolute inset-0 bg-gray-950/40" onClick={onClose} />
-      <div className="relative max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-background pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-5">
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-gray-950">{user?.name}</p>
-            <p className="truncate text-sm text-gray-500">{user?.phone}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Закрыть"
-            className="-mr-1 rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* The workspace switch belongs here on a phone: the header that carries it on a desktop
-            is not on screen, and this sheet is where everything about «who am I working as» lives. */}
-        <div className="border-y border-gray-100 px-5 py-3">
-          <p className="pb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">Направление</p>
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-            {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { setWorkspace(key); onClose(); }}
-                className={cn(
-                  'flex-1 rounded-lg px-3 py-1.5 text-sm transition',
-                  key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
-                )}
-              >
-                {workspaceMeta[key].label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setSwitching(true)}
-          className="flex w-full items-center gap-3 border-b border-gray-100 px-5 py-3 text-left transition hover:bg-gray-50"
-        >
-          <Building2 size={18} className="shrink-0 text-gray-400" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-gray-900">{provider.displayName}</span>
-            <span className="block text-xs text-gray-500">Сменить кабинет</span>
-          </span>
-          <Repeat size={15} className="shrink-0 text-gray-400" />
-        </button>
-
-        {profileMenuGroups.map(group => (
-          <div key={group.title} className="py-2">
-            <p className="px-5 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
-            {group.items.map(item => {
-              const active = currentPath.startsWith(item.path);
-              return (
-                <button
-                  key={item.path}
-                  type="button"
-                  onClick={() => onNavigate(item.path)}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-5 py-2.5 text-left text-sm transition',
-                    active ? 'bg-blue-50 text-blue-700' : 'text-gray-800 hover:bg-gray-50'
-                  )}
-                >
-                  <item.icon size={17} className={active ? 'text-blue-600' : 'text-gray-400'} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="flex w-full items-center gap-3 border-t border-gray-100 px-5 py-3.5 text-left text-sm text-red-600 transition hover:bg-red-50"
-        >
-          <LogOut size={17} /> Выйти
-        </button>
-      </div>
-
-      {switching && <CabinetSwitchDialog open currentProviderId={provider.providerId} onClose={() => setSwitching(false)} />}
-    </div>,
-    document.body
   );
 }
 

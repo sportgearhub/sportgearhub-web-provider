@@ -10,6 +10,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
 import { ScanPage } from './features/scan/ScanPage';
+import { MenuPage } from './features/menu/MenuPage';
 import {
   ExperienceBookingsPage,
   ExperienceDashboardPage,
@@ -101,6 +102,11 @@ function ExperienceRoute({ page }: { page: 'home' | 'list' | 'schedule' | 'booki
   return <ExperienceDashboardPage onNavigate={navigateTo} />;
 }
 
+function MenuRoute() {
+  const { navigateTo } = useConsole();
+  return <MenuPage onNavigate={navigateTo} />;
+}
+
 function ScanRoute() {
   const { navigateTo } = useConsole();
   return <ScanPage onNavigate={navigateTo} />;
@@ -154,6 +160,7 @@ const router = createBrowserRouter([
           { path: 'bookings', element: <BookingsRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
+          { path: 'menu', element: <MenuRoute /> },
 
           // Впечатления — a prototype workspace with no API behind it yet.
           { path: 'x', element: <ExperienceRoute page="home" /> },
