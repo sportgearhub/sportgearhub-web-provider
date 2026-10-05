@@ -19,6 +19,7 @@ import type { EquipmentAttribute } from '../../lib/api-client';
 import { toAttributeMap } from '../../types';
 import type { ProductCategory, ProductStatus, ProviderLocation, RentalTier } from '../../types';
 import { ProductAttributeFields, attributeError } from './ProductAttributeFields';
+import { submitRefusalMessage } from './productStatus';
 import { ProductImagesSection } from './ProductImagesSection';
 
 type StepKey = 'about' | 'attributes' | 'price' | 'policy' | 'media';
@@ -267,15 +268,15 @@ export function ProductForm({
         try {
           await productsApi.submitForReview(product.productId);
         } catch (err) {
-          // Refused means something is still missing. The card's own sections say what, in the
-          // same words the endpoint judged it by, so they are read back rather than guessed at.
-          const gaps = await productsApi.get(product.productId)
-            .then(saved => (saved.sections ?? []).filter(section => !section.isComplete))
-            .catch(() => []);
+          const reason = await submitRefusalMessage(
+            product.productId,
+            err instanceof ApiError ? err.message : 'Попробуйте ещё раз.',
+            id => productsApi.get(id)
+          );
           setSaving(false);
-          setError(gaps.length > 0
-            ? `Карточка сохранена, но на проверку не ушла. Не хватает: ${gaps.map(gap => gap.title.toLowerCase()).join(', ')}.`
-            : err instanceof ApiError ? err.message : 'Карточка сохранена, но отправить на проверку не удалось.');
+          // Saved but not sent: both halves matter, and leaving either one out is how a seller
+          // ends up re-entering work that was kept, or believing a card went that did not.
+          setError(`Изменения сохранены, но карточка не ушла на проверку. ${reason}`);
           return;
         }
       }

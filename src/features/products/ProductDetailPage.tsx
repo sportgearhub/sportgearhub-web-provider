@@ -15,6 +15,7 @@ import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { infoSectionLabel } from './infoSections';
+import { submitRefusalMessage } from './productStatus';
 import { storefrontProductUrl } from '../providers/providerStatus';
 import type {
   OfferInfoSection,
@@ -88,6 +89,28 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       setProduct(await action());
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось выполнить действие.');
+      // The card did not change, but what we are showing about it might be stale — a refusal is
+      // usually about completeness, and the readiness card is the thing that explains it.
+      void load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Submitting is the one action whose refusal has something useful to say. */
+  const submit = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      setProduct(await productsApi.submitForReview(productId));
+    } catch (err) {
+      const reason = await submitRefusalMessage(
+        productId,
+        err instanceof ApiError ? err.message : 'Не удалось отправить на проверку.',
+        id => productsApi.get(id)
+      );
+      setError(`Карточка не ушла на проверку. ${reason}`);
+      void load();
     } finally {
       setBusy(false);
     }
@@ -135,7 +158,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             <Pencil size={14} /> Редактировать
           </Button>
           {canSubmit && (
-            <Button variant="primary" size="sm" loading={busy} onClick={() => void run(() => productsApi.submitForReview(productId))}>
+            <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>
               <Send size={13} /> Отправить на проверку
             </Button>
           )}

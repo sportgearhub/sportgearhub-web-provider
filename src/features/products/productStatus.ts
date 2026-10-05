@@ -1,4 +1,4 @@
-import type { ProductStatus } from '../../types';
+import type { ProductSection, ProductStatus } from '../../types';
 
 type BadgeVariant = 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'orange';
 
@@ -26,4 +26,25 @@ export const productStatusFilterOptions = [
 export function formatPrice(price: number | null | undefined) {
   if (price === null || price === undefined) return null;
   return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(price)} ₽`;
+}
+
+/**
+ * Why a card would not go to review, in the words the endpoint judged it by.
+ *
+ * `submit-for-review` refuses with a status, not a list. The card's own `sections` are the same
+ * computation it ran, so they are read back rather than guessed at — and read back *after* the
+ * refusal, because what was missing a second ago is the whole question.
+ */
+export async function submitRefusalMessage(
+  productId: string,
+  fallback: string,
+  load: (id: string) => Promise<{ sections?: ProductSection[] }>
+): Promise<string> {
+  const gaps = await load(productId)
+    .then(saved => (saved.sections ?? []).filter(section => !section.isComplete))
+    .catch(() => [] as ProductSection[]);
+
+  return gaps.length > 0
+    ? `Не хватает: ${gaps.map(gap => gap.title.toLowerCase()).join(', ')}.`
+    : fallback;
 }
