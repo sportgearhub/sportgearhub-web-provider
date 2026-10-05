@@ -10,6 +10,13 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
 import { ScanPage } from './features/scan/ScanPage';
+import {
+  ExperienceBookingsPage,
+  ExperienceDashboardPage,
+  ExperienceFinancesPage,
+  ExperienceSchedulePage,
+  ExperiencesPage,
+} from './features/experiences/ExperiencePages';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductForm } from './features/products/ProductForm';
@@ -85,6 +92,15 @@ function BookingsRoute() {
   return <BookingsPage onNavigate={navigateTo} />;
 }
 
+function ExperienceRoute({ page }: { page: 'home' | 'list' | 'schedule' | 'bookings' | 'finances' }) {
+  const { navigateTo } = useConsole();
+  if (page === 'list') return <ExperiencesPage onNavigate={navigateTo} />;
+  if (page === 'schedule') return <ExperienceSchedulePage />;
+  if (page === 'bookings') return <ExperienceBookingsPage />;
+  if (page === 'finances') return <ExperienceFinancesPage />;
+  return <ExperienceDashboardPage onNavigate={navigateTo} />;
+}
+
 function ScanRoute() {
   const { navigateTo } = useConsole();
   return <ScanPage onNavigate={navigateTo} />;
@@ -138,6 +154,13 @@ const router = createBrowserRouter([
           { path: 'bookings', element: <BookingsRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
+
+          // Впечатления — a prototype workspace with no API behind it yet.
+          { path: 'x', element: <ExperienceRoute page="home" /> },
+          { path: 'x/experiences', element: <ExperienceRoute page="list" /> },
+          { path: 'x/schedule', element: <ExperienceRoute page="schedule" /> },
+          { path: 'x/bookings', element: <ExperienceRoute page="bookings" /> },
+          { path: 'x/finances', element: <ExperienceRoute page="finances" /> },
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },

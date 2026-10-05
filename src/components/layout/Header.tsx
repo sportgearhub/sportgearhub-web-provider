@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Building2,
   CalendarCheck,
+  Check,
+  CalendarDays,
   ChevronDown,
   CreditCard,
   FileText,
@@ -13,9 +15,11 @@ import {
   Package,
   Repeat,
   ScanLine,
+  Sparkles,
   Store,
   UserRound,
   Users,
+  Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -24,13 +28,26 @@ import { useProvider } from '../../features/providers/ProviderContext';
 import { BrandWordmark } from './BrandWordmark';
 import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
+import { useWorkspace, workspaceMeta, type Workspace } from '../../features/workspace/workspace';
 
-const navItems: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: 'Дашборд', path: '/', icon: LayoutDashboard },
-  { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
-  { label: 'Каталог', path: '/products', icon: Package },
-  { label: 'Сканер', path: '/scan', icon: ScanLine },
-];
+type NavItem = { label: string; path: string; icon: LucideIcon };
+
+/** Each workspace has its own sections; nothing is shared but the cabinet underneath them. */
+const navByWorkspace: Record<Workspace, NavItem[]> = {
+  rental: [
+    { label: 'Дашборд', path: '/', icon: LayoutDashboard },
+    { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
+    { label: 'Каталог', path: '/products', icon: Package },
+    { label: 'Сканер', path: '/scan', icon: ScanLine },
+  ],
+  experience: [
+    { label: 'Главная', path: '/x', icon: LayoutDashboard },
+    { label: 'Расписание', path: '/x/schedule', icon: CalendarDays },
+    { label: 'Впечатления', path: '/x/experiences', icon: Sparkles },
+    { label: 'Брони', path: '/x/bookings', icon: CalendarCheck },
+    { label: 'Финансы', path: '/x/finances', icon: Wallet },
+  ],
+};
 
 // Settings live in the profile menu, grouped as they are in the settings sidebar.
 const profileMenuGroups: { title: string; items: { label: string; path: string; icon: LucideIcon }[] }[] = [
@@ -72,7 +89,9 @@ interface HeaderProps {
 export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) {
   const { user, signOut } = useAuth();
   const provider = useProvider();
-  const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
+  const { workspace } = useWorkspace();
+  const isActive = (path: string) =>
+    path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
@@ -103,12 +122,14 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
         >
           <BrandWordmark size="sm" className="sm:text-lg" />
         </button>
+
+        <div className="hidden lg:block"><WorkspaceSwitch /></div>
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         {/* Below `lg` the sections live in the bar at the bottom of the screen, within a thumb's
             reach, rather than at the top where no thumb goes. */}
         <nav className="hidden items-center gap-1 lg:flex lg:flex-1 lg:justify-center" aria-label="Разделы">
-          {navItems.map(item => (
+          {navByWorkspace[workspace].map(item => (
             <button
               key={item.path}
               type="button"
@@ -153,6 +174,55 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
  * rather than a dropdown — a menu anchored under a trigger that already sits on the bottom edge
  * would open off the screen.
  */
+/**
+ * Which business you are running, as a switch rather than a setting.
+ *
+ * Прокат and Впечатления share a cabinet, a legal party and a payout account, and share no screens
+ * at all — so this changes the whole console rather than filtering a list. It is a dropdown and
+ * not a tab bar because it is not navigation: nothing above it changes, everything below it does.
+ */
+function WorkspaceSwitch() {
+  const { workspace, setWorkspace } = useWorkspace();
+  const menu = useDropdown('left', 240);
+
+  return (
+    <>
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        onClick={menu.toggle}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        className="flex h-9 items-center gap-1.5 rounded-lg border border-input px-2.5 text-sm font-medium text-foreground transition hover:bg-sidebar-accent"
+      >
+        {workspaceMeta[workspace].label}
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+      {menu.render(
+        <div className="py-1">
+          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => { setWorkspace(key); menu.close(); }}
+              className={cn(
+                'flex w-full items-start gap-2.5 px-3 py-2 text-left transition hover:bg-gray-50',
+                key === workspace ? 'text-blue-700' : 'text-gray-900'
+              )}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{workspaceMeta[key].label}</span>
+                <span className="block text-xs text-gray-500">{workspaceMeta[key].hint}</span>
+              </span>
+              {key === workspace && <Check size={15} className="mt-0.5 shrink-0 text-blue-600" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function MobileNavBar({
   currentPath,
   onNavigate,
@@ -161,8 +231,10 @@ export function MobileNavBar({
   onNavigate: (path: string) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { workspace } = useWorkspace();
   const inSettings = currentPath.startsWith('/settings');
-  const isActive = (path: string) => (path === '/' ? currentPath === '/' : currentPath.startsWith(path));
+  const isActive = (path: string) =>
+    path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
   return (
     <>
@@ -171,7 +243,7 @@ export function MobileNavBar({
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-background pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <div className="flex">
-          {navItems.map(item => {
+          {navByWorkspace[workspace].map(item => {
             const active = isActive(item.path) && !inSettings;
             return (
               <button
@@ -227,6 +299,7 @@ function MobileProfileSheet({
 }) {
   const { user, signOut } = useAuth();
   const provider = useProvider();
+  const { workspace, setWorkspace } = useWorkspace();
   const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
@@ -259,10 +332,31 @@ function MobileProfileSheet({
           </button>
         </div>
 
+        {/* The workspace switch belongs here on a phone: the header that carries it on a desktop
+            is not on screen, and this sheet is where everything about «who am I working as» lives. */}
+        <div className="border-y border-gray-100 px-5 py-3">
+          <p className="pb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">Направление</p>
+          <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+            {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setWorkspace(key); onClose(); }}
+                className={cn(
+                  'flex-1 rounded-lg px-3 py-1.5 text-sm transition',
+                  key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
+                )}
+              >
+                {workspaceMeta[key].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={() => setSwitching(true)}
-          className="flex w-full items-center gap-3 border-y border-gray-100 px-5 py-3 text-left transition hover:bg-gray-50"
+          className="flex w-full items-center gap-3 border-b border-gray-100 px-5 py-3 text-left transition hover:bg-gray-50"
         >
           <Building2 size={18} className="shrink-0 text-gray-400" />
           <span className="min-w-0 flex-1">

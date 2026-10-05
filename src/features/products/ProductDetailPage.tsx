@@ -162,15 +162,17 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
               <Send size={13} /> Отправить на проверку
             </Button>
           )}
-          <ActionMenu
+          {!underReview && <ActionMenu
             label="Ещё"
             items={[
               ...(canPause ? [{ label: 'Снять с продажи', onClick: () => void run(() => productsApi.deactivate(productId)) }] : []),
               ...(canActivate ? [{ label: 'Вернуть в продажу', onClick: () => void run(() => productsApi.activate(productId)) }] : []),
-              { label: 'В архив', danger: true, onClick: () => void run(() => productsApi.archive(productId)) },
+              // Nothing while an administrator has the card — archiving it underneath them is
+              // precisely the kind of move «ничего» is meant to exclude.
+              ...(underReview ? [] : [{ label: 'В архив', danger: true, onClick: () => void run(() => productsApi.archive(productId)) }]),
             ]}
             disabled={busy}
-          />
+          />}
         </div>
       }
     >

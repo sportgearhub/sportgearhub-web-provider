@@ -5,6 +5,7 @@ import { selectProvider, useSelectedProviderId } from '../../lib/active-provider
 import { ProviderContextProvider } from '../../features/providers/ProviderContext';
 import { statusMeta } from '../../features/providers/providerStatus';
 import { Header, MobileNavBar } from './Header';
+import { WorkspaceContext, WORKSPACE_STORAGE_KEY, readWorkspace, type Workspace } from '../../features/workspace/workspace';
 import { PageHeading, type PageBreadcrumb } from './PageHeading';
 
 export type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageBreadcrumb[] };
@@ -15,6 +16,11 @@ const pageConfig: Record<string, PageConfig> = {
   // Заказы draws its own heading, with the count in it, the way the catalogue does.
   '/bookings': { title: '' },
   '/scan': { title: '' },
+  '/x': { title: '' },
+  '/x/experiences': { title: '' },
+  '/x/schedule': { title: '' },
+  '/x/bookings': { title: '' },
+  '/x/finances': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },
@@ -51,6 +57,9 @@ function pageFor(relativePath: string): PageConfig {
  * with exactly one cabinet never sees the picker: it is selected for them.
  */
 export function ConsoleLayout() {
+  // Which business this cabinet is being used for right now. Persisted, because a seller who runs
+  // both does not want to re-choose on every visit.
+  const [workspace, setWorkspaceState] = useState<Workspace>(readWorkspace);
   const selectedId = useSelectedProviderId();
   const { providers, loading } = useAuth();
   const navigate = useNavigate();
@@ -78,6 +87,12 @@ export function ConsoleLayout() {
 
   const navigateTo = (path: string) => navigate(path);
 
+  const setWorkspace = (next: Workspace) => {
+    setWorkspaceState(next);
+    try { localStorage.setItem(WORKSPACE_STORAGE_KEY, next); } catch { /* private mode */ }
+    navigate(next === 'experience' ? '/x' : '/');
+  };
+
   const page = headerContent ?? pageFor(relativePath);
   const task = taskFor(relativePath);
   const status = statusMeta(provider.status);
@@ -85,6 +100,7 @@ export function ConsoleLayout() {
 
   return (
     <ProviderContextProvider provider={provider}>
+    <WorkspaceContext.Provider value={{ workspace, setWorkspace }}>
       {/* Grey ground on a phone so the white sections read as cards; plain white on a desktop,
           where the console is a page rather than an app. */}
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50 lg:bg-background">
@@ -116,6 +132,7 @@ export function ConsoleLayout() {
           </div>
         </main>
       </div>
+    </WorkspaceContext.Provider>
     </ProviderContextProvider>
   );
 }
