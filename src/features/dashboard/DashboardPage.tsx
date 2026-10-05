@@ -10,6 +10,7 @@ import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from
 import { useProvider } from '../providers/ProviderContext';
 import { CabinetSwitchDialog } from '../providers/CabinetSwitchDialog';
 import { dayBounds } from '../bookings/bookingMeta';
+import { useWorkspace, workspaceMeta, type Workspace } from '../workspace/workspace';
 import { statusMeta } from '../providers/providerStatus';
 
 interface DashboardPageProps {
@@ -40,6 +41,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const { workspace, setWorkspace } = useWorkspace();
   const [today, setToday] = useState<{ handover: number; ret: number; awaiting: number } | null>(null);
 
   const load = async () => {
@@ -98,6 +100,23 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         <p className="text-sm text-gray-500">{todayLabel}</p>
         {/* The header used to carry the cabinet's name on every screen. Without it on a phone,
             the one place that must say which cabinet you are in is the one you land on. */}
+        {/* Direction first, cabinet second: both answer «как я сейчас работаю», and on a phone
+            neither is in a header, because there is no header. */}
+        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1 lg:hidden">
+          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setWorkspace(key)}
+              className={`flex-1 rounded-lg px-3 py-1.5 text-sm transition ${
+                key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
+              }`}
+            >
+              {workspaceMeta[key].label}
+            </button>
+          ))}
+        </div>
+
         <button
           type="button"
           onClick={() => setSwitching(true)}

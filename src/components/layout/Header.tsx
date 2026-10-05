@@ -123,7 +123,7 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
           <BrandWordmark size="sm" className="sm:text-lg" />
         </button>
 
-        <div className="hidden lg:block"><WorkspaceSwitch /></div>
+        <WorkspaceSwitch />
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         {/* Below `lg` the sections live in the bar at the bottom of the screen, within a thumb's
