@@ -60,7 +60,15 @@ const PAGE_TITLES: Record<string, string> = { '/ratings': 'Оценки' };
  * inside the console and keeps the section bar, while writing a card takes the whole screen, since
  * offering «Каталог» halfway through is offering to throw the draft away.
  */
-function taskFor(relativePath: string): { title: string; backTo: string; hideNav: boolean; help?: string } | null {
+function taskFor(relativePath: string): {
+  title: string;
+  backTo: string;
+  hideNav: boolean;
+  help?: string;
+  center?: boolean;
+} | null {
+  // The viewfinder is the page: a bar to leave by and the camera under it, nothing across it.
+  if (relativePath === '/scan') return { title: 'Сканер', backTo: '/', hideNav: true, center: true };
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
   if (relativePath === '/products/groups') {
     return {

@@ -88,7 +88,7 @@ interface HeaderProps {
    * the screen — the header becomes a way back and the name of what you are doing, and the section
    * bar goes away, because leaving halfway through by tapping «Каталог» is not a thing to offer.
    */
-  task?: { title: string; backTo: string; help?: string } | null;
+  task?: { title: string; backTo: string; help?: string; center?: boolean } | null;
 }
 
 export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) {
@@ -102,7 +102,7 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
     <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm">
       <div className="mx-auto flex min-h-16 w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
         {task ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
+          <div className="relative flex min-w-0 flex-1 items-center gap-2 lg:hidden">
             <button
               type="button"
               onClick={() => onNavigate(task.backTo)}
@@ -111,7 +111,18 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
             >
               <ArrowLeft size={20} />
             </button>
-            <span className="min-w-0 flex-1 truncate text-base font-semibold text-gray-950">{task.title}</span>
+            {/* A centred name is laid over the bar rather than placed in it, so it is centred on
+                the screen and not on whatever is left of it beside the arrow. */}
+            <span
+              className={cn(
+                'truncate text-base font-semibold text-gray-950',
+                task.center
+                  ? 'pointer-events-none absolute left-1/2 max-w-[60%] -translate-x-1/2 text-center'
+                  : 'min-w-0 flex-1'
+              )}
+            >
+              {task.title}
+            </span>
             {task.help && <TaskHelp title={task.title} text={task.help} />}
           </div>
         ) : null}
@@ -308,7 +319,7 @@ function TaskHelp({ title, text }: { title: string; text: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Справка"
-        className="-mr-2 shrink-0 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+        className="-mr-2 ml-auto shrink-0 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
       >
         <HelpCircle size={20} />
       </button>
