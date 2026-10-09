@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, financeApi } from '../../lib/api-client';
@@ -19,6 +20,7 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
   const [statement, setStatement] = useState<SellerStatement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,36 +84,65 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
               <ul className="mt-2 divide-y divide-gray-100">
                 {statement.lines.map(line => {
                   const state = accrualState(line.state);
+                  const open = openKey === line.bookingNumber;
                   return (
-                    <li key={line.bookingNumber} className="py-3">
-                      <div className="flex items-start gap-3">
-                        <span className="min-w-0 flex-1">
-                          <span className="line-clamp-2 text-sm font-medium leading-5 text-gray-900">
-                            {line.productTitle}
+                    <li key={line.bookingNumber}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenKey(open ? null : line.bookingNumber)}
+                        aria-expanded={open}
+                        className="w-full py-3 text-left"
+                      >
+                        <span className="flex items-start gap-3">
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-2 text-sm font-medium leading-5 text-gray-900">
+                              {line.productTitle}
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-gray-500">
+                              №{line.bookingNumber} · {shortDate(line.rentalStartAt)}
+                            </span>
                           </span>
-                          <span className="mt-0.5 block truncate text-xs text-gray-500">
-                            №{line.bookingNumber} · {shortDate(line.rentalStartAt)}
+                          <span className="shrink-0 text-right">
+                            <span className="block text-sm font-semibold text-gray-950">
+                              {money(line.sellerAmount)}
+                            </span>
+                            <span className="mt-0.5 block text-[11px] text-gray-400">
+                              из {money(line.grossAmount)}
+                            </span>
                           </span>
+                          <ChevronDown
+                            size={16}
+                            className={`mt-0.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                          />
                         </span>
-                        <span className="shrink-0 text-right">
-                          <span className="block text-sm font-semibold text-gray-950">
-                            {money(line.sellerAmount)}
-                          </span>
-                          <span className="mt-0.5 block text-[11px] text-gray-400">
-                            из {money(line.grossAmount)}
-                          </span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <Badge variant={state.variant} size="xs" tone="strong" shape="square">
+                            {state.label}
+                          </Badge>
+                          {/* A cancelled booking stays in the statement with nothing owed: the seller
+                              saw that booking, and a line that silently vanishes reads as money lost. */}
+                          {line.refundedAmount > 0 && (
+                            <span className="text-xs text-gray-500">возврат {money(line.refundedAmount)}</span>
+                          )}
                         </span>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <Badge variant={state.variant} size="xs" tone="strong" shape="square">
-                          {state.label}
-                        </Badge>
-                        {/* A cancelled booking stays in the statement with nothing owed: the seller
-                            saw that booking, and a line that silently vanishes reads as money lost. */}
-                        {line.refundedAmount > 0 && (
-                          <span className="text-xs text-gray-500">возврат {money(line.refundedAmount)}</span>
-                        )}
-                      </div>
+                      </button>
+
+                      {open && (
+                        <dl className="mb-3 rounded-xl bg-gray-50 p-3 text-sm">
+                          <Row label="Клиент заплатил" value={money(line.grossAmount)} />
+                          <Row label="Комиссия площадки" value={money(-line.commissionAmount)} />
+                          {line.refundedAmount > 0 && (
+                            <Row label="Возвращено клиенту" value={money(-line.refundedAmount)} />
+                          )}
+                          <Row label="Вам" value={money(line.sellerAmount)} strong />
+                          <Row
+                            label="Аренда"
+                            value={`${shortDate(line.rentalStartAt)} — ${shortDate(line.rentalEndAt)}`}
+                          />
+                          {/* As of the week's close, not as of now — that is what a statement is. */}
+                          <Row label="Статус на конец недели" value={state.label} />
+                        </dl>
+                      )}
                     </li>
                   );
                 })}
@@ -128,6 +159,15 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-gray-200/70 py-1.5 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-gray-500">{label}</dt>
+      <dd className={strong ? 'shrink-0 font-semibold text-gray-950' : 'shrink-0 text-gray-900'}>{value}</dd>
     </div>
   );
 }

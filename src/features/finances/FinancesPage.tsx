@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, CreditCard, Info, Receipt, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronRight, CreditCard, Receipt, Wallet } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { BottomSheet } from '../../components/ui/BottomSheet';
-import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, financeApi, providerApi } from '../../lib/api-client';
 import type { BalanceFees, BalancePeriodsPage, BalanceSummary, PayoutDetails } from '../../types';
@@ -45,6 +43,8 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [costsOpen, setCostsOpen] = useState(false);
+  /** The same numbers in roubles or as a share of what the customer paid. */
+  const [unit, setUnit] = useState<'money' | 'percent'>('money');
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +84,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
   }, [payout]);
 
   const commission = fees?.platformCommission;
+  const show = (amount: number, share: number) => (unit === 'money' ? money(amount) : percent(share));
 
   return (
     <div className="space-y-2 pb-8 sm:space-y-4 sm:px-6">
@@ -112,6 +113,13 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                   {money(balance?.heldAmount ?? 0)}
                 </span>
               </span>
+              <button
+                type="button"
+                onClick={() => onNavigate('/settings/payouts')}
+                className="shrink-0 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition active:bg-blue-100"
+              >
+                Управлять
+              </button>
             </div>
 
             <p className="mt-1 text-xs text-gray-500">
@@ -160,14 +168,14 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-gray-950">Движение</h2>
-          <div className="flex shrink-0 gap-1 rounded-xl bg-gray-100 p-1">
+          <div className="flex shrink-0 gap-1">
             {RANGES.map(range => (
               <button
                 key={range.value}
                 type="button"
                 onClick={() => setDays(range.value)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                  days === range.value ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'
+                  days === range.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
                 {range.label}
@@ -179,13 +187,25 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         {periods ? (
           <>
             {/* The identity is meant to be checkable on screen: начало + начислено + выплачено =
-                конец, with выплачено negative. Held sits beside the sum, not inside it. */}
-            <dl className="mt-3 divide-y divide-gray-100 text-sm">
-              <Line label="На начало" value={money(periods.totals.startAmount)} />
-              <Line label="Начислено" value={money(periods.totals.accruedAmount)} />
-              <Line label="Выплачено" value={money(periods.totals.paidAmount)} />
-              <Line label="На конец" value={money(periods.totals.endAmount)} strong />
-            </dl>
+                конец, with выплачено negative. The two movements are the figures; the two states
+                are the box under them, which is the shape the references use. */}
+            <div className="mt-3 rounded-2xl border border-gray-200 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Figure label="Начислено" value={money(periods.totals.accruedAmount)} />
+                <Figure label="Выплачено" value={money(periods.totals.paidAmount)} />
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-3 px-1">
+                <span>
+                  <span className="block text-xs text-gray-500">На конец периода</span>
+                  <span className="block text-xl font-semibold text-gray-950">
+                    {money(periods.totals.endAmount)}
+                  </span>
+                </span>
+                <span className="pb-1 text-xs text-gray-400">
+                  было {money(periods.totals.startAmount)}
+                </span>
+              </div>
+            </div>
 
             {periods.items.length > 0 && (
               <ul className="mt-3 space-y-2">
@@ -226,36 +246,109 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         )}
       </section>
 
-      {/* Where the customer's money went. */}
+      {/* Where the customer's money went: a list that opens, rather than a figure and a sheet.
+          The platform's own costs are the rows inside the commission — nested, because they come
+          out of it and the seller pays none of them. */}
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
-        <h2 className="text-base font-semibold text-gray-950">Куда ушли деньги</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-gray-950">Куда ушли деньги</h2>
+          {/* Every percent is of what the customer paid, not of the line above, so the two views
+              are the same numbers said twice rather than two different calculations. */}
+          <div className="flex shrink-0 gap-1">
+            {(['money', 'percent'] as const).map(mode => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setUnit(mode)}
+                className={`h-7 w-8 rounded-lg text-xs font-semibold transition ${
+                  unit === mode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {mode === 'money' ? '₽' : '%'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {fees && commission ? (
           <>
             <dl className="mt-3 divide-y divide-gray-100 text-sm">
-              <Line label="Клиенты заплатили" value={money(fees.grossAmount)} />
-              <Line
-                label={`Ваша выручка · ${percent(fees.sellerPercent)}`}
-                value={money(fees.sellerAmount)}
-                strong
-              />
-              <Line
-                label={`Комиссия площадки · ${percent(commission.percent)}`}
-                value={money(commission.amount)}
-              />
+              <Line label="Клиенты заплатили" value={show(fees.grossAmount, 100)} />
+              <Line label="Ваша выручка" value={show(fees.sellerAmount, fees.sellerPercent)} strong />
+
+              <div className="py-2.5">
+                <button
+                  type="button"
+                  onClick={() => setCostsOpen(open => !open)}
+                  aria-expanded={costsOpen}
+                  className="flex w-full items-center gap-3 text-left"
+                >
+                  <span className="min-w-0 flex-1 text-gray-500">Комиссия площадки</span>
+                  <span className="shrink-0 text-gray-900">{show(commission.amount, commission.percent)}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`shrink-0 text-gray-400 transition-transform ${costsOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {costsOpen && (
+                  <div className="mt-2 rounded-xl bg-gray-50 p-3">
+                    <p className="text-xs leading-5 text-gray-600">
+                      Из неё площадка платит банку и оператору чеков. На вашу выручку это не влияет —
+                      вы эти расходы не несёте.
+                    </p>
+                    <dl className="mt-2 divide-y divide-gray-200/70 text-sm">
+                      {commission.platformCosts.map(cost => {
+                        const source = costSource(cost.source);
+                        return (
+                          <div key={cost.sysName} className="flex items-center gap-2 py-2">
+                            <dt className="min-w-0 flex-1 text-gray-700">
+                              {costName(cost.sysName)}
+                              <Badge
+                                variant={cost.source === 'register' ? 'green' : cost.source === 'tariff' ? 'blue' : 'orange'}
+                                size="xs"
+                                tone="strong"
+                                shape="square"
+                              >
+                                {source.label}
+                              </Badge>
+                            </dt>
+                            <dd className="shrink-0 text-gray-900">{show(cost.amount, cost.percent)}</dd>
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center gap-2 py-2">
+                        <dt className="min-w-0 flex-1 font-medium text-gray-950">Остаётся площадке</dt>
+                        {/* Negative on a small hire, where the bank's floor for taking a payment
+                            exceeds the commission. The sign shows. */}
+                        <dd
+                          className={`shrink-0 font-semibold ${
+                            commission.netAmount < 0 ? 'text-red-600' : 'text-gray-950'
+                          }`}
+                        >
+                          {show(commission.netAmount, commission.netPercent)}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-2 text-[11px] leading-4 text-gray-500">
+                      {commission.platformCosts.some(cost => cost.source !== 'register')
+                        ? 'Часть сумм посчитана по тарифу — реестр банка за этот период ещё не прочитан.'
+                        : 'Все суммы сверены с реестром банка.'}
+                      {' '}Полностью возвращённые брони в расчёт не входят.
+                    </p>
+                  </div>
+                )}
+              </div>
             </dl>
 
-            {/* Nested, because these come out of our commission and the seller pays none of them.
-                Listed in their column, we would be telling them we took money we did not take. */}
+            {/* The figures above are the whole period; the bookings behind them are a page. */}
             <button
               type="button"
-              onClick={() => setCostsOpen(true)}
-              className="mt-2 flex w-full items-start gap-2 rounded-xl bg-blue-50 px-3 py-2.5 text-left transition active:bg-blue-100"
+              onClick={() => onNavigate('/finances/accruals')}
+              className="mt-2 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition active:bg-gray-100"
             >
-              <Info size={15} className="mt-0.5 shrink-0 text-blue-700" />
-              <span className="min-w-0 flex-1 text-xs leading-5 text-blue-900">
-                Из комиссии площадка платит банку и оператору чеков {money(commission.platformCostsAmount)} —
-                это не ваши расходы. Подробнее
-              </span>
+              <span className="min-w-0 flex-1 text-left">Посмотреть по броням</span>
+              <ChevronRight size={16} className="shrink-0 text-gray-400" />
             </button>
           </>
         ) : (
@@ -288,76 +381,6 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         </button>
       </section>
 
-      <BottomSheet
-        open={costsOpen}
-        onClose={() => setCostsOpen(false)}
-        title="Расходы площадки"
-        center
-        footer={
-          <Button variant="secondary" className="w-full justify-center" onClick={() => setCostsOpen(false)}>
-            Закрыть
-          </Button>
-        }
-      >
-        {commission && (
-          <div className="px-5 pb-4 pt-1">
-            <p className="text-sm leading-5 text-gray-600">
-              Эти расходы площадка платит из своей комиссии: приём платежа, перевод вам и чек
-              покупателю. На вашу выручку они не влияют.
-            </p>
-
-            <dl className="mt-3 divide-y divide-gray-100 text-sm">
-              {commission.platformCosts.map(cost => {
-                const source = costSource(cost.source);
-                return (
-                  <div key={cost.sysName} className="flex items-start gap-3 py-2.5">
-                    <dt className="min-w-0 flex-1">
-                      <span className="block text-gray-900">{costName(cost.sysName)}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5">
-                        <Badge
-                          variant={cost.source === 'register' ? 'green' : cost.source === 'tariff' ? 'blue' : 'orange'}
-                          size="xs"
-                          tone="strong"
-                          shape="square"
-                        >
-                          {source.label}
-                        </Badge>
-                        <span className="text-xs text-gray-500">{percent(cost.percent)}</span>
-                      </span>
-                    </dt>
-                    <dd className="shrink-0 text-gray-900">{money(cost.amount)}</dd>
-                  </div>
-                );
-              })}
-              <div className="flex items-center gap-3 py-2.5">
-                <dt className="min-w-0 flex-1 text-gray-500">Всего расходов</dt>
-                <dd className="shrink-0 text-gray-900">{money(commission.platformCostsAmount)}</dd>
-              </div>
-              {/* It can be negative, and the sign shows: on a small hire the bank's floor for
-                  taking a payment exceeds the commission. */}
-              <div className="flex items-center gap-3 py-2.5">
-                <dt className="min-w-0 flex-1 font-medium text-gray-950">
-                  Остаётся площадке · {percent(commission.netPercent)}
-                </dt>
-                <dd
-                  className={`shrink-0 font-semibold ${
-                    commission.netAmount < 0 ? 'text-red-600' : 'text-gray-950'
-                  }`}
-                >
-                  {money(commission.netAmount)}
-                </dd>
-              </div>
-            </dl>
-
-            <p className="mt-3 text-xs leading-5 text-gray-500">
-              {commission.platformCosts.some(cost => cost.source !== 'register')
-                ? 'Часть сумм посчитана по тарифу — банковский реестр за этот период ещё не прочитан.'
-                : 'Все суммы сверены с реестром банка.'}
-              {' '}Полностью возвращённые брони в расчёт не входят.
-            </p>
-          </div>
-        )}
-      </BottomSheet>
     </div>
   );
 }

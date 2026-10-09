@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { useToast } from '../../components/ui/Toast';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { ApiError, financeApi } from '../../lib/api-client';
+import { ApiError, bookingsApi, financeApi } from '../../lib/api-client';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
 import type { AccrualLine, Pagination as PageInfo } from '../../types';
 import { accrualState, isoDate, money, shortDate } from './financeFormat';
@@ -24,7 +26,7 @@ const RANGES = [
  * `state` here is as of now, where a statement's is as of that week's close. A line can read
  * «удерживается» in a statement for ever and «выплачено» here, and both are correct.
  */
-export function AccrualsPage() {
+export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [items, setItems] = useState<AccrualLine[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [days, setDays] = useState<number>(30);
@@ -33,6 +35,23 @@ export function AccrualsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const phone = useMediaQuery(PHONE);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+  const toast = useToast();
+
+  const openBooking = async (key: string, bookingNumber: string) => {
+    setOpening(key);
+    try {
+      const found = await bookingsApi.list({ filter: `booking_number=="${bookingNumber}"`, pageSize: 1 });
+      const booking = found.items?.[0];
+      if (booking) onNavigate(`/bookings/${booking.bookingId}`);
+      else toast.show('Бронирование не найдено — возможно, оно архивировано.');
+    } catch (err) {
+      toast.show(err instanceof ApiError ? err.message : 'Не удалось открыть бронирование.');
+    } finally {
+      setOpening(null);
+    }
+  };
 
   const filter = useMemo(() => {
     const from = new Date();
@@ -119,35 +138,85 @@ export function AccrualsPage() {
 
         {!loading && items.map(line => {
           const state = accrualState(line.state);
+          const key = `${line.bookingNumber}-${line.accruedAt ?? ''}`;
+          const open = openKey === key;
           return (
-            <li key={`${line.bookingNumber}-${line.accruedAt ?? ''}`} className="bg-white p-3 sm:rounded-xl">
-              <div className="flex items-start gap-3">
-                <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 text-sm font-medium leading-5 text-gray-900">
-                    {line.productTitle}
+            <li key={key} className="bg-white sm:rounded-xl">
+              {/* The row says what was earned; opening it says how that number was arrived at,
+                  which is three subtractions nobody should have to do in their head. */}
+              <button
+                type="button"
+                onClick={() => setOpenKey(open ? null : key)}
+                aria-expanded={open}
+                className="w-full p-3 text-left transition active:bg-gray-50"
+              >
+                <span className="flex items-start gap-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 text-sm font-medium leading-5 text-gray-900">
+                      {line.productTitle}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-gray-500">
+                      №{line.bookingNumber} · {shortDate(line.rentalStartAt)}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-gray-500">
-                    №{line.bookingNumber} · {shortDate(line.rentalStartAt)}
+                  <span className="shrink-0 text-right">
+                    <span className="block text-sm font-semibold text-gray-950">{money(line.sellerAmount)}</span>
+                    <span className="mt-0.5 block text-[11px] text-gray-400">из {money(line.grossAmount)}</span>
                   </span>
+                  <ChevronDown
+                    size={16}
+                    className={`mt-0.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                  />
                 </span>
-                <span className="shrink-0 text-right">
-                  <span className="block text-sm font-semibold text-gray-950">{money(line.sellerAmount)}</span>
-                  <span className="mt-0.5 block text-[11px] text-gray-400">из {money(line.grossAmount)}</span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Badge variant={state.variant} size="xs" tone="strong" shape="square">{state.label}</Badge>
+                  {/* Held with no release date means the gear has not been collected yet. */}
+                  {line.state === 'held' && (
+                    <span className="text-xs text-gray-500">
+                      {line.releasesAt ? `до ${shortDate(line.releasesAt)}` : 'после аренды'}
+                    </span>
+                  )}
+                  {line.paidAt && <span className="text-xs text-gray-500">выплачено {shortDate(line.paidAt)}</span>}
+                  {line.refundedAmount > 0 && (
+                    <span className="text-xs text-gray-500">возврат {money(line.refundedAmount)}</span>
+                  )}
                 </span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Badge variant={state.variant} size="xs" tone="strong" shape="square">{state.label}</Badge>
-                {/* Held with no release date means the gear has not been collected yet. */}
-                {line.state === 'held' && (
-                  <span className="text-xs text-gray-500">
-                    {line.releasesAt ? `до ${shortDate(line.releasesAt)}` : 'после аренды'}
-                  </span>
-                )}
-                {line.paidAt && <span className="text-xs text-gray-500">выплачено {shortDate(line.paidAt)}</span>}
-                {line.refundedAmount > 0 && (
-                  <span className="text-xs text-gray-500">возврат {money(line.refundedAmount)}</span>
-                )}
-              </div>
+              </button>
+
+              {open && (
+                <div className="px-3 pb-3">
+                  <dl className="rounded-xl bg-gray-50 p-3 text-sm">
+                    <Row label="Клиент заплатил" value={money(line.grossAmount)} />
+                    <Row label="Комиссия площадки" value={money(-line.commissionAmount)} />
+                    {line.refundedAmount > 0 && <Row label="Возвращено клиенту" value={money(-line.refundedAmount)} />}
+                    <Row label="Вам" value={money(line.sellerAmount)} strong />
+                    <Row label="Аренда" value={`${shortDate(line.rentalStartAt)} — ${shortDate(line.rentalEndAt)}`} />
+                    {line.accruedAt && <Row label="Начислено" value={shortDate(line.accruedAt) ?? '—'} />}
+                    <Row
+                      label={line.paidAt ? 'Выплачено' : 'Освободится'}
+                      value={
+                        line.paidAt
+                          ? shortDate(line.paidAt) ?? '—'
+                          : line.releasesAt ? shortDate(line.releasesAt) ?? '—' : 'после аренды'
+                      }
+                    />
+                  </dl>
+
+                  {/* The accrual carries the booking's number but not its id, so the booking is
+                      found the way the scanner finds one — by the number the customer can show. */}
+                  <button
+                    type="button"
+                    disabled={opening === key}
+                    onClick={() => void openBooking(key, line.bookingNumber)}
+                    className="mt-2 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition active:bg-gray-100 disabled:opacity-60"
+                  >
+                    <span className="min-w-0 flex-1 text-left">
+                      {opening === key ? 'Ищем бронирование…' : 'Открыть бронирование'}
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-gray-400" />
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}
@@ -161,9 +230,19 @@ export function AccrualsPage() {
       </ul>
 
       <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+      {toast.node}
       {!loading && !hasMore && items.length > 0 && (
         <p className="py-4 text-center text-xs text-gray-400">Это всё</p>
       )}
+    </div>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-gray-200/70 py-1.5 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-gray-500">{label}</dt>
+      <dd className={strong ? 'shrink-0 font-semibold text-gray-950' : 'shrink-0 text-gray-900'}>{value}</dd>
     </div>
   );
 }

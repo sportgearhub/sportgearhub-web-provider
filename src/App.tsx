@@ -133,6 +133,11 @@ function SettingsListRoute() {
   return <SettingsListPage onNavigate={navigateTo} />;
 }
 
+function AccrualsRoute() {
+  const { navigateTo } = useConsole();
+  return <AccrualsPage onNavigate={navigateTo} />;
+}
+
 function StatementRoute() {
   const { navigateTo } = useConsole();
   const { periodEnd = '' } = useParams();
@@ -227,7 +232,7 @@ const router = createBrowserRouter([
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
           { path: 'finances', element: <FinancesRoute /> },
-          { path: 'finances/accruals', element: <AccrualsPage /> },
+          { path: 'finances/accruals', element: <AccrualsRoute /> },
           { path: 'finances/statements/:periodEnd', element: <StatementRoute /> },
           { path: 'menu', element: <MenuRoute /> },
           { path: 'ratings', element: <RatingsPage /> },
