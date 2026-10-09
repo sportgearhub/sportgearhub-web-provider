@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { CameraOff, Loader2, QrCode, ScanLine } from 'lucide-react';
 import { ApiError, bookingsApi } from '../../lib/api-client';
-import { cn } from '../../lib/utils';
 import type { BookingListItem } from '../../types';
 import { ScanFrame } from './ScanFrame';
 import { useCodeScanner } from './useCodeScanner';
@@ -46,16 +45,54 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
   const camera = useCodeScanner({ active: true, onFound: findBooking });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-10">
-      {/* The viewfinder, in the middle of the screen — one object on the ground, under a bar that
-          floats on the same ground. A black rectangle filling every edge is a broken page; a
-          square you hold a phone up to is a thing you point. */}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* The lens takes everything under the bar. A camera in a box on a page is a page about a
+          camera; this is the camera, and the square in the middle is where to hold the code. */}
       <ScanFrame
         videoRef={camera.videoRef}
         scanning={camera.scanning}
         busy={looking}
         busyLabel="Ищем бронирование…"
-        className="w-full max-w-sm"
+        fill
+        overlay={
+          /* Laid over the picture, because there is no page left beside it. */
+          <>
+            {camera.scanning && (
+              <p className="pointer-events-none absolute inset-x-0 top-6 px-8 text-center text-sm leading-5 text-white/90">
+                Наведите камеру на QR-код в приложении клиента
+              </p>
+            )}
+
+            {error && (
+              <p className="absolute inset-x-4 top-4 rounded-xl bg-red-600 px-3 py-2.5 text-sm leading-5 text-white shadow-lg">
+                {error}
+              </p>
+            )}
+
+            {/* One action, never two: whichever of the two states it is in. */}
+            {camera.status !== 'starting' && !looking && (
+              <div className="absolute inset-x-0 bottom-0 flex justify-center p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                {camera.scanning ? (
+                  <button
+                    type="button"
+                    onClick={camera.pause}
+                    className="rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white backdrop-blur transition active:bg-white/25"
+                  >
+                    Остановить
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setError(''); camera.restart(); }}
+                    className="flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg transition active:bg-gray-200"
+                  >
+                    <ScanLine size={16} /> {camera.status === 'denied' ? 'Попробовать снова' : 'Сканировать'}
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        }
       >
         <div className="flex flex-col items-center gap-3 p-8 text-center">
           {camera.status === 'denied' ? (
@@ -73,40 +110,8 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
                 : 'Камера выключена.'}
           </p>
         </div>
+
       </ScanFrame>
-
-      <p className="mt-5 max-w-xs text-center text-sm leading-5 text-gray-600">
-        Наведите камеру на QR-код в приложении клиента — откроем его бронирование.
-      </p>
-
-      {error && (
-        <p className="mt-3 w-full max-w-sm rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-5 text-red-700">
-          {error}
-        </p>
-      )}
-
-      {/* One action under the frame, never two: whichever of the two states it is in. */}
-      {camera.status !== 'starting' && !looking && (
-        camera.scanning ? (
-          <button
-            type="button"
-            onClick={camera.pause}
-            className="mt-4 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-gray-900 shadow-sm transition active:bg-gray-100"
-          >
-            Остановить
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => { setError(''); camera.restart(); }}
-            className={cn(
-              'mt-4 flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:bg-blue-700'
-            )}
-          >
-            <ScanLine size={16} /> {camera.status === 'denied' ? 'Попробовать снова' : 'Сканировать'}
-          </button>
-        )
-      )}
     </div>
   );
 }
