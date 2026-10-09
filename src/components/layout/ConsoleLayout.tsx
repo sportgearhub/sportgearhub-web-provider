@@ -27,6 +27,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/finances': { title: '' },
   '/ratings': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
+  '/settings': { title: '' },
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },
   '/settings/locations': { title: '' },
@@ -42,12 +43,13 @@ const pageConfig: Record<string, PageConfig> = {
  * only thing on screen until it is done or abandoned.
  */
 const SETTINGS_TITLES: Record<string, string> = {
+  '/settings': 'Настройки',
   '/settings/shop': 'Профиль проката',
-  '/settings/shop-edit': 'Профиль проката',
+  '/settings/shop/edit': 'Редактирование профиля',
   '/settings/locations': 'Пункты проката',
   '/settings/employees': 'Сотрудники',
   '/settings/seller': 'Информация о продавце',
-  '/settings/seller-edit': 'Данные продавца',
+  '/settings/seller/edit': 'Данные продавца',
   '/settings/payouts': 'Реквизиты выплат',
   '/settings/contracts': 'Договоры',
   '/settings/account': 'Аккаунт',
@@ -135,9 +137,12 @@ function taskFor(relativePath: string): {
 
   const settings = SETTINGS_TITLES[relativePath];
   if (settings) {
-    // An edit screen goes back to what it edits; a section goes back to the menu it came from.
-    const parent = relativePath.endsWith('-edit') ? relativePath.replace('-edit', '') : '/menu';
-    return { title: settings, backTo: parent, hideNav: relativePath.endsWith('-edit') };
+    // An edit screen goes back to what it edits; a section goes back to the settings list.
+    const editing = relativePath.endsWith('/edit');
+    const parent = editing
+      ? relativePath.slice(0, -'/edit'.length)
+      : relativePath === '/settings' ? '/menu' : '/settings';
+    return { title: settings, backTo: parent, hideNav: editing };
   }
   return null;
 }
@@ -217,8 +222,15 @@ export function ConsoleLayout() {
         )}
         {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
-            row of every list sits underneath it. Task routes have no bar and need no gap. */}
-        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-gray-50 ${task?.hideNav ? '' : 'pb-16 lg:pb-0'}`}>
+            row of every list sits underneath it. The bar is as tall as its rows *plus* the home
+            indicator's strip, so the gap has to carry that too: a flat 4rem left the last thing on
+            a long page — «Выйти», at the end of Меню — under the bar on any phone with one. Task
+            routes have no bar and need no gap. */}
+        <main
+          className={`relative min-h-0 flex-1 overflow-y-auto bg-gray-50 ${
+            task?.hideNav ? '' : 'pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0'
+          }`}
+        >
           <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
               <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-6 sm:mt-4">

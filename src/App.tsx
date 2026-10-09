@@ -13,6 +13,7 @@ import { BookingFiltersPage } from './features/bookings/BookingFiltersPage';
 import { BookingsCalendarPage } from './features/bookings/BookingsCalendarPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
+import { SettingsListPage } from './features/menu/SettingsListPage';
 import { FinancesPage } from './features/finances/FinancesPage';
 import { RatingsPage } from './features/ratings/Ratings';
 import {
@@ -117,6 +118,11 @@ function MenuRoute() {
 function FinancesRoute() {
   const { navigateTo } = useConsole();
   return <FinancesPage onNavigate={navigateTo} />;
+}
+
+function SettingsListRoute() {
+  const { navigateTo } = useConsole();
+  return <SettingsListPage onNavigate={navigateTo} />;
 }
 
 function ScanRoute() {
@@ -228,6 +234,7 @@ const router = createBrowserRouter([
           { path: 'resources/*', element: <Navigate to="/products" replace /> },
           { path: 'offers/*', element: <Navigate to="/products" replace /> },
           { path: 'settings', element: <Navigate to="shop" replace /> },
+          { path: 'settings', element: <SettingsListRoute /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
           { path: 'settings/shop/edit', element: <SettingsRoute tab="shop-edit" /> },
           { path: 'settings/seller', element: <SettingsRoute tab="seller" /> },

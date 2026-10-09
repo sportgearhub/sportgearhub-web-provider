@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { useGoBack } from '../../lib/useGoBack';
 import { ApiError, providerApi } from '../../lib/api-client';
 import { sellerRegistry } from '../../types';
 import type { SellerProfile } from '../../types';
@@ -17,6 +18,9 @@ import { SectionPage } from '../../components/layout/SectionPage';
  * shown for context but never editable — those follow a new cabinet, not a form.
  */
 export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) => void }) {
+  // Stepping back pops the entry you came from; navigating to it pushes a second copy, and then
+  // «Назад» lands on the editor again.
+  const goBack = useGoBack('/settings/seller');
   const provider = useProvider();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [taxationSystem, setTaxationSystem] = useState('usn');
@@ -81,7 +85,7 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
           }
           : { kind: profile.kind, inn: profile.inn, taxationSystem, vatRate }
       );
-      onNavigate('/settings/seller');
+      goBack();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить.');
       setSaving(false);
@@ -135,7 +139,7 @@ export function SellerProfileEdit({ onNavigate }: { onNavigate: (path: string) =
             <Button variant="primary" loading={saving} onClick={() => void save()}>
               <Save size={14} /> Сохранить
             </Button>
-            <Button variant="secondary" disabled={saving} onClick={() => onNavigate('/settings/seller')}>
+            <Button variant="secondary" disabled={saving} onClick={goBack}>
               <X size={14} /> Отмена
             </Button>
           </div>

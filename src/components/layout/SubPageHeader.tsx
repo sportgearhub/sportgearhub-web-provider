@@ -42,7 +42,9 @@ export function SubPageHeader({
   help?: string;
 }) {
   return (
-    <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm lg:hidden">
+    // `before:` paints white off the top of the screen, for the overscroll: a phone lets you
+    // pull a page past its beginning, and grey showing above a white bar reads as a loose bar.
+    <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-screen before:bg-white lg:hidden">
       <div className="relative flex min-h-14 items-center gap-2 px-4 py-2">
         <button
           type="button"

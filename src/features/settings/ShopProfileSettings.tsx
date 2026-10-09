@@ -6,6 +6,7 @@ import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { Textarea } from '../../components/ui/Textarea';
+import { useGoBack } from '../../lib/useGoBack';
 import { ApiError, profileApi } from '../../lib/api-client';
 import type { Provider } from '../../types';
 import { useAuth } from '../../context/useAuth';
@@ -81,6 +82,7 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
 export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => void }) {
   const provider = useProvider();
   const { reloadSession } = useAuth();
+  const goBack = useGoBack('/settings/shop');
   const [form, setForm] = useState({
     displayName: provider.displayName,
     contactEmail: '',
@@ -137,7 +139,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
       });
       // The name shows in the header's cabinet switcher, so the session has to hear about it.
       await reloadSession();
-      onNavigate('/settings/shop');
+      goBack();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить профиль.');
       setSaving(false);
@@ -190,7 +192,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
             <Button variant="primary" onClick={() => void save()} loading={saving}>
               <Save size={14} /> Сохранить
             </Button>
-            <Button variant="secondary" disabled={saving} onClick={() => onNavigate('/settings/shop')}>
+            <Button variant="secondary" disabled={saving} onClick={goBack}>
               <X size={14} /> Отмена
             </Button>
           </div>

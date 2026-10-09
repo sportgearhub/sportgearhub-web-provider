@@ -337,7 +337,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       {/* On a phone this block is the header — the console's own bar is not drawn here. The name
           and the search box stay put while the list moves under them, because searching a long
           catalogue from the bottom of it should not mean scrolling back up first. */}
-        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4 md:hidden">
+        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-screen before:bg-white md:hidden">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
             {/* The count is on the filter below, which is where it belongs — it is the count of

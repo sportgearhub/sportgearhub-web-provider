@@ -60,7 +60,16 @@ export function CabinetHeader({
   };
 
   return (
-    <div className={cn('sticky top-0 z-30 rounded-b-2xl bg-white px-4 pb-4 pt-4 shadow-sm lg:hidden', className)}>
+    // `before:` paints white off the top of the screen. A phone lets you pull a page past its
+    // own beginning, and what shows there is whatever is behind it — grey, above a white bar,
+    // which looks like the bar has come loose.
+    <div
+      className={cn(
+        'sticky top-0 z-30 rounded-b-2xl bg-white px-4 pb-4 pt-4 shadow-sm lg:hidden',
+        'before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-screen before:bg-white',
+        className
+      )}
+    >
       <div className="flex items-center gap-3">
         {/* The shop's mark. There is no logo in the API yet, so this is the shape it will take:
             its first letter, which is better than an empty square and honest about being one. */}
@@ -84,8 +93,8 @@ export function CabinetHeader({
 
         <button
           type="button"
-          onClick={() => onNavigate('/settings/shop')}
-          aria-label="Настройки кабинета"
+          onClick={() => onNavigate('/settings')}
+          aria-label="Настройки"
           className="-mr-2 shrink-0 rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
         >
           <Settings size={20} />

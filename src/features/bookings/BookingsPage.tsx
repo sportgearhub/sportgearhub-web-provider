@@ -250,7 +250,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
     <>
       {/* One wrapper: a sticky element sticks only as far as its parent goes. */}
       <div>
-        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4 md:hidden">
+        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-screen before:bg-white md:hidden">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold text-gray-950">Заказы</h1>
             <button
