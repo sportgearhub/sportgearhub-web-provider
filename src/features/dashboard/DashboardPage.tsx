@@ -12,6 +12,8 @@ import { CabinetHeader } from '../../components/layout/CabinetHeader';
 import { RatingsSection } from '../ratings/Ratings';
 import { dayBounds } from '../bookings/bookingMeta';
 import { statusMeta } from '../providers/providerStatus';
+import { useWorkspace } from '../workspace/workspace';
+import { homeShortcuts } from '../menu/menuGroups';
 
 interface DashboardPageProps {
   onNavigate: (path: string) => void;
@@ -41,6 +43,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [today, setToday] = useState<{ handover: number; ret: number; awaiting: number } | null>(null);
+  const { workspace } = useWorkspace();
 
   const load = async () => {
     try {
@@ -94,6 +97,28 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   return (
     <div className="space-y-4 px-3 pb-6 pt-3 lg:space-y-6 lg:p-6">
       <CabinetHeader onNavigate={onNavigate} workspaceToggle className="-mx-3 -mt-3" />
+
+      {/* The scanner left the navigation bar: it is one job, done at a counter, not one of the
+          four places this console is. It lives here, first, because the screen a seller lands on
+          is the one they open with a customer in front of them. Joined to the block above, the
+          way the catalogue's shortcuts are. */}
+      <div className="-mx-3 -mt-4 rounded-b-2xl bg-white pb-3 pt-4 lg:hidden">
+        <div className="flex gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {homeShortcuts[workspace].map(item => (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => onNavigate(item.path)}
+              className="flex h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 px-2 text-center transition active:bg-gray-100"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <item.icon size={22} />
+              </span>
+              <span className="text-[11px] font-medium leading-tight text-gray-800">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <p className="hidden text-sm text-gray-500 lg:block">{todayLabel}</p>
 

@@ -9,7 +9,6 @@ import {
   LogOut,
   Package,
   Plus,
-  ScanLine,
   UserRound,
   LayoutGrid,
   Wallet,
@@ -34,7 +33,6 @@ const navByWorkspace: Record<Workspace, NavItem[]> = {
     { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
     { label: 'Каталог', path: '/products', icon: Package },
     { label: 'Финансы', path: '/finances', icon: Wallet },
-    { label: 'Сканер', path: '/scan', icon: ScanLine },
   ],
   // Four, because «Меню» is the fifth and five is what fits across a phone. Впечатления live one
   // tap away on the home screen and in the menu, which is where a list of your own products

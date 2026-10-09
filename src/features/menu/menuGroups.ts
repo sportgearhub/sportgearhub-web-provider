@@ -1,5 +1,9 @@
 import {
   Building2,
+  CalendarDays,
+  Package,
+  ScanLine,
+  Sparkles,
   CreditCard,
   FileText,
   MapPin,
@@ -46,3 +50,23 @@ export const settingsGroups: { title: string; items: MenuRow[] }[] = [
     items: [{ label: 'Аккаунт', path: '/settings/account', icon: UserRound }],
   },
 ];
+
+/**
+ * The jobs reached from a home screen, in the order they are reached.
+ *
+ * Сканер is first and is not in the navigation bar: it is one job done at a counter rather than
+ * one of the places this console is, and the screen a seller lands on is the one they open with a
+ * customer in front of them.
+ */
+export const homeShortcuts: Record<string, MenuRow[]> = {
+  rental: [
+    { label: 'Сканер', path: '/scan', icon: ScanLine },
+    { label: 'Каталог', path: '/products', icon: Package },
+    { label: 'Финансы', path: '/finances', icon: Wallet },
+  ],
+  experience: [
+    { label: 'Впечатления', path: '/x/experiences', icon: Sparkles },
+    { label: 'Расписание', path: '/x/schedule', icon: CalendarDays },
+    { label: 'Финансы', path: '/finances', icon: Wallet },
+  ],
+};

@@ -1,24 +1,9 @@
 import { ChevronRight, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { CabinetHeader } from '../../components/layout/CabinetHeader';
-import { useWorkspace, type Workspace } from '../workspace/workspace';
-import { settingsGroups, type MenuRow } from './menuGroups';
-import { CalendarDays, Package, ScanLine, Sparkles, Wallet } from 'lucide-react';
+import { useWorkspace } from '../workspace/workspace';
+import { homeShortcuts, settingsGroups } from './menuGroups';
 import { cn } from '../../lib/utils';
-
-/** Shortcuts to the things done most, as tiles rather than another list to read. */
-const shortcutsByWorkspace: Record<Workspace, MenuRow[]> = {
-  rental: [
-    { label: 'Сканер', path: '/scan', icon: ScanLine },
-    { label: 'Каталог', path: '/products', icon: Package },
-    { label: 'Финансы', path: '/finances', icon: Wallet },
-  ],
-  experience: [
-    { label: 'Впечатления', path: '/x/experiences', icon: Sparkles },
-    { label: 'Расписание', path: '/x/schedule', icon: CalendarDays },
-    { label: 'Финансы', path: '/finances', icon: Wallet },
-  ],
-};
 
 export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { signOut } = useAuth();
@@ -36,7 +21,7 @@ export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void })
           reads as the bottom of the header rather than a card with an edge of its own. */}
       <section className="-mx-3 -mt-4 rounded-b-2xl bg-white px-3 pb-3 pt-4">
         <div className="grid grid-cols-3 gap-2">
-          {shortcutsByWorkspace[workspace].map(item => (
+          {homeShortcuts[workspace].map(item => (
             <button
               key={item.path}
               type="button"
