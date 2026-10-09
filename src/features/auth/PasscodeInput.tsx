@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Delete } from 'lucide-react';
+import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
 
 // A fixed-length numeric passcode entry. It renders one box per digit but keeps a single input behind
 // them, so paste, autofill and mobile keyboards behave normally.
@@ -19,10 +20,17 @@ export function PasscodeInput({
   disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const phone = useMediaQuery(PHONE);
 
+  /**
+   * Focus is a desktop convenience. On a phone it summons the system keyboard, which covers half
+   * the screen and pushes the cells it was called to fill off the top of it — and there is a
+   * keypad of our own below, so nothing needs the system one. Tapping the cells still opens it,
+   * for a pasted code.
+   */
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus();
-  }, [autoFocus]);
+    if (autoFocus && !phone) inputRef.current?.focus();
+  }, [autoFocus, phone]);
 
   const press = (digit: string) => {
     if (disabled || value.length >= length) return;

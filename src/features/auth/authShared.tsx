@@ -21,33 +21,52 @@ export function AuthShell({
   subtitle,
   children,
   footer,
+  busy,
 }: {
   title: string;
   subtitle?: ReactNode;
   children: ReactNode;
   /** Secondary ways out — resend, change the number, skip. Plain links, never buttons. */
   footer?: ReactNode;
+  /**
+   * What is happening, while it happens. Signing in is the page's work, not a button's: the whole
+   * screen is waiting on one request, so the progress runs across the top of it and the step says
+   * so underneath, instead of a spinner inside a control nobody is looking at any more.
+   */
+  busy?: string;
 }) {
   return (
-    <div className="min-h-[100dvh] bg-background lg:grid lg:grid-cols-2">
+    <div className="relative min-h-[100dvh] bg-background lg:grid lg:grid-cols-2" aria-busy={busy ? true : undefined}>
+      {busy && <Runner />}
+
       <div className="flex min-h-[100dvh] flex-col px-5 pb-8 pt-7 sm:px-8 lg:px-14 xl:px-20">
-        <header className="shrink-0">
+        {/* Centred on a phone, where this is the only thing on screen and a wordmark pinned to
+            the left-hand edge reads as the corner of a page whose other half never arrived. */}
+        <header className="flex shrink-0 justify-center lg:justify-start">
           <BrandWordmark />
         </header>
 
-        {/* Centred on a phone too. Top-aligned left a short form floating under the wordmark with
-            the rest of the screen empty below it, which reads as a page that failed to load. */}
+        {/* Centred down the page too. Top-aligned left a short form floating under the wordmark
+            with the rest of the screen empty below it, which reads as a page that failed. */}
         <main className="flex flex-1 flex-col justify-center py-8 lg:py-0">
-          <div className="mx-auto w-full max-w-[380px] lg:mx-0">
+          <div className="mx-auto w-full max-w-[380px] text-center lg:mx-0 lg:text-left">
             <h1 className="text-[27px] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[32px]">
               {title}
             </h1>
             {subtitle && <p className="mt-3 text-[15px] leading-6 text-muted-foreground">{subtitle}</p>}
 
-            <div className="mt-8 space-y-5">{children}</div>
+            {/* The controls themselves read left-to-right: a centred label over a full-width
+                field is a caption, not a label. */}
+            <div className="mt-8 space-y-5 text-left">{children}</div>
+
+            {busy && (
+              <p role="status" className="mt-6 text-sm text-muted-foreground">{busy}</p>
+            )}
 
             {footer && (
-              <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">{footer}</div>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 lg:justify-start">
+                {footer}
+              </div>
             )}
           </div>
         </main>
@@ -56,6 +75,20 @@ export function AuthShell({
       <aside className="relative hidden overflow-hidden lg:block">
         <AuthArtwork className="absolute inset-0 h-full w-full" />
       </aside>
+    </div>
+  );
+}
+
+/**
+ * The progress of the page, across the top of the page.
+ *
+ * Indeterminate on purpose: nothing here can report a percentage, and a bar that invents one is
+ * worse than a bar that only says «идёт». Fixed, so it stays put while the step under it changes.
+ */
+function Runner() {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/15">
+      <div className="h-full w-full origin-left bg-primary animate-runner" />
     </div>
   );
 }
@@ -100,14 +133,5 @@ export function IconInput({ icon: Icon, className = '', ...props }: React.Compon
       <Input {...props} className={cn(authControlClass, 'pl-10', className)} />
       <Icon size={16} className="pointer-events-none absolute bottom-[14px] left-3.5 text-muted-foreground" />
     </div>
-  );
-}
-
-export function LoadingNotice({ children }: { children: ReactNode }) {
-  return (
-    <p role="status" className="flex items-center gap-2.5 text-sm text-muted-foreground">
-      <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-muted border-t-primary" />
-      {children}
-    </p>
   );
 }

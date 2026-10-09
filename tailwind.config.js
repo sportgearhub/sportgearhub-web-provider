@@ -56,6 +56,18 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      keyframes: {
+        // A bar that runs the width of the page: for work with no percentage to report, where a
+        // spinner in a button says "this button is busy" and the truth is "the page is".
+        runner: {
+          '0%': { transform: 'translateX(-100%) scaleX(0.4)' },
+          '50%': { transform: 'translateX(60%) scaleX(0.9)' },
+          '100%': { transform: 'translateX(220%) scaleX(0.4)' },
+        },
+      },
+      animation: {
+        runner: 'runner 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+      },
     },
   },
   plugins: [tailwindcssAnimate],

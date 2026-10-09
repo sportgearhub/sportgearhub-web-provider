@@ -91,7 +91,11 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
   };
 
   return (
-    <AuthShell title="Как вас зовут?" subtitle="Имя видят сотрудники кабинета и поддержка.">
+    <AuthShell
+      title="Как вас зовут?"
+      subtitle="Имя видят сотрудники кабинета и поддержка."
+      busy={loading ? 'Создаём кабинет…' : undefined}
+    >
       {toast.node}
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <Input
@@ -122,7 +126,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
           className={authControlClass}
         />
 
-        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
+        <Button type="submit" variant="primary" disabled={loading} className={`w-full ${authControlClass}`}>
           Продолжить
         </Button>
       </form>

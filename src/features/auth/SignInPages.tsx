@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthLink, AuthShell, LoadingNotice, authControlClass } from './authShared';
+import { AuthLink, AuthShell, authControlClass } from './authShared';
 import { useToast } from '../../components/ui/Toast';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
@@ -97,6 +97,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
       <AuthShell
         title="Введите код из SMS"
         subtitle={<>Код отправлен на +7 {digits}. Действует 10 минут.</>}
+        busy={loading ? 'Проверяем код…' : undefined}
         footer={
           <>
             <AuthLink onClick={() => void begin()}>Отправить код ещё раз</AuthLink>
@@ -117,7 +118,6 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
           disabled={loading}
         />
 
-        {loading && <LoadingNotice>Проверяем код…</LoadingNotice>}
       </AuthShell>
     );
   }
@@ -126,12 +126,15 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     <AuthShell
       title="Кабинет продавца"
       subtitle="Пришлём код в SMS."
+      busy={loading ? 'Отправляем код…' : undefined}
     >
       {toast.node}
       <form onSubmit={handlePhoneSubmit} className="space-y-5">
         <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
 
-        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
+        {/* No spinner in the button: the bar across the top of the page is saying it, and this
+            one is about to be replaced by the next step anyway. */}
+        <Button type="submit" variant="primary" disabled={loading} className={`w-full ${authControlClass}`}>
           Войти
         </Button>
       </form>
@@ -207,16 +210,14 @@ function PushWaitingStep({
     <AuthShell
       title="Подтвердите вход"
       subtitle={<>Отправили запрос на <span className="font-medium text-foreground">+7 {phone}</span>.</>}
+      busy="Ждём подтверждения…"
       /* The wait can run for a while and the number may simply be wrong, so there has to be a way
          out that is not waiting for a timeout. */
       footer={<AuthLink onClick={onBack} tone="muted">Изменить номер</AuthLink>}
     >
-      <div className="flex items-start gap-3.5">
-        <span className="mt-0.5 h-8 w-8 shrink-0 animate-spin rounded-full border-2 border-muted border-t-primary" />
-        <p className="text-sm leading-5 text-muted-foreground">
-          Подтвердите вход на мобильном устройстве. Если подтверждение не придёт, мы пришлём код в SMS.
-        </p>
-      </div>
+      <p className="text-center text-sm leading-5 text-muted-foreground lg:text-left">
+        Подтвердите вход на мобильном устройстве. Если подтверждение не придёт, мы пришлём код в SMS.
+      </p>
     </AuthShell>
   );
 }
@@ -272,6 +273,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
     <AuthShell
       title="С возвращением"
       subtitle="Код доступа этого устройства."
+      busy={loading ? 'Входим…' : undefined}
       footer={
         <AuthLink
           onClick={() => {
@@ -285,8 +287,6 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
     >
       {toast.node}
       <PasscodeInput label="Код доступа" value={passcode} onChange={handleChange} length={length} autoFocus disabled={loading} />
-
-      {loading && <LoadingNotice>Проверяем код…</LoadingNotice>}
     </AuthShell>
   );
 }
@@ -348,6 +348,7 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
           ? `Придумайте код из ${length} цифр, чтобы в следующий раз входить без SMS. Код работает только на этом устройстве.`
           : 'Введите код ещё раз, чтобы не ошибиться.'
       }
+      busy={loading ? 'Сохраняем код…' : undefined}
       footer={
         <>
           {step === 'repeat' ? (
@@ -359,7 +360,6 @@ export function PasscodeSetupPage({ onNavigate }: { onNavigate: Navigate }) {
               Пропустить
             </AuthLink>
           )}
-          {loading && <span className="text-sm text-muted-foreground">Сохраняем…</span>}
         </>
       }
     >
