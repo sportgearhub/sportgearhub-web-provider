@@ -87,8 +87,11 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
     /* A phone reads this as one column of bands. A desktop puts the money on the left and the
        standing facts — where it goes, when the next one leaves — in a rail beside it, which is
        what the references do and what stops a wide screen rendering one narrow column of cards. */
-    <div className="space-y-2 pb-8 sm:space-y-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-4 lg:space-y-0">
-      <div className="contents lg:col-start-1 lg:block lg:space-y-4">
+    <div className="pb-10 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-4">
+      {/* Two real columns rather than `display: contents` on a phone: a box that is not rendered
+          cannot carry the gaps between its children, so `space-y` landed on nothing and every
+          section ran into the next one. */}
+      <div className="space-y-2 sm:space-y-4">
       {error && (
         <p className="mx-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-0">
           {error}
@@ -144,7 +147,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
       {/* Why each hold exists. A balance that says only «held» earns a support ticket per booking. */}
       {balance && balance.held.length > 0 && (
         <section className="bg-white px-4 py-4 sm:rounded-2xl">
-          <h2 className="text-base font-semibold text-gray-950">Что удерживается</h2>
+          <h2 className="text-base font-semibold text-gray-950">Удержания</h2>
           <ul className="mt-2 divide-y divide-gray-100">
             {balance.held.map(hold => (
               <li key={hold.bookingNumber} className="flex items-center gap-3 py-2.5">
@@ -168,7 +171,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
       {/* The range applies to both sections below it. */}
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-950">Движение</h2>
+          <h2 className="text-base font-semibold text-gray-950">Движение средств</h2>
           <div className="flex shrink-0 gap-1">
             {RANGES.map(range => (
               <button
@@ -238,7 +241,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
               className="mt-3 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition active:bg-gray-100"
             >
               <Receipt size={16} className="shrink-0 text-gray-400" />
-              <span className="min-w-0 flex-1 text-left">Все начисления</span>
+              <span className="min-w-0 flex-1 text-left">Детализация начислений</span>
               <ChevronRight size={16} className="shrink-0 text-gray-400" />
             </button>
           </>
@@ -252,8 +255,8 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
           out of it and the seller pays none of them. */}
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-950">Куда ушли деньги</h2>
-          <span className="shrink-0 text-xs text-gray-400">% — от суммы, которую заплатил клиент</span>
+          <h2 className="text-base font-semibold text-gray-950">Комиссия платформы</h2>
+
         </div>
 
         {fees && commission ? (
@@ -287,10 +290,11 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
 
                 {costsOpen && (
                   <div className="ml-2 mt-1 border-l-2 border-gray-100 pl-4">
-                    <p className="py-1 text-xs leading-5 text-gray-500">
-                      Из неё площадка платит банку и оператору чеков. На вашу выручку это не влияет —
-                      вы эти расходы не несёте.
-                    </p>
+                    {/* Inside the commission, never beside the seller's revenue: these come out of
+                        the platform's share and the seller's amount is unaffected by every one.
+                        The nesting is what says so — the paragraph that used to say it in words
+                        was noise on a screen whose figures already read correctly. */}
+                    <p className="pb-1 pt-0.5 text-xs text-gray-500">В том числе:</p>
                     <dl className="divide-y divide-gray-100 text-sm">
                       {commission.platformCosts.map(cost => {
                         const source = costSource(cost.source);
@@ -320,12 +324,6 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                           the seller's money into a screen about ours. The costs explain where the
                           commission goes; the remainder explains nothing the seller asked. */}
                     </dl>
-                    <p className="py-2 text-[11px] leading-4 text-gray-500">
-                      {commission.platformCosts.some(cost => cost.source !== 'register')
-                        ? 'Часть сумм посчитана по тарифу — реестр банка за этот период ещё не прочитан.'
-                        : 'Все суммы сверены с реестром банка.'}
-                      {' '}Полностью возвращённые брони в расчёт не входят.
-                    </p>
                   </div>
                 )}
               </div>
@@ -337,7 +335,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
               onClick={() => onNavigate('/finances/accruals')}
               className="mt-2 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition active:bg-gray-100"
             >
-              <span className="min-w-0 flex-1 text-left">Посмотреть по броням</span>
+              <span className="min-w-0 flex-1 text-left">Детализация начислений</span>
               <ChevronRight size={16} className="shrink-0 text-gray-400" />
             </button>
           </>
@@ -349,10 +347,10 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
       </div>
 
       {/* The rail. On a phone these simply follow the rest. */}
-      <div className="contents lg:col-start-2 lg:block lg:space-y-4">
+      <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-4 lg:mt-0">
       {/* The requisites, which are a console concern rather than a finance one. */}
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
-        <h2 className="text-base font-semibold text-gray-950">Куда приходят деньги</h2>
+        <h2 className="text-base font-semibold text-gray-950">Реквизиты выплат</h2>
         <button
           type="button"
           onClick={() => onNavigate('/settings/payouts')}
@@ -375,21 +373,16 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         </button>
       </section>
 
-      {/* What a week's statement is, said once, in the rail where the weeks are listed beside it. */}
+      {/* The lines behind every figure on this screen, from the rail as well as from the
+          breakdown — it is the same page and the seller may be looking at either. */}
       <section className="hidden bg-white px-4 py-4 lg:block lg:rounded-2xl">
-        <h2 className="text-base font-semibold text-gray-950">Как это считается</h2>
-        <p className="mt-2 text-sm leading-5 text-gray-600">
-          Деньги по брони начисляются, когда аренда закончилась, и уходят следующим переводом через
-          сутки после неё. Выписка за неделю — зафиксированный документ: в ней всё так, как было на
-          момент закрытия недели.
-        </p>
         <button
           type="button"
           onClick={() => onNavigate('/finances/accruals')}
-          className="mt-3 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-100"
+          className="flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-100"
         >
           <Receipt size={16} className="shrink-0 text-gray-400" />
-          <span className="min-w-0 flex-1 text-left">Все начисления</span>
+          <span className="min-w-0 flex-1 text-left">Детализация начислений</span>
           <ChevronRight size={16} className="shrink-0 text-gray-400" />
         </button>
       </section>
