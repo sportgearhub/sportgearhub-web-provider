@@ -14,6 +14,7 @@ import { BookingsCalendarPage } from './features/bookings/BookingsCalendarPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
 import { SettingsListPage } from './features/menu/SettingsListPage';
+import { PHONE, useMediaQuery } from './lib/useMediaQuery';
 import { FinancesPage } from './features/finances/FinancesPage';
 import { StatementPage } from './features/finances/StatementPage';
 import { AccrualsPage } from './features/finances/AccrualsPage';
@@ -128,8 +129,18 @@ function FinancesRoute() {
   return <FinancesPage onNavigate={navigateTo} />;
 }
 
+/**
+ * Настройки.
+ *
+ * On a phone it is a list of everywhere the gear can take you — the account, the cabinet, money,
+ * documents — because a phone navigates by going somewhere and coming back. A desktop has the
+ * settings sidebar with every section in it already, so there /settings means the first of them
+ * rather than a list of links beside a list of links.
+ */
 function SettingsListRoute() {
   const { navigateTo } = useConsole();
+  const phone = useMediaQuery(PHONE);
+  if (!phone) return <Navigate to="/settings/shop" replace />;
   return <SettingsListPage onNavigate={navigateTo} />;
 }
 
@@ -254,7 +265,6 @@ const router = createBrowserRouter([
           // The catalogue was two sections until the API collapsed them into one product.
           { path: 'resources/*', element: <Navigate to="/products" replace /> },
           { path: 'offers/*', element: <Navigate to="/products" replace /> },
-          { path: 'settings', element: <Navigate to="shop" replace /> },
           { path: 'settings', element: <SettingsListRoute /> },
           { path: 'settings/shop', element: <SettingsRoute tab="shop" /> },
           { path: 'settings/shop/edit', element: <SettingsRoute tab="shop-edit" /> },
