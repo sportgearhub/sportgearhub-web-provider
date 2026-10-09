@@ -149,7 +149,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
           the card's name, and everything that can be done to it behind the dots. The console's
           own bar and its section strip are not drawn on this route. */}
       <SubPageHeader
-        title={product.title}
+        title="Товар"
         onBack={goBack}
         action={
           <button
@@ -169,6 +169,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       breadcrumb={phone ? undefined : { label: 'Каталог', path: '/products' }}
       onNavigate={onNavigate}
       error={error}
+      bare
       action={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={meta.variant} size="md">{meta.label}</Badge>
@@ -389,7 +390,11 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             )}
           </SettingsCard>
 
-          <ProductPreview productId={productId} published={product.status === 'active'} />
+          {/* A page inside a page is a desktop luxury. On a phone «Открыть на сайте» in the menu
+              opens the real one, which is the thing the preview was approximating. */}
+          <span className="hidden sm:block">
+            <ProductPreview productId={productId} published={product.status === 'active'} />
+          </span>
         </div>
 
         <div className="space-y-4">
@@ -475,7 +480,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         <SheetRow
           icon={ExternalLink}
           title="Открыть на сайте"
-          note="Карточка глазами клиента."
+          note="Карточка на витрине — то, что видит клиент."
           href={storefrontProductUrl(productId)}
           onClick={() => setMenuOpen(false)}
         />
