@@ -317,18 +317,11 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                           </div>
                         );
                       })}
-                      <div className="flex items-center gap-2 py-2">
-                        <dt className="min-w-0 flex-1 font-medium text-gray-950">Остаётся площадке</dt>
-                        {/* Negative on a small hire, where the bank's floor for taking a payment
-                            exceeds the commission. The sign shows. */}
-                        <dd
-                          className={`shrink-0 font-semibold ${
-                            commission.netAmount < 0 ? 'text-red-600' : 'text-gray-950'
-                          }`}
-                        >
-                          {show(commission.netAmount, commission.netPercent)}
-                        </dd>
-                      </div>
+                      {/* `net_amount` — what is left of the commission once the platform has paid
+                          those — is not here. It is the platform's own margin, not the seller's
+                          business, and on a small hire it is negative, which turns a screen about
+                          the seller's money into a screen about ours. The costs explain where the
+                          commission goes; the remainder explains nothing the seller asked. */}
                     </dl>
                     <p className="mt-2 text-[11px] leading-4 text-gray-500">
                       {commission.platformCosts.some(cost => cost.source !== 'register')
