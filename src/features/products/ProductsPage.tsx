@@ -423,9 +423,15 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               <p className="mt-1 text-sm text-gray-500">{pageInfo.totalItems} {plural(pageInfo.totalItems)}</p>
             )}
           </div>
-          <Button variant="primary" onClick={() => onNavigate('/products/new')}>
-            <Plus size={15} /> Добавить
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* The tiles above are a phone's; on a desktop these live beside the heading. */}
+            <Button variant="secondary" onClick={() => onNavigate('/products/groups')}>
+              <Layers size={15} /> Группы
+            </Button>
+            <Button variant="primary" onClick={() => onNavigate('/products/new')}>
+              <Plus size={15} /> Добавить
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4 space-y-3">

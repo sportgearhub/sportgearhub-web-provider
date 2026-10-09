@@ -68,3 +68,30 @@ export function dayBounds(day = new Date()) {
 export function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+
+/**
+ * How long a request has been waiting, and how long is left.
+ *
+ * A request unanswered for 24 hours expires on its own: the booking becomes `expired`, the item is
+ * released, and the customer is told the seller did not answer. Sellers cannot see that clock
+ * unless it is on screen, so every waiting request carries it.
+ */
+export const REQUEST_EXPIRY_HOURS = 24;
+
+export function requestClock(createdAt: string | null | undefined, now = Date.now()) {
+  if (!createdAt) return null;
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return null;
+
+  const msLeft = created + REQUEST_EXPIRY_HOURS * 3600_000 - now;
+  if (msLeft <= 0) return { expired: true, label: 'Срок ответа истёк', urgent: true };
+
+  const hours = Math.floor(msLeft / 3600_000);
+  const minutes = Math.floor((msLeft % 3600_000) / 60_000);
+  return {
+    expired: false,
+    // Under an hour the minutes are the whole message; above it they are noise.
+    label: hours > 0 ? `Ответить за ${hours} ч` : `Ответить за ${minutes} мин`,
+    urgent: msLeft < 6 * 3600_000,
+  };
+}

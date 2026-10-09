@@ -1,23 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Building2,
   CalendarCheck,
   Check,
   CalendarDays,
   ChevronDown,
-  CreditCard,
-  FileText,
   Home,
   LogOut,
-  MapPin,
   Package,
   Plus,
   ScanLine,
-  Store,
   UserRound,
   LayoutGrid,
-  Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -26,6 +20,7 @@ import { selectProvider } from '../../lib/active-provider';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
 import { BrandWordmark } from './BrandWordmark';
+import { settingsGroups } from '../../features/menu/menuGroups';
 import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
 import { useWorkspace, workspaceMeta, type Workspace } from '../../features/workspace/workspace';
@@ -38,6 +33,7 @@ const navByWorkspace: Record<Workspace, NavItem[]> = {
     { label: 'Главная', path: '/', icon: Home },
     { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
     { label: 'Каталог', path: '/products', icon: Package },
+    { label: 'Финансы', path: '/finances', icon: Wallet },
     { label: 'Сканер', path: '/scan', icon: ScanLine },
   ],
   // Four, because «Меню» is the fifth and five is what fits across a phone. Впечатления live one
@@ -51,29 +47,10 @@ const navByWorkspace: Record<Workspace, NavItem[]> = {
   ],
 };
 
-// Settings live in the profile menu, grouped as they are in the settings sidebar.
-const profileMenuGroups: { title: string; items: { label: string; path: string; icon: LucideIcon }[] }[] = [
-  {
-    title: 'Управление кабинетом',
-    items: [
-      { label: 'Профиль проката', path: '/settings/shop', icon: Store },
-      { label: 'Пункты проката', path: '/settings/locations', icon: MapPin },
-      { label: 'Сотрудники', path: '/settings/employees', icon: Users },
-    ],
-  },
-  {
-    title: 'Реквизиты и договор',
-    items: [
-      { label: 'Информация о продавце', path: '/settings/seller', icon: Building2 },
-      { label: 'Реквизиты', path: '/settings/payouts', icon: CreditCard },
-      { label: 'Договоры', path: '/settings/contracts', icon: FileText },
-    ],
-  },
-  {
-    title: 'Учётная запись',
-    items: [{ label: 'Аккаунт', path: '/settings/account', icon: UserRound }],
-  },
-];
+// The profile menu shows the same rooms as Меню and Настройки do on a phone, from one array —
+// this was a second copy, and it had already drifted: no Финансы, «Реквизиты» for what the other
+// two call «Реквизиты выплат».
+const profileMenuGroups = settingsGroups;
 
 interface HeaderProps {
   /** Console-relative path, e.g. "/products". */

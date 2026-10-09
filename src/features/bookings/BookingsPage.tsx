@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Package,
   Phone,
+  Ban,
   ScanLine,
   Search,
   SlidersHorizontal,
@@ -27,13 +28,14 @@ import { Pagination } from '../../components/table/TableControls';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
 import type { BookingListItem, Pagination as PageInfo } from '../../types';
-import { bookingStatusMeta, dayBounds, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { bookingStatusMeta, dayBounds, fulfillmentStageMeta, formatWindow, requestClock } from './bookingMeta';
 import { countActive, filtersToRsql, useBookingFilters } from './bookingFilters';
 import { BookingCard, BookingCardSkeleton, type BookingAction } from './BookingCard';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
+import { CancelForm } from './CancelForm';
 import { BookingProductDialog } from './BookingProductPanel';
 
 /**
@@ -74,6 +76,7 @@ const SHEET_TITLES: Record<BookingAction, string> = {
   return: 'Возврат',
   issue: 'Сообщить о проблеме',
   decline: 'Отклонить заявку',
+  cancel: 'Отменить бронь',
 };
 
 /**
@@ -468,6 +471,17 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
                 onClick={() => { const row = cardMenu; setCardMenu(null); setActing({ booking: row, action: 'issue' }); }}
               />
             )}
+            {/* Declining answers a request; this undoes a booking that was paid for. Offered while
+                it is still live — which includes a rental already handed over, because that is
+                exactly when gear breaks. */}
+            {(cardMenu.status === 'pending' || cardMenu.status === 'confirmed') && (
+              <MenuRow
+                icon={Ban}
+                title="Отменить бронь"
+                note="Если выдать не получится. Клиенту вернётся вся сумма."
+                onClick={() => { const row = cardMenu; setCardMenu(null); setActing({ booking: row, action: 'cancel' }); }}
+              />
+            )}
           </ul>
         )}
       </BottomSheet>
@@ -540,6 +554,9 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
             )}
             {acting.action === 'decline' && (
               <DeclineForm bookingId={acting.booking.bookingId} onSuccess={() => done('Заявка отклонена.')} onCancel={() => setActing(null)} />
+            )}
+            {acting.action === 'cancel' && (
+              <CancelForm bookingId={acting.booking.bookingId} onSuccess={() => done('Бронь отменена, клиенту вернутся деньги.')} onCancel={() => setActing(null)} />
             )}
           </>
         )}
@@ -648,6 +665,7 @@ function BookingRow({
   const stage = fulfillmentStageMeta(fulfillment?.stage);
   const awaiting = booking.status === 'awaiting_seller_confirmation';
   const closed = booking.status === 'cancelled' || booking.status === 'expired' || booking.status === 'failed';
+  const clock = awaiting ? requestClock(booking.createdAt) : null;
 
   return (
     <li
@@ -688,6 +706,11 @@ function BookingRow({
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-600">
           <span>{booking.customer?.fullName ?? 'Клиент'}</span>
+          {clock && (
+            <span className={clock.urgent ? 'font-medium text-red-600' : 'font-medium text-amber-700'}>
+              {clock.label}
+            </span>
+          )}
           {booking.customer?.phone && (
             <CopyValue value={booking.customer.phone} label="Телефон клиента" icon={<Phone size={11} />} />
           )}

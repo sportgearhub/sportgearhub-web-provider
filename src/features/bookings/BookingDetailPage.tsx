@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, ImageOff, Mail, MoreHorizontal, Package, Phone, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertCircle, Ban, ImageOff, Mail, MoreHorizontal, Package, Phone, XCircle, type LucideIcon } from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { Badge } from '../../components/ui/Badge';
@@ -12,20 +12,22 @@ import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard'
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import { useGoBack } from '../../lib/useGoBack';
 import type { BookingDetail, FulfillmentDetail } from '../../types';
-import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { bookingStatusMeta, fulfillmentStageMeta, formatWindow, requestClock } from './bookingMeta';
 import { BookingProductPanel } from './BookingProductPanel';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
 import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
+import { CancelForm } from './CancelForm';
 
-type Action = 'handover' | 'return' | 'issue' | 'decline';
+type Action = 'handover' | 'return' | 'issue' | 'decline' | 'cancel';
 
 const ACTION_TITLES: Record<Action, string> = {
   handover: 'Выдача',
   return: 'Возврат',
   issue: 'Сообщить о проблеме',
   decline: 'Отклонить заявку',
+  cancel: 'Отменить бронь',
 };
 
 /**
@@ -118,6 +120,10 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
   const canDecline = awaiting;
   const canIssue = Boolean(booking.fulfillment?.issueReportingAllowed);
+  // Declining answers a request; cancelling undoes a booking that was paid for. A rental already
+  // handed over is included on purpose — that is exactly when gear breaks.
+  const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
+  const clock = awaiting ? requestClock(booking.createdAt) : null;
 
   /**
    * The one move the booking is waiting for, in the order it is waited for. The API's own flags
@@ -140,7 +146,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         title={`№${booking.bookingNumber}`}
         onBack={goBack}
         action={
-          (canDecline || canIssue) ? (
+          (canDecline || canIssue || canCancel) ? (
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -203,6 +209,18 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           </div>
         </div>
       </section>
+
+      {/* A request answers itself after 24 hours — the booking expires, the item is released and
+          the customer is told nobody replied. That clock is invisible unless it is on screen. */}
+      {clock && (
+        <p
+          className={`mx-3 mb-2 rounded-xl px-4 py-2.5 text-sm font-medium sm:mx-0 sm:mb-4 ${
+            clock.urgent ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-900'
+          }`}
+        >
+          {clock.label} — иначе заявка истечёт сама и снаряжение освободится.
+        </p>
+      )}
 
       {/* The moves that are open, on a desktop where there is a row to put them in. On a phone
           the first of them is a bar at the bottom and the rest are behind the dots. */}
@@ -401,6 +419,13 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       {action === 'decline' && (
         <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />
       )}
+      {action === 'cancel' && (
+        <CancelForm
+          bookingId={bookingId}
+          onSuccess={done('Бронь отменена, клиенту вернутся деньги.')}
+          onCancel={() => setAction(null)}
+        />
+      )}
     </BottomSheet>
 
     <BottomSheet
@@ -435,6 +460,14 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
             title="Сообщить о проблеме"
             note="Поломка, опоздание, спор — зафиксировать по этой брони."
             onClick={() => { setMenuOpen(false); setAction('issue'); }}
+          />
+        )}
+        {canCancel && (
+          <SheetRow
+            icon={Ban}
+            title="Отменить бронь"
+            note="Если выдать не получится. Клиенту вернётся вся сумма, включая залог."
+            onClick={() => { setMenuOpen(false); setAction('cancel'); }}
           />
         )}
       </ul>

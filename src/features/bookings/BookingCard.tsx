@@ -4,10 +4,10 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { mediaUrl } from '../../lib/api-client';
 import type { BookingListItem } from '../../types';
-import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
+import { bookingStatusMeta, fulfillmentStageMeta, formatWindow, requestClock } from './bookingMeta';
 
 /** What a row can be asked to do, beyond opening. */
-export type BookingAction = 'handover' | 'return' | 'issue' | 'decline' | 'confirm';
+export type BookingAction = 'handover' | 'return' | 'issue' | 'decline' | 'confirm' | 'cancel';
 
 /**
  * One booking in a list of them, on a phone.
@@ -41,6 +41,9 @@ export function BookingCard({
    * The API decides which are open — `handoverAllowed` and `returnAllowed` are the same rules the
    * command endpoints enforce — so this renders its answer rather than deriving one from status.
    */
+  // A request is on a 24-hour clock that nothing else on screen would mention.
+  const clock = awaiting ? requestClock(booking.createdAt) : null;
+
   const primary: { label: string; action: BookingAction } | null = awaiting
     ? { label: 'Подтвердить', action: 'confirm' }
     : booking.fulfillment?.handoverAllowed
@@ -81,6 +84,11 @@ export function BookingCard({
           <span className="mt-0.5 block truncate text-xs text-gray-500">
             {booking.customer?.fullName ?? 'Клиент'}
           </span>
+          {clock && (
+            <span className={`mt-1 block text-xs font-medium ${clock.urgent ? 'text-red-600' : 'text-amber-700'}`}>
+              {clock.label}
+            </span>
+          )}
         </span>
       </button>
 
