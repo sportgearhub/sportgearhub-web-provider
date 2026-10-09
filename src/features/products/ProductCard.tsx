@@ -1,4 +1,4 @@
-import { Check, ImageOff, MoreHorizontal } from 'lucide-react';
+import { Check, ImageOff, MoreHorizontal, Star } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { mediaUrl } from '../../lib/api-client';
@@ -42,7 +42,15 @@ export function ProductCard({
         onClick={() => (selecting ? onToggle?.() : onOpen())}
         className="flex w-full gap-3 p-3 text-left transition active:bg-gray-50"
       >
-        <Thumb url={product.mediaPreviewUrl} title={product.title} />
+        {/* The left column is the photo and what customers think of it — the two things that are
+            about the thing itself rather than about selling it. */}
+        <span className="flex shrink-0 flex-col items-center gap-1">
+          <Thumb url={product.mediaPreviewUrl} title={product.title} />
+          <span className="flex items-center gap-0.5 text-[11px] font-medium text-gray-700">
+            <Star size={11} className="fill-amber-400 text-amber-400" />
+            {prototypeRating(product.productId)}
+          </span>
+        </span>
         <span className="min-w-0 flex-1">
           {/* Room kept at the right-hand end for the menu button laid over it. */}
           {/* Room kept at the right-hand end for whatever is laid over that corner. */}
@@ -52,11 +60,17 @@ export function ProductCard({
           </span>
           <span className="mt-1.5 line-clamp-2 text-sm font-medium leading-5 text-gray-900">{product.title}</span>
           <span className="mt-0.5 block truncate text-xs text-gray-500">{product.category?.title ?? '—'}</span>
-          <span className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+          {/* The price in a box of its own, because it is the number read first; how many are
+              left at the other end, where a column of them can be scanned down. */}
+          <span className="mt-1.5 flex items-center gap-2">
             {product.price != null && (
-              <span className="text-sm font-semibold text-gray-900">{formatPrice(product.price)}</span>
+              <span className="rounded-lg bg-gray-100 px-2 py-1 text-sm font-semibold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
             )}
-            <span className={product.quantity > 0 ? '' : 'text-amber-700'}>{product.quantity} шт</span>
+            <span className={`ml-auto shrink-0 text-xs ${product.quantity > 0 ? 'text-gray-500' : 'text-amber-700'}`}>
+              {product.quantity} шт
+            </span>
           </span>
         </span>
       </button>
@@ -78,9 +92,9 @@ export function ProductCard({
           type="button"
           onClick={onMenu}
           aria-label="Действия с товаром"
-          className="absolute right-1 top-1 rounded-lg p-2 text-gray-400 transition active:bg-gray-100"
+          className="absolute right-1 top-1 rounded-lg p-2 text-gray-500 transition active:bg-gray-100"
         >
-          <MoreHorizontal size={17} />
+          <MoreHorizontal size={20} strokeWidth={2.5} />
         </button>
       )}
     </li>
@@ -98,6 +112,21 @@ export function ProductCardSkeleton() {
       </div>
     </li>
   );
+}
+
+/**
+ * A stand-in rating, until there is a reviews API.
+ *
+ * Derived from the card's id so it is stable — a number that changed on every render would be
+ * obviously fake, and one that changed on every page would be worse. It is a placeholder for the
+ * layout, and the first thing to delete when the endpoint arrives.
+ */
+function prototypeRating(productId: string) {
+  let hash = 0;
+  for (let index = 0; index < productId.length; index += 1) {
+    hash = (hash * 31 + productId.charCodeAt(index)) % 100003;
+  }
+  return (4.2 + (hash % 9) / 10).toFixed(1);
 }
 
 function Thumb({ url, title }: { url: string | null; title: string }) {

@@ -78,6 +78,22 @@ function taskFor(relativePath: string): {
   if (relativePath === '/products/select') {
     return { title: 'Выбор товаров', backTo: '/products', hideNav: true, bare: true };
   }
+  if (relativePath === '/bookings/filters') {
+    return { title: 'Фильтры', backTo: '/bookings', hideNav: true };
+  }
+  if (relativePath === '/bookings/calendar') {
+    return {
+      title: 'Календарь',
+      backTo: '/bookings',
+      hideNav: true,
+      help: 'Выберите день, чтобы увидеть выдачи и возвраты на него. Точки под числом — это брони: '
+        + 'синяя значит выдачу, бирюзовая возврат.',
+    };
+  }
+  // A booking's own page: its bar carries the number and a menu for it, so the page draws it.
+  if (/^\/bookings\/[^/]+$/.test(relativePath)) {
+    return { title: 'Бронирование', backTo: '/bookings', hideNav: true, bare: true };
+  }
   if (relativePath === '/products/filters') {
     return { title: 'Фильтры', backTo: '/products', hideNav: true };
   }

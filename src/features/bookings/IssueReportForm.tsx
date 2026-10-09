@@ -53,11 +53,8 @@ export function IssueReportForm({ bookingId, onSuccess, onCancel }: IssueReportF
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Сообщить о проблеме</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Зафиксируйте проблему по этой брони для дальнейшей обработки.</p>
-      </div>
+    <div className="space-y-4 px-5 pb-4 pt-1">
+      <p className="text-sm leading-5 text-gray-600">Зафиксируйте проблему по этой брони для дальнейшей обработки.</p>
 
       <div className="space-y-3">
         <Select
@@ -77,7 +74,7 @@ export function IssueReportForm({ bookingId, onSuccess, onCancel }: IssueReportF
         />
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:w-full [&>button]:justify-center">
         <Button variant="danger" onClick={handleSubmit} loading={loading}>
           Отправить отчет
         </Button>

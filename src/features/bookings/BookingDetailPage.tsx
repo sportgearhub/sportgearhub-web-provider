@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, ImageOff, Mail, Phone } from 'lucide-react';
+import { AlertCircle, ImageOff, Mail, MoreHorizontal, Package, Phone, XCircle, type LucideIcon } from 'lucide-react';
+import { BottomSheet } from '../../components/ui/BottomSheet';
+import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CopyValue } from '../../components/ui/CopyValue';
@@ -33,6 +35,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<Action | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,17 +82,23 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
   if (loading) {
     return (
-      <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate}>
-        <SkeletonDetail rows={6} />
-      </SectionPage>
+      <>
+        <SubPageHeader title="Бронирование" onBack={() => onNavigate('/bookings')} />
+        <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate}>
+          <SkeletonDetail rows={6} />
+        </SectionPage>
+      </>
     );
   }
 
   if (!booking) {
     return (
-      <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate} error={error}>
-        <Button variant="secondary" onClick={() => onNavigate('/bookings')}>К заказам</Button>
-      </SectionPage>
+      <>
+        <SubPageHeader title="Бронирование" onBack={() => onNavigate('/bookings')} />
+        <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate} error={error}>
+          <Button variant="secondary" onClick={() => onNavigate('/bookings')}>К заказам</Button>
+        </SectionPage>
+      </>
     );
   }
 
@@ -98,7 +107,30 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   const awaiting = booking.status === 'awaiting_seller_confirmation';
   const done = (message: string) => () => { setAction(null); say(message); void load(); };
 
+  const canDecline = awaiting;
+  const canIssue = Boolean(booking.fulfillment?.issueReportingAllowed);
+
   return (
+    <>
+      {/* The same bar as everywhere one level in: a way back, the number, and what can be done
+          to this booking in the corner. */}
+      <SubPageHeader
+        title={`№${booking.bookingNumber}`}
+        onBack={() => onNavigate('/bookings')}
+        action={
+          (canDecline || canIssue) ? (
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Действия с бронированием"
+              className="rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
+            >
+              <MoreHorizontal size={20} strokeWidth={2.5} />
+            </button>
+          ) : undefined
+        }
+      />
+
     <SectionPage
       title={`Бронирование №${booking.bookingNumber}`}
       breadcrumb={{ label: 'Заказы', path: '/bookings' }}
@@ -129,7 +161,9 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           {awaiting && (
             <>
               <Button variant="primary" loading={busy} onClick={() => void confirm()}>Подтвердить заявку</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')}>Отклонить</Button>
+              <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')} className="hidden lg:inline-flex">
+                Отклонить
+              </Button>
             </>
           )}
           {/* The API decides which moves are open — the same rules the commands enforce. */}
@@ -139,8 +173,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           {fulfillment?.return?.returnAllowed && (
             <Button variant="primary" onClick={() => setAction('return')}>Принять возврат</Button>
           )}
-          {booking.fulfillment?.issueReportingAllowed && (
-            <Button variant="ghost" onClick={() => setAction('issue')}>
+          {canIssue && (
+            <Button variant="ghost" onClick={() => setAction('issue')} className="hidden lg:inline-flex">
               <AlertCircle size={14} /> Сообщить о проблеме
             </Button>
           )}
@@ -263,5 +297,73 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           )}
       </div>
     </SectionPage>
+
+    <BottomSheet
+      open={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      title={`№${booking.bookingNumber}`}
+      center
+      footer={
+        <Button variant="secondary" className="w-full justify-center" onClick={() => setMenuOpen(false)}>
+          Закрыть
+        </Button>
+      }
+    >
+      <ul className="divide-y divide-gray-100 border-y border-gray-100">
+        <SheetRow
+          icon={Package}
+          title="Открыть товар"
+          note="Карточка целиком: состав комплекта, цены и правила."
+          onClick={() => { setMenuOpen(false); onNavigate(`/products/${booking.product.productId}`); }}
+        />
+        {canDecline && (
+          <SheetRow
+            icon={XCircle}
+            title="Отклонить заявку"
+            note="Снаряжение освободится, клиент получит уведомление."
+            onClick={() => { setMenuOpen(false); setAction('decline'); }}
+          />
+        )}
+        {canIssue && (
+          <SheetRow
+            icon={AlertCircle}
+            title="Сообщить о проблеме"
+            note="Поломка, опоздание, спор — зафиксировать по этой брони."
+            onClick={() => { setMenuOpen(false); setAction('issue'); }}
+          />
+        )}
+      </ul>
+    </BottomSheet>
+    </>
+  );
+}
+
+function SheetRow({
+  icon: Icon,
+  title,
+  note,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  note: string;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 px-5 py-3 text-left transition active:bg-gray-50"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+          <Icon size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-gray-950">{title}</span>
+          <span className="mt-0.5 block text-xs leading-4 text-gray-500">{note}</span>
+        </span>
+      </button>
+    </li>
   );
 }

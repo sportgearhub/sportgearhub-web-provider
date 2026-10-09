@@ -47,13 +47,10 @@ export function DeclineForm({
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Отклонить заявку</h3>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Снаряжение освободится, клиент получит уведомление. Деньги не списывались, возвращать нечего.
-        </p>
-      </div>
+    <div className="space-y-4 px-5 pb-4 pt-1">
+      <p className="text-sm leading-5 text-gray-600">
+        Снаряжение освободится, клиент получит уведомление. Деньги не списывались, возвращать нечего.
+      </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -74,7 +71,7 @@ export function DeclineForm({
         <p className="mt-1.5 text-xs text-gray-500">Необязательно. Клиент увидит этот текст.</p>
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+      <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:w-full [&>button]:justify-center">
         <Button variant="secondary" disabled={loading} onClick={onCancel}>Отмена</Button>
         <Button variant="danger" loading={loading} onClick={() => void submit()}>Отклонить</Button>
       </div>

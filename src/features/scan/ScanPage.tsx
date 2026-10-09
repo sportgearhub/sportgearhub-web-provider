@@ -47,13 +47,17 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* The lens takes everything under the bar. A camera in a box on a page is a page about a
-          camera; this is the camera, and the square in the middle is where to hold the code. */}
+          camera; this is the camera, and the square in the middle is where to hold the code.
+
+          Its top corners are round so the bar's underside has something to curve against: flush
+          against black, the bar's own rounding is invisible and it reads as a plain strip. */}
       <ScanFrame
         videoRef={camera.videoRef}
         scanning={camera.scanning}
         busy={looking}
         busyLabel="Ищем бронирование…"
         fill
+        className="rounded-t-2xl"
         overlay={
           /* Laid over the picture, because there is no page left beside it. */
           <>

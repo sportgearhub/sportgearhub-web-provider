@@ -40,11 +40,8 @@ export function HandoverForm({ bookingId, onSuccess, onCancel }: HandoverFormPro
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Зафиксировать выдачу</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Подтвердите, что оборудование передано клиенту.</p>
-      </div>
+    <div className="space-y-4 px-5 pb-4 pt-1">
+      <p className="text-sm leading-5 text-gray-600">Подтвердите, что оборудование передано клиенту.</p>
 
       <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <p className="text-xs text-blue-800">
@@ -75,7 +72,7 @@ export function HandoverForm({ bookingId, onSuccess, onCancel }: HandoverFormPro
         />
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:w-full [&>button]:justify-center">
         <Button variant="primary" onClick={handleSubmit} loading={loading}>
           Подтвердить выдачу
         </Button>

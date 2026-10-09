@@ -9,6 +9,8 @@ import { ConsoleLayout, type ConsoleOutletContext } from './components/layout/Co
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
+import { BookingFiltersPage } from './features/bookings/BookingFiltersPage';
+import { BookingsCalendarPage } from './features/bookings/BookingsCalendarPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
 import { RatingsPage } from './features/ratings/Ratings';
@@ -116,6 +118,16 @@ function ScanRoute() {
   return <ScanPage onNavigate={navigateTo} />;
 }
 
+function BookingFiltersRoute() {
+  const { navigateTo } = useConsole();
+  return <BookingFiltersPage onNavigate={navigateTo} />;
+}
+
+function BookingsCalendarRoute() {
+  const { navigateTo } = useConsole();
+  return <BookingsCalendarPage onNavigate={navigateTo} />;
+}
+
 function BookingDetailRoute() {
   const { navigateTo } = useConsole();
   const { bookingId = '' } = useParams();
@@ -184,6 +196,8 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardRoute /> },
           { path: 'bookings', element: <BookingsRoute /> },
+          { path: 'bookings/filters', element: <BookingFiltersRoute /> },
+          { path: 'bookings/calendar', element: <BookingsCalendarRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
           { path: 'menu', element: <MenuRoute /> },
