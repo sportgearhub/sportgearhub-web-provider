@@ -54,10 +54,13 @@ export function BookingProductPanel({
   productId,
   open,
   onOpenProduct,
+  hideProductHeader = false,
 }: {
   productId: string;
   open: boolean;
   onOpenProduct?: () => void;
+  /** The screen around it already shows the photo and the name — do not say them a third time. */
+  hideProductHeader?: boolean;
 }) {
   const { data, loading, error } = useBookingProduct(productId, open);
 
@@ -70,6 +73,13 @@ export function BookingProductPanel({
 
   return (
     <div className="space-y-4">
+      {hideProductHeader ? (
+        onOpenProduct && (
+          <button type="button" onClick={onOpenProduct} className="inline-flex items-center gap-1 text-sm font-medium text-blue-700">
+            <ExternalLink size={13} /> Открыть карточку товара
+          </button>
+        )
+      ) : (
       <div className="flex gap-3">
         {product.mediaPreviewUrl ? (
           <img src={mediaUrl(product.mediaPreviewUrl)} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover" />
@@ -91,6 +101,7 @@ export function BookingProductPanel({
           )}
         </div>
       </div>
+      )}
 
       {/* The deposit is the number an operator must not get wrong, so it is not buried in a list. */}
       {deposit && (

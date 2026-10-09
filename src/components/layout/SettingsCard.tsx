@@ -1,10 +1,42 @@
 import type { ReactNode } from 'react';
+import { Pencil, Plus } from 'lucide-react';
 
 /**
  * One subject per card: a heading that names it, a line saying what it is for, and its action in
  * the same header. An action that sits in the header of the thing it changes cannot be ambiguous —
  * «Редактировать» under «Реквизиты выплат» needs no further explanation, a loose link does.
  */
+/**
+ * The pencil at the end of a section's header.
+ *
+ * An action that sits in the header of the thing it changes cannot be ambiguous, and on a phone it
+ * does not need the word: a pencil beside «Правила аренды» is the only thing it could mean. The
+ * word comes back where there is room for it.
+ */
+export function SectionEdit({
+  onClick,
+  label = 'Редактировать',
+  empty = false,
+}: {
+  onClick: () => void;
+  label?: string;
+  /** Nothing there yet, so the mark is a plus and the word is «Добавить». */
+  empty?: boolean;
+}) {
+  const Icon = empty ? Plus : Pencil;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={empty ? 'Добавить' : label}
+      className="-mr-1 flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-blue-700 transition active:bg-blue-50 sm:hover:bg-blue-50"
+    >
+      <Icon size={16} />
+      <span className="hidden sm:inline">{empty ? 'Добавить' : label}</span>
+    </button>
+  );
+}
+
 export function SettingsCard({
   title,
   description,

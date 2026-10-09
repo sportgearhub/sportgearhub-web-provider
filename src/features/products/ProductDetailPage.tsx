@@ -20,14 +20,13 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SectionPage } from '../../components/layout/SectionPage';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
 import { ProductImagesSection } from './ProductImagesSection';
 import { ProductQuoteCalculator } from './ProductQuoteCalculator';
 import { ProductReadinessCard } from './ProductReadinessCard';
 import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
-import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { infoSectionLabel } from './infoSections';
 import { submitRefusalMessage } from './productStatus';
 import { storefrontProductUrl } from '../providers/providerStatus';
@@ -45,17 +44,6 @@ import { formatPrice, productStatus } from './productStatus';
  * between: what the product is, what it costs, what the rules are and what it looks like are all
  * facets of the same card, and on a phone they simply stack.
  */
-type DetailTab = 'about' | 'price' | 'policy' | 'included' | 'preview';
-
-/** The card's parts, as siblings rather than a column to scroll. */
-const DETAIL_TABS = [
-  { value: 'about' as const, label: 'О товаре' },
-  { value: 'price' as const, label: 'Цена' },
-  { value: 'policy' as const, label: 'Правила' },
-  { value: 'included' as const, label: 'Что входит' },
-  { value: 'preview' as const, label: 'Предпросмотр' },
-];
-
 export function ProductDetailPage({ productId, onNavigate }: { productId: string; onNavigate: (path: string) => void }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [pricing, setPricing] = useState<ProductPricingPolicy | null>(null);
@@ -65,7 +53,6 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [busy, setBusy] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
-  const [tab, setTab] = useState<DetailTab>('about');
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
   const [priceSummary, setPriceSummary] = useState<ProductPricingSummary | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -219,7 +206,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       {/* What the card is, at the top of its own page: the photo, the name in full, the state as
           a chip, and the two numbers an operator is asked about across a counter. The bar above
           truncates the name to one line, which is a label rather than the thing itself. */}
-      <section className="mb-2 flex gap-3 bg-white p-4 sm:hidden">
+      <section className="mb-2 flex gap-3 rounded-2xl bg-white p-4 sm:hidden">
         {product.mediaPreviewUrl ? (
           <img
             src={mediaUrl(product.mediaPreviewUrl)}
@@ -293,33 +280,41 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
 
       {/* Above the grid, not inside the left column: a row of tabs there pushed the left column's
           first card down by its own height and left the sidebar hanging above it. */}
-      <div className="mb-2 overflow-x-auto px-3 pb-1 sm:mb-4 sm:px-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="inline-flex max-w-full" />
-      </div>
-
       {/* Bands of white on a phone, two columns on a desktop; and room at the end for the bar
           that carries what to do next. */}
       <div className="grid gap-2 pb-24 sm:gap-4 sm:pb-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="space-y-4">
-          {tab === 'about' && <SettingsCard
+          <SettingsCard
             title="О товаре"
             description="То, что клиент видит в карточке."
+            action={<SectionEdit onClick={() => onNavigate(`/products/${productId}/edit`)} />}
           >
             <DetailList>
-              <DetailRow label="Категория" value={product.category?.title ?? product.category?.slug} />
+              {/* The two the header above already carries, on a phone. */}
+              <DetailRow
+                label="Категория"
+                value={product.category?.title ?? product.category?.slug}
+                className="hidden sm:grid"
+              />
               <DetailRow
                 label="Группа"
                 value={product.groupName}
                 hint="Карточки одной группы клиент видит как варианты одного товара"
               />
-              <DetailRow label="Количество" value={`${product.quantity} шт`} hint="Сколько можно сдать одновременно" />
+              <DetailRow
+                label="Количество"
+                value={`${product.quantity} шт`}
+                hint="Сколько можно сдать одновременно"
+                className="hidden sm:grid"
+              />
               <DetailRow label="Описание" value={product.description} multiline />
             </DetailList>
-          </SettingsCard>}
+          </SettingsCard>
 
-          {tab === 'price' && <SettingsCard
+          <SettingsCard
             title="Цена"
             description="Сколько стоит аренда."
+            action={<SectionEdit onClick={() => onNavigate(`/products/${productId}/edit`)} />}
           >
             {pricing?.rentalTiers?.length ? (
               <DetailList>
@@ -351,16 +346,12 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             )}
 
             {pricing && <div className="mt-3"><ProductQuoteCalculator productId={productId} /></div>}
-          </SettingsCard>}
+          </SettingsCard>
 
-          {tab === 'policy' && <SettingsCard
+          <SettingsCard
             title="Правила аренды"
             description="Отмена, залог и запас времени до выдачи."
-            action={
-              <Button variant="secondary" size="sm" aria-label="Редактировать правила аренды" onClick={() => setEditingPolicy(true)}>
-                <Pencil size={13} /> {policy ? 'Редактировать' : 'Добавить'}
-              </Button>
-            }
+            action={<SectionEdit onClick={() => setEditingPolicy(true)} empty={!policy} />}
           >
             {policy ? (
               <DetailList>
@@ -375,16 +366,12 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             ) : (
               <p className="text-sm text-gray-500">Правила не заданы — действуют условия платформы.</p>
             )}
-          </SettingsCard>}
+          </SettingsCard>
 
-          {tab === 'included' && <SettingsCard
+          <SettingsCard
             title="Что входит"
             description="Комплект, что взять с собой и что нужно знать заранее."
-            action={
-              <Button variant="secondary" size="sm" aria-label="Редактировать состав комплекта" onClick={() => setEditingInfo(true)}>
-                <Pencil size={13} /> {infoSections.length > 0 ? 'Редактировать' : 'Добавить'}
-              </Button>
-            }
+            action={<SectionEdit onClick={() => setEditingInfo(true)} empty={infoSections.length === 0} />}
           >
             {infoSections.length === 0 ? (
               <p className="text-sm text-gray-500">Ничего не указано. Клиенты чаще спрашивают именно об этом.</p>
@@ -400,11 +387,9 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
                 ))}
               </div>
             )}
-          </SettingsCard>}
+          </SettingsCard>
 
-          {tab === 'preview' && (
-            <ProductPreview productId={productId} published={product.status === 'active'} />
-          )}
+          <ProductPreview productId={productId} published={product.status === 'active'} />
         </div>
 
         <div className="space-y-4">

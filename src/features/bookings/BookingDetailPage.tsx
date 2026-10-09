@@ -8,7 +8,7 @@ import { CopyValue } from '../../components/ui/CopyValue';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import { useGoBack } from '../../lib/useGoBack';
 import type { BookingDetail, FulfillmentDetail } from '../../types';
@@ -174,7 +174,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
       {/* What was booked, at the top of its own page: the photo, the name in full, the state, the
           window and who is coming for it. The bar above has room for the number alone. */}
-      <section className="mb-2 bg-white p-4 sm:hidden">
+      <section className="mb-2 rounded-2xl bg-white p-4 sm:hidden">
         <div className="flex gap-3">
           {booking.product.mediaPreviewUrl ? (
             <img
@@ -230,18 +230,27 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       </div>
 
       <div className="max-w-3xl space-y-2 sm:space-y-4">
-        <SettingsCard title="Товар" description="Что забронировали.">
-          <div className="flex gap-3">
-            {/* The hero above already showed it; on a phone this card is the detail, not the
-                picture again. */}
+        <SettingsCard
+          title="Товар"
+          description="Что входит и какой залог брать."
+          action={
+            <SectionEdit
+              label="Открыть"
+              onClick={() => onNavigate(`/products/${booking.product.productId}`)}
+            />
+          }
+        >
+          {/* The hero at the top of this page is the photo and the name; what belongs here is
+              everything the hero cannot hold. */}
+          <div className="hidden gap-3 sm:flex">
             {booking.product.mediaPreviewUrl ? (
               <img
                 src={mediaUrl(booking.product.mediaPreviewUrl)}
                 alt=""
-                className="hidden h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover sm:block"
+                className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
               />
             ) : (
-              <span className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300 sm:flex">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
                 <ImageOff size={18} />
               </span>
             )}
@@ -256,25 +265,31 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               {booking.product.categoryTitle && (
                 <p className="mt-0.5 text-xs text-gray-500">{booking.product.categoryTitle}</p>
               )}
-              </div>
             </div>
+          </div>
 
-            {/* The booking says which card; the card says what is in the kit and what deposit to
-                take. Those are the questions asked across a counter, so they are fetched here
-                rather than left on another screen. */}
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <BookingProductPanel
-                productId={booking.product.productId}
-                open
-                onOpenProduct={() => onNavigate(`/products/${booking.product.productId}`)}
-              />
-            </div>
-          </SettingsCard>
+          {/* The booking says which card; the card says what is in the kit and what deposit to
+              take. Those are the questions asked across a counter, so they are fetched here
+              rather than left on another screen. */}
+          <div className="sm:mt-4 sm:border-t sm:border-gray-100 sm:pt-4">
+            {/* The way to the card is «Открыть» in this section's header, so the panel does not
+                offer a second one. */}
+            <BookingProductPanel productId={booking.product.productId} open hideProductHeader />
+          </div>
+        </SettingsCard>
 
           <SettingsCard title="Аренда" description="Сроки и количество.">
             <DetailList>
-              <DetailRow label="Период" value={formatWindow(booking.schedule?.startAt, booking.schedule?.endAt)} />
-              <DetailRow label="Количество" value={booking.schedule ? `${booking.schedule.quantity} шт` : null} />
+              <DetailRow
+                label="Период"
+                value={formatWindow(booking.schedule?.startAt, booking.schedule?.endAt)}
+                className="hidden sm:grid"
+              />
+              <DetailRow
+                label="Количество"
+                value={booking.schedule ? `${booking.schedule.quantity} шт` : null}
+                className="hidden sm:grid"
+              />
               <DetailRow label="Где выдаётся" value={booking.product.fulfillmentLocationName}>
                 {booking.product.fulfillmentLocationName && (
                   <>
@@ -301,7 +316,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
           <SettingsCard title="Клиент" description="Кому выдаём.">
             <DetailList>
-              <DetailRow label="Имя" value={booking.customer?.fullName} />
+              <DetailRow label="Имя" value={booking.customer?.fullName} className="hidden sm:grid" />
               <DetailRow label="Телефон">
                 {booking.customer?.phone
                   ? <CopyValue value={booking.customer.phone} label="телефон клиента" icon={<Phone size={12} />} />

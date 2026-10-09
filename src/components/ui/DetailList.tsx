@@ -15,6 +15,7 @@ export function DetailRow({
   children,
   hint,
   multiline = false,
+  className = '',
 }: {
   label: string;
   value?: string | null;
@@ -22,9 +23,11 @@ export function DetailRow({
   hint?: string;
   /** Keeps the line breaks the seller typed, for a description or an address. */
   multiline?: boolean;
+  /** For rows the screen above already said — `hidden sm:grid` on a phone with a hero. */
+  className?: string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-1 border-b border-gray-100 py-2.5 text-sm last:border-b-0 sm:grid-cols-[minmax(160px,220px)_1fr] sm:gap-6">
+    <div className={`grid-cols-1 gap-1 border-b border-gray-100 py-2.5 text-sm last:border-b-0 sm:grid-cols-[minmax(160px,220px)_1fr] sm:gap-6 ${className || 'grid'}`}>
       <dt className="text-gray-500">{label}</dt>
       <dd className={multiline ? 'whitespace-pre-line text-gray-900' : 'text-gray-900'}>
         {children ?? (value ? value : <span className="text-gray-400">Не указано</span>)}
