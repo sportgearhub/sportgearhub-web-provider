@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronsUpDown, ImageOff, Layers, Plus, Search, type LucideIcon } from 'lucide-react';
+import {
+  Archive,
+  Check,
+  ChevronsUpDown,
+  ImageOff,
+  Layers,
+  ListChecks,
+  MoreVertical,
+  Plus,
+  ScanBarcode,
+  Search,
+  type LucideIcon,
+} from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +24,8 @@ import {
 } from '../../components/table/TableControls';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useToast } from '../../components/ui/Toast';
+import { ScanSheet } from '../scan/ScanSheet';
 import { ApiError, mediaUrl, productCategoriesApi, productsApi } from '../../lib/api-client';
 import type { Pagination as PageInfo, ProductCategory, ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusMeta } from './productStatus';
@@ -114,6 +128,17 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [pendingTab, setPendingTab] = useState('all');
   const [counts, setCounts] = useState<Record<string, number>>({});
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  // Picking several cards to do one thing to. Off by default: a list you tap to open is not a
+  // list you tap to tick, and only one of those can be true at a time.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [confirming, setConfirming] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const toast = useToast();
+
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(columns)); }, [columns]);
   useEffect(() => { localStorage.setItem(PAGE_SIZE_KEY, String(pageSize)); }, [pageSize]);
 
@@ -175,7 +200,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [tab, filter, sortParam, page, pageSize]);
+  }, [tab, filter, sortParam, page, pageSize, reloadKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,6 +275,37 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     );
   };
 
+  const toggleSelected = (productId: string) =>
+    setSelected(current => current.includes(productId)
+      ? current.filter(item => item !== productId)
+      : [...current, productId]);
+
+  const leaveSelection = () => { setSelecting(false); setSelected([]); };
+
+  /**
+   * Archiving several cards.
+   *
+   * There is no bulk endpoint, so this is the single one called once per card — and each is
+   * allowed to fail on its own, because the API refuses some states (a card on review cannot be
+   * archived) and a seller who ticked eight should hear which went rather than nothing at all.
+   */
+  const archiveSelected = async () => {
+    setArchiving(true);
+    const results = await Promise.allSettled(selected.map(id => productsApi.archive(id)));
+    const failed = results.filter(result => result.status === 'rejected').length;
+    setArchiving(false);
+    setConfirming(false);
+    leaveSelection();
+    setReloadKey(key => key + 1);
+    if (failed === 0) {
+      toast.show(`В архив: ${results.length} ${plural(results.length)}.`, 'success');
+    } else if (failed === results.length) {
+      toast.show('Не удалось отправить в архив. Товары на проверке архивировать нельзя.');
+    } else {
+      toast.show(`В архив: ${results.length - failed} из ${results.length}. Остальные в статусе, из которого архивировать нельзя.`);
+    }
+  };
+
   const slice = SLICES.find(item => item.value === tab) ?? SLICES[0];
   const totalForTab = counts[tab] ?? pageInfo?.totalItems ?? null;
 
@@ -274,13 +330,18 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           catalogue from the bottom of it should not mean scrolling back up first. */}
       <div className="md:hidden">
         <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
-            {pageInfo && (
-              <span className="shrink-0 text-xs text-gray-500">
-                {pageInfo.totalItems} {plural(pageInfo.totalItems)}
-              </span>
-            )}
+            {/* The count is on the filter below, which is where it belongs — it is the count of
+                what the filter selected. This corner is for the things the whole list can do. */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Ещё"
+              className="-mr-2 shrink-0 rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
+            >
+              <MoreVertical size={20} />
+            </button>
           </div>
           <div className="mt-3 flex">{searchField}</div>
         </div>
@@ -427,14 +488,29 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             )}
             {!loading && products.map(product => {
               const meta = productStatus(product.status);
+              const ticked = selected.includes(product.productId);
               return (
-                <li key={product.productId} className="overflow-hidden rounded-xl bg-white">
+                <li
+                  key={product.productId}
+                  className={`overflow-hidden rounded-xl bg-white ${ticked ? 'ring-2 ring-blue-500' : ''}`}
+                >
                   <button
                     type="button"
-                    onClick={() => onNavigate(`/products/${product.productId}`)}
+                    onClick={() => selecting
+                      ? toggleSelected(product.productId)
+                      : onNavigate(`/products/${product.productId}`)}
                     className="w-full p-3 text-left transition active:bg-gray-50"
                   >
                     <span className="flex flex-wrap items-center gap-1.5">
+                      {selecting && (
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                            ticked ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                          }`}
+                        >
+                          {ticked && <Check size={13} strokeWidth={3} />}
+                        </span>
+                      )}
                       <Badge variant={meta.variant}>{meta.label}</Badge>
                       {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
                     </span>
@@ -475,14 +551,101 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       </div>
 
       {/* «Добавить» within a thumb's reach, over the list rather than above it, where the
-          references put the one action a catalogue screen is for. */}
-      <button
-        type="button"
-        onClick={() => onNavigate('/products/new')}
-        className="fixed bottom-[calc(4rem+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-1.5 rounded-full bg-blue-600 py-3 pl-4 pr-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
+          references put the one action a catalogue screen is for — and, while cards are being
+          ticked, what to do with them, in the same place. */}
+      {selecting ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+          <button
+            type="button"
+            onClick={leaveSelection}
+            className="shrink-0 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition active:bg-gray-100"
+          >
+            Отмена
+          </button>
+          <span className="min-w-0 flex-1 truncate text-sm text-gray-500">
+            {selected.length > 0 ? `Выбрано ${selected.length}` : 'Отметьте товары'}
+          </span>
+          <Button
+            variant="danger"
+            disabled={selected.length === 0}
+            onClick={() => setConfirming(true)}
+            className="h-10 shrink-0"
+          >
+            <Archive size={15} /> В архив
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onNavigate('/products/new')}
+          className="fixed bottom-[calc(4rem+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-1.5 rounded-full bg-blue-600 py-3 pl-4 pr-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
+        >
+          <Plus size={18} /> Добавить
+        </button>
+      )}
+
+      {/* What the whole list can do, behind the three dots. Each row is an icon in a rounded
+          square and a line saying what it is for — a menu read once, not a row of mystery icons. */}
+      <BottomSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        title="Ещё"
+        center
+        footer={
+          <Button variant="secondary" className="w-full justify-center" onClick={() => setMenuOpen(false)}>
+            Закрыть
+          </Button>
+        }
       >
-        <Plus size={18} /> Добавить
-      </button>
+        <ul className="divide-y divide-gray-100 border-y border-gray-100">
+          <MenuRow
+            icon={ScanBarcode}
+            title="Поиск по штрихкоду"
+            note="Как сканером на выдаче: наведите камеру на бирку — найдём товар в каталоге."
+            onClick={() => { setMenuOpen(false); setScanOpen(true); }}
+          />
+          <MenuRow
+            icon={ListChecks}
+            title="Выбрать товары"
+            note="Отметить несколько карточек и сделать с ними одно — например, отправить в архив."
+            onClick={() => { setMenuOpen(false); setSelecting(true); setSelected([]); }}
+          />
+        </ul>
+      </BottomSheet>
+
+      <ScanSheet
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onFound={value => {
+          // The catalogue filters by title, so what was read goes into the search box: the seller
+          // sees what it found, and can edit it if the label read badly.
+          const code = value.trim();
+          setQuery(code);
+          toast.show(`Ищем «${code}» в каталоге.`, 'success');
+        }}
+      />
+
+      <BottomSheet
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={`В архив: ${selected.length} ${plural(selected.length)}?`}
+        center
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1 justify-center" onClick={() => setConfirming(false)}>
+              Отмена
+            </Button>
+            <Button variant="danger" className="flex-1 justify-center" loading={archiving} onClick={() => void archiveSelected()}>
+              В архив
+            </Button>
+          </div>
+        }
+      >
+        <p className="px-5 pb-4 pt-1 text-sm leading-6 text-gray-700">
+          Товары из архива не продаются и не видны покупателям. Вернуть их можно из вкладки «Архив».
+          Карточки на проверке архивировать нельзя — они останутся как есть.
+        </p>
+      </BottomSheet>
 
       <BottomSheet
         open={sheetOpen}
@@ -527,7 +690,39 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           })}
         </ul>
       </BottomSheet>
+
+      {toast.node}
     </>
+  );
+}
+
+function MenuRow({
+  icon: Icon,
+  title,
+  note,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  note: string;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 px-5 py-3 text-left transition active:bg-gray-50"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+          <Icon size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-gray-950">{title}</span>
+          <span className="mt-0.5 block text-xs leading-4 text-gray-500">{note}</span>
+        </span>
+      </button>
+    </li>
   );
 }
 

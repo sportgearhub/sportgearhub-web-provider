@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { CopyValue } from '../../components/ui/CopyValue';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
+import { MobileHomeHeader } from '../../components/layout/MobileHomeHeader';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import {
@@ -327,38 +328,41 @@ export function ExperienceDashboardPage({ onNavigate }: { onNavigate: (path: str
   const needGuide = departures.filter(d => !d.guide).length;
 
   return (
-    <SectionPage title="Впечатления" description="Сегодня и ближайшие выходы.">
-      <PrototypeNote>Демонстрационные данные — API впечатлений ещё не существует.</PrototypeNote>
+    <>
+      <MobileHomeHeader />
+      <SectionPage title="Впечатления" description="Сегодня и ближайшие выходы.">
+        <PrototypeNote>Демонстрационные данные — API впечатлений ещё не существует.</PrototypeNote>
 
-      <div className="max-w-3xl space-y-4">
-        <div className="grid grid-cols-3 gap-2">
-          <SummaryTile label="Выходов сегодня" value={String(todays.length)} />
-          <SummaryTile label="Гостей сегодня" value={String(seatsToday)} tone="accent" />
-          <SummaryTile label="Без гида" value={String(needGuide)} />
+        <div className="max-w-3xl space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            <SummaryTile label="Выходов сегодня" value={String(todays.length)} />
+            <SummaryTile label="Гостей сегодня" value={String(seatsToday)} tone="accent" />
+            <SummaryTile label="Без гида" value={String(needGuide)} />
+          </div>
+
+          <SettingsCard
+            title="Сегодня"
+            description={todays.length > 0 ? 'Выходы на сегодня.' : undefined}
+            action={<Button variant="secondary" size="sm" onClick={() => onNavigate('/x/schedule')}>Всё расписание</Button>}
+          >
+            {todays.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">Сегодня выходов нет.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {todays.map(departure => (
+                  <li key={departure.departureId} className="flex flex-wrap items-center gap-3 py-2.5">
+                    <span className="w-14 shrink-0 text-sm font-medium text-gray-900">
+                      {new Date(departure.startsAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm text-gray-900">{experienceById(departure.experienceId)?.title}</span>
+                    <Occupancy booked={departure.booked} capacity={departure.capacity} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SettingsCard>
         </div>
-
-        <SettingsCard
-          title="Сегодня"
-          description={todays.length > 0 ? 'Выходы на сегодня.' : undefined}
-          action={<Button variant="secondary" size="sm" onClick={() => onNavigate('/x/schedule')}>Всё расписание</Button>}
-        >
-          {todays.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">Сегодня выходов нет.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {todays.map(departure => (
-                <li key={departure.departureId} className="flex flex-wrap items-center gap-3 py-2.5">
-                  <span className="w-14 shrink-0 text-sm font-medium text-gray-900">
-                    {new Date(departure.startsAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm text-gray-900">{experienceById(departure.experienceId)?.title}</span>
-                  <Occupancy booked={departure.booked} capacity={departure.capacity} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </SettingsCard>
-      </div>
-    </SectionPage>
+      </SectionPage>
+    </>
   );
 }

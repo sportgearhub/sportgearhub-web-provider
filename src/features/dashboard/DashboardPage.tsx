@@ -8,9 +8,9 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError, bookingsApi, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
+import { MobileHomeHeader } from '../../components/layout/MobileHomeHeader';
 import { RatingsSection } from '../ratings/Ratings';
 import { dayBounds } from '../bookings/bookingMeta';
-import { useWorkspace, workspaceMeta, type Workspace } from '../workspace/workspace';
 import { statusMeta } from '../providers/providerStatus';
 
 interface DashboardPageProps {
@@ -40,7 +40,6 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { workspace, setWorkspace } = useWorkspace();
   const [today, setToday] = useState<{ handover: number; ret: number; awaiting: number } | null>(null);
 
   const load = async () => {
@@ -94,31 +93,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   return (
     <div className="space-y-4 px-3 pb-6 pt-3 lg:space-y-6 lg:p-6">
-      {/* The top of the screen, as every other section has it: one white block the width of the
-          phone, round along its underside. The console draws no bar here, so this is the bar —
-          and the one place that must say which cabinet you are in is the one you land on. */}
-      <div className="-mx-3 -mt-3 rounded-b-2xl bg-white px-4 pb-4 pt-4 lg:hidden">
-        <p className="truncate text-lg font-semibold text-gray-950">{provider.displayName}</p>
-        <p className="mt-0.5 text-sm text-gray-500">{todayLabel}</p>
-        {/* The direction, where a phone has no header to carry it. */}
-        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1">
-          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setWorkspace(key)}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-sm transition ${
-                key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
-              }`}
-            >
-              {workspaceMeta[key].label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <MobileHomeHeader className="-mx-3 -mt-3" />
 
       <p className="hidden text-sm text-gray-500 lg:block">{todayLabel}</p>
-
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
