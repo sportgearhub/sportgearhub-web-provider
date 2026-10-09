@@ -75,6 +75,10 @@ function taskFor(relativePath: string): {
     return { title: 'Сканер', backTo: '/', hideNav: true, center: true, card: true };
   }
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
+  // Picking cards: its own bar, with the count and «выбрать все» in the corner.
+  if (relativePath === '/products/select') {
+    return { title: 'Выбор товаров', backTo: '/products', hideNav: true, bare: true };
+  }
   if (relativePath === '/products/filters') {
     return { title: 'Фильтры', backTo: '/products', hideNav: true, center: true, card: true };
   }

@@ -1,4 +1,4 @@
-import { Check, ImageOff, MoreVertical } from 'lucide-react';
+import { Check, ImageOff, MoreHorizontal } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { mediaUrl } from '../../lib/api-client';
@@ -42,19 +42,11 @@ export function ProductCard({
         onClick={() => (selecting ? onToggle?.() : onOpen())}
         className="flex w-full gap-3 p-3 text-left transition active:bg-gray-50"
       >
-        {selecting && (
-          <span
-            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
-              ticked ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-            }`}
-          >
-            {ticked && <Check size={13} strokeWidth={3} />}
-          </span>
-        )}
         <Thumb url={product.mediaPreviewUrl} title={product.title} />
         <span className="min-w-0 flex-1">
           {/* Room kept at the right-hand end for the menu button laid over it. */}
-          <span className={`flex flex-wrap items-center gap-1 ${onMenu && !selecting ? 'pr-7' : ''}`}>
+          {/* Room kept at the right-hand end for whatever is laid over that corner. */}
+          <span className={`flex flex-wrap items-center gap-1 ${onMenu || selecting ? 'pr-7' : ''}`}>
             <Badge variant={meta.variant} size="xs" tone="strong" shape="square">{meta.label}</Badge>
             {blocked && <Badge variant="orange" size="xs" tone="strong" shape="square">не бронируется</Badge>}
           </span>
@@ -69,16 +61,26 @@ export function ProductCard({
         </span>
       </button>
 
-      {/* Beside the card rather than inside it: a button within a button is not something a
-          browser will render, and these are two different taps. */}
-      {onMenu && !selecting && (
+      {/* The same corner, whichever job the list is doing: the tick while cards are being
+          picked, the menu otherwise. The tick is drawn, not a control — the whole card is the
+          target, which is the easier thing to hit. */}
+      {selecting ? (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-md border-2 transition ${
+            ticked ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+          }`}
+        >
+          {ticked && <Check size={13} strokeWidth={3} />}
+        </span>
+      ) : onMenu && (
         <button
           type="button"
           onClick={onMenu}
           aria-label="Действия с товаром"
           className="absolute right-1 top-1 rounded-lg p-2 text-gray-400 transition active:bg-gray-100"
         >
-          <MoreVertical size={17} />
+          <MoreHorizontal size={17} />
         </button>
       )}
     </li>

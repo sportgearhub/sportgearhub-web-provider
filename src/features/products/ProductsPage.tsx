@@ -7,7 +7,7 @@ import {
   Layers,
   ListChecks,
   Pencil,
-  MoreVertical,
+  MoreHorizontal,
   Plus,
   ScanBarcode,
   Search,
@@ -141,13 +141,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
-  // Picking several cards to do one thing to. Off by default: a list you tap to open is not a
-  // list you tap to tick, and only one of those can be true at a time.
-  const [selecting, setSelecting] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [confirming, setConfirming] = useState(false);
-  const [archiving, setArchiving] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   // Which card's menu is open — the card itself, since the sheet names it.
   const [cardMenu, setCardMenu] = useState<ProductSummary | null>(null);
   const toast = useToast();
@@ -223,7 +216,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       })
       .finally(() => { if (!cancelled) { setLoading(false); setLoadingMore(false); } });
     return () => { cancelled = true; };
-  }, [tab, filter, sortParam, page, pageSize, reloadKey, phone]);
+  }, [tab, filter, sortParam, page, pageSize, phone]);
 
   /**
    * The end of the list, as a thing to notice.
@@ -317,37 +310,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     );
   };
 
-  const toggleSelected = (productId: string) =>
-    setSelected(current => current.includes(productId)
-      ? current.filter(item => item !== productId)
-      : [...current, productId]);
-
-  const leaveSelection = () => { setSelecting(false); setSelected([]); };
-
-  /**
-   * Archiving several cards.
-   *
-   * There is no bulk endpoint, so this is the single one called once per card — and each is
-   * allowed to fail on its own, because the API refuses some states (a card on review cannot be
-   * archived) and a seller who ticked eight should hear which went rather than nothing at all.
-   */
-  const archiveSelected = async () => {
-    setArchiving(true);
-    const results = await Promise.allSettled(selected.map(id => productsApi.archive(id)));
-    const failed = results.filter(result => result.status === 'rejected').length;
-    setArchiving(false);
-    setConfirming(false);
-    leaveSelection();
-    setReloadKey(key => key + 1);
-    if (failed === 0) {
-      toast.show(`В архив: ${results.length} ${plural(results.length)}.`, 'success');
-    } else if (failed === results.length) {
-      toast.show('Не удалось отправить в архив. Товары на проверке архивировать нельзя.');
-    } else {
-      toast.show(`В архив: ${results.length - failed} из ${results.length}. Остальные в статусе, из которого архивировать нельзя.`);
-    }
-  };
-
   const slice = SLICES.find(item => item.value === tab) ?? SLICES[0];
   const activeFilters = countActive(chosen);
   const totalForTab = counts[tab] ?? pageInfo?.totalItems ?? null;
@@ -386,7 +348,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               aria-label="Ещё"
               className="-mr-2 shrink-0 rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
             >
-              <MoreVertical size={20} />
+              <MoreHorizontal size={20} />
             </button>
           </div>
           <div className="mt-3 flex items-center gap-2">
@@ -410,28 +372,29 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </div>
 
         {/* The other places this screen leads, as tiles rather than rows: squares read as things
-            to tap, and a row of them has room for the next one. They are the bottom of the same
-            white block and scroll away under the part that stays — the name and the search box
-            are worth keeping on screen; a shortcut you have already seen is not.
-
-            The overlap is what makes the seam invisible: the stuck part's rounded underside is
-            over white while the tiles are there, and over the ground once they are gone. */}
-        <div className="-mt-4 flex gap-2 overflow-x-auto rounded-b-2xl bg-white px-3 pb-3 pt-4 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <FeatureTile
-            icon={Layers}
-            label="Группы товаров"
-            onClick={() => onNavigate('/products/groups')}
-          />
+            to tap, and a row of them has room for the next one. Its own band, edge to edge — a
+            card with margins inside a screen this narrow is two kinds of edge to look at. It
+            scrolls away under the part that stays: the name and the search box are worth keeping
+            on screen, a shortcut you have already seen is not. */}
+        <div className="mt-2 bg-white py-3 md:hidden">
+          <div className="flex gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <FeatureTile
+              icon={Layers}
+              label="Группы товаров"
+              onClick={() => onNavigate('/products/groups')}
+            />
+          </div>
         </div>
 
-        {/* Then the filter, in its own card, touching the list it filters. Eight statuses do not
-            fit across a phone, and a strip that scrolls sideways hides most of them; one row
-            saying which is on, how many are in it and that there are others reads at a glance. */}
-        <div className="px-3 pt-3 md:hidden">
+        {/* Then the filter, its own band across the screen, touching the list it filters. Eight
+            statuses do not fit across a phone, and a strip that scrolls sideways hides most of
+            them; one row saying which is on, how many are in it and that there are others reads
+            at a glance. */}
+        <div className="mt-2 md:hidden">
           <button
             type="button"
             onClick={() => { setPendingTab(tab); setSheetOpen(true); }}
-            className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left transition active:bg-gray-50"
+            className="flex w-full items-center gap-3 bg-white px-4 py-3 text-left transition active:bg-gray-50"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-gray-900">{slice.label}</span>
@@ -550,10 +513,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                 key={product.productId}
                 product={product}
                 blocked={blocked[product.productId]}
-                selecting={selecting}
-                ticked={selected.includes(product.productId)}
                 onOpen={() => onNavigate(`/products/${product.productId}`)}
-                onToggle={() => toggleSelected(product.productId)}
                 onMenu={() => setCardMenu(product)}
               />
             ))}
@@ -589,36 +549,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       {/* «Добавить» within a thumb's reach, over the list rather than above it, where the
           references put the one action a catalogue screen is for — and, while cards are being
           ticked, what to do with them, in the same place. */}
-      {selecting ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
-          <button
-            type="button"
-            onClick={leaveSelection}
-            className="shrink-0 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition active:bg-gray-100"
-          >
-            Отмена
-          </button>
-          <span className="min-w-0 flex-1 truncate text-sm text-gray-500">
-            {selected.length > 0 ? `Выбрано ${selected.length}` : 'Отметьте товары'}
-          </span>
-          <Button
-            variant="danger"
-            disabled={selected.length === 0}
-            onClick={() => setConfirming(true)}
-            className="h-10 shrink-0"
-          >
-            <Archive size={15} /> В архив
-          </Button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onNavigate('/products/new')}
-          className="fixed bottom-[calc(4rem+0.625rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full bg-blue-600 py-2 pl-3 pr-4 text-[13px] font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
-        >
-          <Plus size={16} /> Добавить
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => onNavigate('/products/new')}
+        className="fixed bottom-[calc(4rem+0.625rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full bg-blue-600 py-2 pl-3 pr-4 text-[13px] font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
+      >
+        <Plus size={16} /> Добавить
+      </button>
 
       {/* What the whole list can do, behind the three dots. Each row is an icon in a rounded
           square and a line saying what it is for — a menu read once, not a row of mystery icons. */}
@@ -644,7 +581,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             icon={ListChecks}
             title="Выбрать товары"
             note="Отметить несколько карточек и сделать с ними одно — например, отправить в архив."
-            onClick={() => { setMenuOpen(false); setSelecting(true); setSelected([]); }}
+            onClick={() => { setMenuOpen(false); onNavigate('/products/select'); }}
           />
         </ul>
       </BottomSheet>
@@ -679,12 +616,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             icon={ListChecks}
             title="Выбрать товары"
             note="Отметить этот и другие, чтобы сделать с ними одно."
-            onClick={() => {
-              const card = cardMenu;
-              setCardMenu(null);
-              setSelecting(true);
-              setSelected(card ? [card.productId] : []);
-            }}
+            onClick={() => { setCardMenu(null); onNavigate('/products/select'); }}
           />
           {/* A card on review cannot be archived — that is the API's rule, and offering it
               anyway would be offering an error message. */}
@@ -696,7 +628,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               onClick={() => {
                 const card = cardMenu;
                 setCardMenu(null);
-                if (card) { setSelected([card.productId]); setConfirming(true); }
+                if (card) onNavigate(`/products/select?pick=${card.productId}`);
               }}
             />
           )}
@@ -714,28 +646,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           toast.show(`Ищем «${code}» в каталоге.`, 'success');
         }}
       />
-
-      <BottomSheet
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        title={`В архив: ${selected.length} ${plural(selected.length)}?`}
-        center
-        footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1 justify-center" onClick={() => setConfirming(false)}>
-              Отмена
-            </Button>
-            <Button variant="danger" className="flex-1 justify-center" loading={archiving} onClick={() => void archiveSelected()}>
-              В архив
-            </Button>
-          </div>
-        }
-      >
-        <p className="px-5 pb-4 pt-1 text-sm leading-6 text-gray-700">
-          Товары из архива не продаются и не видны покупателям. Вернуть их можно из вкладки «Архив».
-          Карточки на проверке архивировать нельзя — они останутся как есть.
-        </p>
-      </BottomSheet>
 
       <BottomSheet
         open={sheetOpen}

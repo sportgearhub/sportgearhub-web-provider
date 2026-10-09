@@ -101,7 +101,7 @@ export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void })
         <button
           type="button"
           onClick={() => setSwitching(true)}
-          className="mt-2 flex w-full items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 text-left transition active:bg-gray-50"
+          className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left transition active:bg-gray-100"
         >
           <Building2 size={17} className="shrink-0 text-gray-400" />
           <span className="min-w-0 flex-1">

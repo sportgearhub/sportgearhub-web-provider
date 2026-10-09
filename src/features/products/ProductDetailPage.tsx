@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Archive,
   ExternalLink,
-  MoreVertical,
+  MoreHorizontal,
   PauseCircle,
   Pencil,
   PlayCircle,
@@ -168,7 +168,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             aria-label="Действия с товаром"
             className="rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
           >
-            <MoreVertical size={20} />
+            <MoreHorizontal size={20} />
           </button>
         }
       />

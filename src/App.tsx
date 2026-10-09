@@ -1,4 +1,4 @@
-import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { selectProvider } from './lib/active-provider';
@@ -23,6 +23,7 @@ import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductGroupPage, ProductGroupsPage } from './features/products/ProductGroupsPage';
 import { ProductFiltersPage } from './features/products/ProductFiltersPage';
+import { ProductSelectPage } from './features/products/ProductSelectPage';
 import { ProductForm } from './features/products/ProductForm';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
@@ -142,6 +143,12 @@ function ProductFiltersRoute() {
   return <ProductFiltersPage onNavigate={navigateTo} />;
 }
 
+function ProductSelectRoute() {
+  const { navigateTo } = useConsole();
+  const [params] = useSearchParams();
+  return <ProductSelectPage onNavigate={navigateTo} pick={params.get('pick') ?? undefined} />;
+}
+
 function ProductDetailRoute() {
   const { navigateTo } = useConsole();
   const { productId = '' } = useParams();
@@ -193,6 +200,7 @@ const router = createBrowserRouter([
           { path: 'products/groups', element: <ProductGroupsRoute /> },
           { path: 'products/groups/:groupName', element: <ProductGroupRoute /> },
           { path: 'products/filters', element: <ProductFiltersRoute /> },
+          { path: 'products/select', element: <ProductSelectRoute /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },
           { path: 'products/:productId/edit', element: <ProductFormRoute mode="edit" /> },
           // The catalogue was two sections until the API collapsed them into one product.

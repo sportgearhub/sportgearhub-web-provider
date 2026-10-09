@@ -286,7 +286,7 @@ function WorkspaceSwitch({ className }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={menu.open}
         className={cn(
-          'h-9 items-center gap-1.5 rounded-lg border border-input px-2.5 text-sm font-medium text-foreground transition hover:bg-sidebar-accent',
+          'h-9 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-sm font-medium text-foreground transition hover:bg-secondary/70',
           className ?? 'flex'
         )}
       >

@@ -7,9 +7,15 @@ const buttonVariants = cva(
   'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
+      /**
+       * No outlines. A filled button and an outlined one say the same thing twice — here is a
+       * target, here is its edge — and a screen of outlines is a screen of boxes to read. Weight
+       * carries the hierarchy instead: the action has the colour, the alternative has a tint of
+       * the page, and a third thing has nothing until it is pointed at.
+       */
       variant: {
         primary: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
-        secondary: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
       },

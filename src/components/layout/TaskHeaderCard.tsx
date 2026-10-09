@@ -13,16 +13,22 @@ import { ArrowLeft } from 'lucide-react';
  */
 export function TaskHeaderCard({
   title,
+  description,
   onBack,
   action,
 }: {
   title: string;
+  /**
+   * A line under the name. With one the pair sits beside the arrow rather than in the middle of
+   * the bar: two lines centred under a back button read as a paragraph that lost its page.
+   */
+  description?: string;
   onBack: () => void;
   action?: ReactNode;
 }) {
   return (
     <header className="sticky top-0 z-30 mx-3 mt-3 rounded-2xl bg-white shadow-sm lg:hidden">
-      <div className="relative flex min-h-14 items-center gap-2 px-3">
+      <div className="relative flex min-h-14 items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={onBack}
@@ -31,10 +37,17 @@ export function TaskHeaderCard({
         >
           <ArrowLeft size={20} />
         </button>
-        <span className="pointer-events-none absolute left-1/2 max-w-[60%] -translate-x-1/2 truncate text-center text-base font-semibold text-gray-950">
-          {title}
-        </span>
-        <span className="ml-auto shrink-0">{action}</span>
+        {description ? (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-semibold leading-5 text-gray-950">{title}</span>
+            <span className="mt-0.5 block truncate text-xs text-gray-500">{description}</span>
+          </span>
+        ) : (
+          <span className="pointer-events-none absolute left-1/2 max-w-[60%] -translate-x-1/2 truncate text-center text-base font-semibold text-gray-950">
+            {title}
+          </span>
+        )}
+        <span className={description ? 'shrink-0' : 'ml-auto shrink-0'}>{action}</span>
       </div>
     </header>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Archive, ArrowLeft, ChevronRight, ImageOff, Layers, MoreVertical, Pencil, Plus, type LucideIcon } from 'lucide-react';
+import { Archive, ArrowLeft, ChevronRight, ImageOff, Layers, MoreHorizontal, Pencil, Plus, type LucideIcon } from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
 import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
@@ -195,7 +195,7 @@ export function ProductGroupPage({ groupName, onNavigate }: { groupName: string;
             aria-label="Действия с группой"
             className="rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
           >
-            <MoreVertical size={20} />
+            <MoreHorizontal size={20} />
           </button>
         }
       />
