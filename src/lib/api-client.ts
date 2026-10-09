@@ -1007,29 +1007,14 @@ export const financeApi = {
    * a checkpoint. RSQL as the other lists use it. Filterable: booking_id, outcome_type, status,
    * gross_collected_amount, seller_amount, commission_amount, refunded_amount, created_at,
    * executed_at. There are no totals here on purpose — those come from /balance/periods.
+   *
+   * It pages like the product and booking lists — same RSQL binder, so `pageSize` — while the two
+   * range endpoints beside it bind `page_size`. The finance spec shows `page_size` for this one
+   * too; the endpoint does not read it.
    */
   accruals: (query: ListQuery = {}) =>
-    providerRequest<Paged<AccrualLine>>(`/balance/accruals?${accrualQuery(query)}`),
+    providerRequest<Paged<AccrualLine>>(`/balance/accruals?${listQuery(query)}`),
 };
-
-/**
- * The accrual list's query.
- *
- * Same RSQL as the product and booking lists, but the two specs spell the page size differently —
- * `pageSize` for those lists, `page_size` in the finance examples — and the API relaxes case on the
- * way in without relaxing the separator, so one of them would simply not bind. Both are sent with
- * the same value: whichever the endpoint reads, it reads the number we meant, and an unknown query
- * parameter is ignored. Drop the other once it is confirmed which one it is.
- */
-function accrualQuery({ filter, sort, page, pageSize }: ListQuery) {
-  const qs = new URLSearchParams();
-  if (filter) qs.set('filter', filter);
-  if (sort) qs.set('sort', sort);
-  qs.set('page', String(page ?? 1));
-  qs.set('page_size', String(pageSize ?? 20));
-  qs.set('pageSize', String(pageSize ?? 20));
-  return qs.toString();
-}
 
 /** `date_from` and `date_to` are dates, not timestamps, and both ends are inclusive. */
 function dateRangeQuery({

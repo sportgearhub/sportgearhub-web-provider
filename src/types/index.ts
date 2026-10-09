@@ -995,14 +995,18 @@ export interface BalanceSummary {
   paidOutAmount: number;
   nextReleaseAt: string | null;
   held: HeldAccrual[];
-  periods: BalancePeriod[];
+  /**
+   * There is no `periods` here and no `economics`, whatever the spec's sample shows — those were
+   * split into `/balance/periods` and `/balance/fees`, and the sample was not updated with them.
+   */
 }
 
 export interface BalancePeriodsPage {
   /** The whole range, not the page: page two reports the same totals as page one. */
   totals: Omit<BalancePeriod, 'begin' | 'end' | 'heldAmount'>;
   items: BalancePeriod[];
-  totalItemsCount: number;
+  /** `total_count` on the wire — not `total_items_count`, which is what the spec's sample says. */
+  totalCount: number;
 }
 
 /** How much to trust a cost: a reconciled fact, an expectation from the tariff, or a missing price. */
