@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ArrowLeft,
   Building2,
   CalendarCheck,
   Check,
@@ -9,7 +8,6 @@ import {
   ChevronDown,
   CreditCard,
   FileText,
-  HelpCircle,
   Home,
   LogOut,
   MapPin,
@@ -27,7 +25,6 @@ import { useNavigate } from 'react-router-dom';
 import { selectProvider } from '../../lib/active-provider';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
-import { BottomSheet } from '../ui/BottomSheet';
 import { BrandWordmark } from './BrandWordmark';
 import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
@@ -83,15 +80,16 @@ interface HeaderProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   actions?: React.ReactNode;
-  /**
-   * A page that is one job rather than a place: creating a card, editing one. On a phone it takes
-   * the screen — the header becomes a way back and the name of what you are doing, and the section
-   * bar goes away, because leaving halfway through by tapping «Каталог» is not a thing to offer.
-   */
-  task?: { title: string; backTo: string; help?: string; center?: boolean; card?: boolean } | null;
 }
 
-export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) {
+/**
+ * The console's header, which is a desktop thing.
+ *
+ * On a phone the sections are in the bar at the bottom, within a thumb's reach, and a screen one
+ * level in draws its own bar (see SubPageHeader) — so there is nothing left for this to do below
+ * `lg`, and the layout does not render it there.
+ */
+export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
   const { user, signOut } = useAuth();
   const provider = useProvider();
   const { workspace } = useWorkspace();
@@ -99,49 +97,12 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
     path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
   return (
-    <header
-      className={cn(
-        'sticky top-0 z-30 bg-white shadow-sm',
-        // A page whose content is one object floating on the ground — the viewfinder — wants a
-        // bar that floats with it: rounded on every corner, with the ground visible down both
-        // sides. Everywhere else the bar is the top of the page and only its underside is round.
-        task?.card ? 'mx-3 mt-3 rounded-2xl lg:mx-0 lg:mt-0 lg:rounded-b-2xl lg:rounded-t-none' : 'rounded-b-2xl'
-      )}
-    >
+    <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm">
       <div className="mx-auto flex min-h-16 w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
-        {task ? (
-          <div className="relative flex min-w-0 flex-1 items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => onNavigate(task.backTo)}
-              aria-label="Назад"
-              className="-ml-2 shrink-0 rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            {/* A centred name is laid over the bar rather than placed in it, so it is centred on
-                the screen and not on whatever is left of it beside the arrow. */}
-            <span
-              className={cn(
-                'truncate text-base font-semibold text-gray-950',
-                task.center
-                  ? 'pointer-events-none absolute left-1/2 max-w-[60%] -translate-x-1/2 text-center'
-                  : 'min-w-0 flex-1'
-              )}
-            >
-              {task.title}
-            </span>
-            {task.help && <TaskHelp title={task.title} text={task.help} />}
-          </div>
-        ) : null}
-
         <button
           type="button"
           onClick={() => onNavigate('/')}
-          className={cn(
-            'shrink-0 items-center rounded-lg text-left transition hover:opacity-80',
-            task ? 'hidden lg:flex' : 'flex'
-          )}
+          className="flex shrink-0 items-center rounded-lg text-left transition hover:opacity-80"
           title="На главную"
           aria-label="Sportgearhub — на главную"
         >
@@ -149,10 +110,7 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
         </button>
 
         <CabinetSwitch />
-        {/* A task bar on a phone is a way back and the name of the task. The cabinet and the
-            workspace are not choices to be made halfway through one, and beside a centred title
-            they are what knocks it off centre. */}
-        <WorkspaceSwitch className={task ? 'hidden lg:flex' : 'flex'} />
+        <WorkspaceSwitch />
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         {/* Below `lg` the sections live in the bar at the bottom of the screen, within a thumb's
@@ -273,7 +231,7 @@ function CabinetSwitch() {
  * at all — so this changes the whole console rather than filtering a list. It is a dropdown and
  * not a tab bar because it is not navigation: nothing above it changes, everything below it does.
  */
-function WorkspaceSwitch({ className }: { className?: string }) {
+function WorkspaceSwitch() {
   const { workspace, setWorkspace } = useWorkspace();
   const menu = useDropdown('left', 240);
 
@@ -285,10 +243,7 @@ function WorkspaceSwitch({ className }: { className?: string }) {
         onClick={menu.toggle}
         aria-haspopup="menu"
         aria-expanded={menu.open}
-        className={cn(
-          'h-9 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-sm font-medium text-foreground transition hover:bg-secondary/70',
-          className ?? 'flex'
-        )}
+        className="flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-sm font-medium text-foreground transition hover:bg-secondary/70"
       >
         {workspaceMeta[workspace].label}
         <ChevronDown size={14} className="text-gray-400" />
@@ -314,32 +269,6 @@ function WorkspaceSwitch({ className }: { className?: string }) {
           ))}
         </div>
       )}
-    </>
-  );
-}
-
-/**
- * The question mark at the end of a task bar.
- *
- * Some screens need a sentence of explanation that nobody wants on screen twice — what a group of
- * cards is, say. It lives behind an icon in the corner every phone puts help in, and arrives as a
- * sheet, so reading it costs nothing and leaves nothing behind.
- */
-function TaskHelp({ title, text }: { title: string; text: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Справка"
-        className="-mr-2 ml-auto shrink-0 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
-      >
-        <HelpCircle size={20} />
-      </button>
-      <BottomSheet open={open} onClose={() => setOpen(false)} title={title}>
-        <p className="px-5 pb-4 pt-1 text-sm leading-6 text-gray-700">{text}</p>
-      </BottomSheet>
     </>
   );
 }

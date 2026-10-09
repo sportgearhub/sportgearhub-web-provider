@@ -351,19 +351,21 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               <MoreHorizontal size={20} />
             </button>
           </div>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-1">
             {searchField}
             {/* The rest of the filters are a screen, not a menu — a phone has no column headers
-                to hang them off. The badge is how many are doing something right now. */}
+                to hang them off. No box behind the icon, and the same padding as the dots above,
+                so the two sit on one line down the right-hand edge. The badge is how many are
+                doing something right now. */}
             <button
               type="button"
               onClick={() => onNavigate('/products/filters')}
               aria-label="Фильтры"
-              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition active:bg-gray-200"
+              className="relative -mr-2 shrink-0 rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
             >
-              <SlidersHorizontal size={18} />
+              <SlidersHorizontal size={20} />
               {activeFilters > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white">
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white">
                   {activeFilters}
                 </span>
               )}
@@ -376,7 +378,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             card with margins inside a screen this narrow is two kinds of edge to look at. It
             scrolls away under the part that stays: the name and the search box are worth keeping
             on screen, a shortcut you have already seen is not. */}
-        <div className="mt-2 bg-white py-3 md:hidden">
+        <div className="mt-2 rounded-2xl bg-white py-3 md:hidden">
           <div className="flex gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <FeatureTile
               icon={Layers}
@@ -394,7 +396,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           <button
             type="button"
             onClick={() => { setPendingTab(tab); setSheetOpen(true); }}
-            className="flex w-full items-center gap-3 bg-white px-4 py-3 text-left transition active:bg-gray-50"
+            className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left transition active:bg-gray-50"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-gray-900">{slice.label}</span>
@@ -438,8 +440,9 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </p>
       )}
 
-      {/* Room at the end for the floating button, so it never covers the last row. */}
-      <div className="px-3 pb-24 pt-3 md:px-6 md:pb-6">
+      {/* Room at the end for the floating button, so it never covers the last row. The cards
+          reach both edges on a phone; the table keeps the page's margins. */}
+      <div className="pb-24 pt-2 md:px-6 md:pb-6 md:pt-3">
         {/* The frame belongs to the table. On a phone the rows are the cards, so the container
             steps out of the way rather than becoming a card around cards. */}
         <div className="overflow-hidden md:rounded-xl md:border md:border-gray-200 md:bg-white">
@@ -501,7 +504,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           {/* Each row is its own card with the status above the name, the way the references
               read: the state is what a seller scans for, and it should not be hunted for under
               the thing it describes. */}
-          <ul className="space-y-2 md:hidden">
+          <ul className="space-y-1 md:hidden">
             {loading && Array.from({ length: 5 }, (_, row) => <ProductCardSkeleton key={`m-skeleton-${row}`} />)}
             {!loading && products.length === 0 && (
               <li className="rounded-xl bg-white px-4 py-12 text-center text-sm text-gray-600">

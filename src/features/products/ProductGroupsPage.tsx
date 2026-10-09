@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowLeft, ChevronRight, ImageOff, Layers, MoreHorizontal, Pencil, Plus, type LucideIcon } from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
-import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
+import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { ProductCard, ProductCardSkeleton } from './ProductCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
@@ -185,7 +185,7 @@ export function ProductGroupPage({ groupName, onNavigate }: { groupName: string;
 
   return (
     <>
-      <TaskHeaderCard
+      <SubPageHeader
         title={groupName}
         onBack={() => onNavigate('/products/groups')}
         action={

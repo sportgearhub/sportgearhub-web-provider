@@ -5,6 +5,7 @@ import { selectProvider, useSelectedProviderId } from '../../lib/active-provider
 import { ProviderContextProvider } from '../../features/providers/ProviderContext';
 import { statusMeta } from '../../features/providers/providerStatus';
 import { Header, MobileNavBar } from './Header';
+import { SubPageHeader } from './SubPageHeader';
 import { WorkspaceContext, WORKSPACE_STORAGE_KEY, readWorkspace, type Workspace } from '../../features/workspace/workspace';
 import { PageHeading, type PageBreadcrumb } from './PageHeading';
 
@@ -65,14 +66,12 @@ function taskFor(relativePath: string): {
   backTo: string;
   hideNav: boolean;
   help?: string;
-  center?: boolean;
-  card?: boolean;
-  /** The page draws its own bar on a phone, because it has something of its own to put in it. */
+  /** The page draws its own bar, because it has something of its own to put in the corner. */
   bare?: boolean;
 } | null {
   // The viewfinder is the page: a bar to leave by and the camera under it, nothing across it.
   if (relativePath === '/scan') {
-    return { title: 'Сканер', backTo: '/', hideNav: true, center: true, card: true };
+    return { title: 'Сканер', backTo: '/', hideNav: true };
   }
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
   // Picking cards: its own bar, with the count and «выбрать все» in the corner.
@@ -80,7 +79,7 @@ function taskFor(relativePath: string): {
     return { title: 'Выбор товаров', backTo: '/products', hideNav: true, bare: true };
   }
   if (relativePath === '/products/filters') {
-    return { title: 'Фильтры', backTo: '/products', hideNav: true, center: true, card: true };
+    return { title: 'Фильтры', backTo: '/products', hideNav: true };
   }
   // A group's own page: the bar carries the group's name and a menu for it, so the page draws it.
   if (relativePath.startsWith('/products/groups/')) {
@@ -176,10 +175,20 @@ export function ConsoleLayout() {
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
         {/* No app bar on a phone. A logo and a row of links at the top of a small screen cost a
             fifth of it to say what the person already knows; the sections are at the bottom and
-            the page says its own name. A task keeps the bar, because it is the way back. */}
-        <div className={task && !task.bare ? '' : 'hidden lg:block'}>
-          <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
+            the page says its own name. */}
+        <div className="hidden lg:block">
+          <Header currentPath={relativePath} onNavigate={navigateTo} />
         </div>
+        {/* A screen one level in gets a bar, because it is the way back. The ones whose bar is
+            only back-and-a-name are drawn from the table above; a screen with something of its
+            own in the corner is marked `bare` and draws its own. */}
+        {task && !task.bare && (
+          <SubPageHeader
+            title={task.title}
+            help={task.help}
+            onBack={() => navigateTo(task.backTo)}
+          />
+        )}
         {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
             row of every list sits underneath it. Task routes have no bar and need no gap. */}

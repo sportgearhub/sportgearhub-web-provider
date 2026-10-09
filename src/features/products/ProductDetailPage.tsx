@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
-import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
+import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
@@ -158,7 +158,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
       {/* On a phone: the same floating bar as the other screens opened from a list — a way back,
           the card's name, and everything that can be done to it behind the dots. The console's
           own bar and its section strip are not drawn on this route. */}
-      <TaskHeaderCard
+      <SubPageHeader
         title={product.title}
         onBack={() => onNavigate('/products')}
         action={

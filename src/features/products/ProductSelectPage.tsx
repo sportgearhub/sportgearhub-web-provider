@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Archive, Check } from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
-import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
+import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { useToast } from '../../components/ui/Toast';
 import { ApiError, productsApi } from '../../lib/api-client';
 import type { ProductSummary } from '../../types';
@@ -103,7 +103,7 @@ export function ProductSelectPage({
 
   return (
     <>
-      <TaskHeaderCard
+      <SubPageHeader
         title="Выбор товаров"
         description="Отметьте, что отправить в архив"
         onBack={() => onNavigate('/products')}
