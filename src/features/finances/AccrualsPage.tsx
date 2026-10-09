@@ -79,7 +79,10 @@ export function AccrualsPage() {
 
   return (
     <div className="pb-8">
-      <div className="sticky top-14 z-10 flex gap-1 bg-gray-50 px-3 py-3 sm:px-6">
+      {/* `top-0`, because the bar above this screen is drawn outside the scrolling area — at
+          `top-14` the list scrolled through a 56-pixel band above this one and the first row read
+          as cut off. The hairline is so rows passing under it look covered rather than clipped. */}
+      <div className="sticky top-0 z-10 flex gap-1 border-b border-gray-200/70 bg-gray-50 px-3 py-3 sm:px-6">
         {RANGES.map(range => (
           <button
             key={range.value}
