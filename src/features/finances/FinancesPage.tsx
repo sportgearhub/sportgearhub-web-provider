@@ -43,8 +43,6 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [costsOpen, setCostsOpen] = useState(false);
-  /** The same numbers in roubles or as a share of what the customer paid. */
-  const [unit, setUnit] = useState<'money' | 'percent'>('money');
 
   useEffect(() => {
     let cancelled = false;
@@ -84,10 +82,13 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
   }, [payout]);
 
   const commission = fees?.platformCommission;
-  const show = (amount: number, share: number) => (unit === 'money' ? money(amount) : percent(share));
 
   return (
-    <div className="space-y-2 pb-8 sm:space-y-4 sm:px-6">
+    /* A phone reads this as one column of bands. A desktop puts the money on the left and the
+       standing facts — where it goes, when the next one leaves — in a rail beside it, which is
+       what the references do and what stops a wide screen rendering one narrow column of cards. */
+    <div className="space-y-2 pb-8 sm:space-y-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="contents lg:col-start-1 lg:block lg:space-y-4">
       {error && (
         <p className="mx-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-0">
           {error}
@@ -252,29 +253,19 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-gray-950">Куда ушли деньги</h2>
-          {/* Every percent is of what the customer paid, not of the line above, so the two views
-              are the same numbers said twice rather than two different calculations. */}
-          <div className="flex shrink-0 gap-1">
-            {(['money', 'percent'] as const).map(mode => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setUnit(mode)}
-                className={`h-7 w-8 rounded-lg text-xs font-semibold transition ${
-                  unit === mode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {mode === 'money' ? '₽' : '%'}
-              </button>
-            ))}
-          </div>
+          <span className="shrink-0 text-xs text-gray-400">% — от суммы, которую заплатил клиент</span>
         </div>
 
         {fees && commission ? (
           <>
             <dl className="mt-3 divide-y divide-gray-100 text-sm">
-              <Line label="Клиенты заплатили" value={show(fees.grossAmount, 100)} />
-              <Line label="Ваша выручка" value={show(fees.sellerAmount, fees.sellerPercent)} strong />
+              <Line label="Клиенты заплатили" value={money(fees.grossAmount)} />
+              <Line
+                label="Ваша выручка"
+                value={money(fees.sellerAmount)}
+                share={percent(fees.sellerPercent)}
+                strong
+              />
 
               <div className="py-2.5">
                 <button
@@ -283,26 +274,29 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                   aria-expanded={costsOpen}
                   className="flex w-full items-center gap-3 text-left"
                 >
-                  <span className="min-w-0 flex-1 text-gray-500">Комиссия площадки</span>
-                  <span className="shrink-0 text-gray-900">{show(commission.amount, commission.percent)}</span>
                   <ChevronDown
                     size={16}
-                    className={`shrink-0 text-gray-400 transition-transform ${costsOpen ? 'rotate-180' : ''}`}
+                    className={`shrink-0 text-gray-400 transition-transform ${costsOpen ? '' : '-rotate-90'}`}
                   />
+                  <span className="min-w-0 flex-1 text-gray-700">Комиссия площадки</span>
+                  <span className="shrink-0 text-right">
+                    <span className="block text-gray-900">{money(commission.amount)}</span>
+                    <span className="block text-[11px] text-gray-400">{percent(commission.percent)}</span>
+                  </span>
                 </button>
 
                 {costsOpen && (
-                  <div className="mt-2 rounded-xl bg-gray-50 p-3">
-                    <p className="text-xs leading-5 text-gray-600">
+                  <div className="ml-2 mt-1 border-l-2 border-gray-100 pl-4">
+                    <p className="py-1 text-xs leading-5 text-gray-500">
                       Из неё площадка платит банку и оператору чеков. На вашу выручку это не влияет —
                       вы эти расходы не несёте.
                     </p>
-                    <dl className="mt-2 divide-y divide-gray-200/70 text-sm">
+                    <dl className="divide-y divide-gray-100 text-sm">
                       {commission.platformCosts.map(cost => {
                         const source = costSource(cost.source);
                         return (
                           <div key={cost.sysName} className="flex items-center gap-2 py-2">
-                            <dt className="min-w-0 flex-1 text-gray-700">
+                            <dt className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-gray-700">
                               {costName(cost.sysName)}
                               <Badge
                                 variant={cost.source === 'register' ? 'green' : cost.source === 'tariff' ? 'blue' : 'orange'}
@@ -313,7 +307,10 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                                 {source.label}
                               </Badge>
                             </dt>
-                            <dd className="shrink-0 text-gray-900">{show(cost.amount, cost.percent)}</dd>
+                            <dd className="shrink-0 text-right">
+                              <span className="block text-gray-900">{money(cost.amount)}</span>
+                              <span className="block text-[11px] text-gray-400">{percent(cost.percent)}</span>
+                            </dd>
                           </div>
                         );
                       })}
@@ -323,7 +320,7 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
                           the seller's money into a screen about ours. The costs explain where the
                           commission goes; the remainder explains nothing the seller asked. */}
                     </dl>
-                    <p className="mt-2 text-[11px] leading-4 text-gray-500">
+                    <p className="py-2 text-[11px] leading-4 text-gray-500">
                       {commission.platformCosts.some(cost => cost.source !== 'register')
                         ? 'Часть сумм посчитана по тарифу — реестр банка за этот период ещё не прочитан.'
                         : 'Все суммы сверены с реестром банка.'}
@@ -349,6 +346,10 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         )}
       </section>
 
+      </div>
+
+      {/* The rail. On a phone these simply follow the rest. */}
+      <div className="contents lg:col-start-2 lg:block lg:space-y-4">
       {/* The requisites, which are a console concern rather than a finance one. */}
       <section className="bg-white px-4 py-4 sm:rounded-2xl">
         <h2 className="text-base font-semibold text-gray-950">Куда приходят деньги</h2>
@@ -374,6 +375,25 @@ export function FinancesPage({ onNavigate }: { onNavigate: (path: string) => voi
         </button>
       </section>
 
+      {/* What a week's statement is, said once, in the rail where the weeks are listed beside it. */}
+      <section className="hidden bg-white px-4 py-4 lg:block lg:rounded-2xl">
+        <h2 className="text-base font-semibold text-gray-950">Как это считается</h2>
+        <p className="mt-2 text-sm leading-5 text-gray-600">
+          Деньги по брони начисляются, когда аренда закончилась, и уходят следующим переводом через
+          сутки после неё. Выписка за неделю — зафиксированный документ: в ней всё так, как было на
+          момент закрытия недели.
+        </p>
+        <button
+          type="button"
+          onClick={() => onNavigate('/finances/accruals')}
+          className="mt-3 flex w-full items-center gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-100"
+        >
+          <Receipt size={16} className="shrink-0 text-gray-400" />
+          <span className="min-w-0 flex-1 text-left">Все начисления</span>
+          <ChevronRight size={16} className="shrink-0 text-gray-400" />
+        </button>
+      </section>
+      </div>
     </div>
   );
 }
@@ -388,11 +408,25 @@ function Figure({ label, value, hint }: { label: string; value: string; hint?: s
   );
 }
 
-function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Line({
+  label,
+  value,
+  share,
+  strong,
+}: {
+  label: string;
+  value: string;
+  /** The same figure as a share of what the customer paid, under the amount. */
+  share?: string;
+  strong?: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 py-2.5">
       <dt className="min-w-0 flex-1 text-gray-500">{label}</dt>
-      <dd className={strong ? 'shrink-0 font-semibold text-gray-950' : 'shrink-0 text-gray-900'}>{value}</dd>
+      <dd className="shrink-0 text-right">
+        <span className={strong ? 'block font-semibold text-gray-950' : 'block text-gray-900'}>{value}</span>
+        {share && <span className="block text-[11px] text-gray-400">{share}</span>}
+      </dd>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../components/ui/Toast';
+import { Pagination } from '../../components/table/TableControls';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, bookingsApi, financeApi } from '../../lib/api-client';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
@@ -31,6 +32,7 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [days, setDays] = useState<number>(30);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -59,14 +61,14 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
     return `created_at=ge=${isoDate(from)}`;
   }, [days]);
 
-  useEffect(() => { setPage(1); }, [filter]);
+  useEffect(() => { setPage(1); }, [filter, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
     const append = page > 1;
     if (append) setLoadingMore(true); else setLoading(true);
     setError('');
-    financeApi.accruals({ filter, sort: '-created_at', page, pageSize: 20 })
+    financeApi.accruals({ filter, sort: '-created_at', page, pageSize })
       .then(result => {
         if (cancelled) return;
         const next = result.items ?? [];
@@ -82,7 +84,7 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
       })
       .finally(() => { if (!cancelled) { setLoading(false); setLoadingMore(false); } });
     return () => { cancelled = true; };
-  }, [filter, page]);
+  }, [filter, page, pageSize]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMore = Boolean(pageInfo && pageInfo.page < pageInfo.totalPages);
@@ -122,7 +124,97 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </p>
       )}
 
-      <ul className="space-y-1 px-0 sm:px-6">
+      {/* A desktop reads these as a table — the same rows, with room for the columns a card has
+          to fold into two lines. The cards stay below `lg`, where a table would scroll sideways. */}
+      {!loading && items.length > 0 && (
+        <div className="hidden px-6 lg:block">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50/80 text-left text-xs text-gray-500">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium">Бронирование</th>
+                  <th className="px-4 py-2.5 font-medium">Аренда</th>
+                  <th className="px-4 py-2.5 font-medium">Статус</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Заплатил клиент</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Комиссия</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Вам</th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map(line => {
+                  const state = accrualState(line.state);
+                  const key = `${line.bookingNumber}-${line.accruedAt ?? ''}`;
+                  return (
+                    <tr key={key} className="transition hover:bg-blue-50/40">
+                      <td className="px-4 py-2.5">
+                        <span className="block max-w-[22rem] truncate font-medium text-gray-900">
+                          {line.productTitle}
+                        </span>
+                        <span className="block text-xs text-gray-500">№{line.bookingNumber}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                        {shortDate(line.rentalStartAt)} — {shortDate(line.rentalEndAt)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant={state.variant} size="xs" tone="strong" shape="square">{state.label}</Badge>
+                        {line.state === 'held' && (
+                          <span className="mt-0.5 block text-[11px] text-gray-500">
+                            {line.releasesAt ? `до ${shortDate(line.releasesAt)}` : 'после аренды'}
+                          </span>
+                        )}
+                        {line.paidAt && (
+                          <span className="mt-0.5 block text-[11px] text-gray-500">
+                            {shortDate(line.paidAt)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-900">
+                        {money(line.grossAmount)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-600">
+                        {money(-line.commissionAmount)}
+                        {line.refundedAmount > 0 && (
+                          <span className="block text-[11px] text-gray-500">
+                            возврат {money(line.refundedAmount)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold text-gray-950">
+                        {money(line.sellerAmount)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        <button
+                          type="button"
+                          disabled={opening === key}
+                          onClick={() => void openBooking(key, line.bookingNumber)}
+                          aria-label="Открыть бронирование"
+                          className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {pageInfo && pageInfo.totalPages > 1 && (
+              <Pagination
+                page={pageInfo.page}
+                totalPages={pageInfo.totalPages}
+                totalItems={pageInfo.totalItems}
+                pageSize={pageInfo.pageSize}
+                onPage={setPage}
+                onPageSize={setPageSize}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      <ul className="space-y-1 px-0 sm:px-6 lg:hidden">
         {loading && Array.from({ length: 5 }, (_, row) => (
           <li key={row} className="bg-white p-3 sm:rounded-xl">
             <Skeleton className="h-3.5 w-2/3" />
@@ -229,10 +321,10 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
         ))}
       </ul>
 
-      <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+      <div ref={sentinelRef} aria-hidden="true" className="h-1 lg:hidden" />
       {toast.node}
       {!loading && !hasMore && items.length > 0 && (
-        <p className="py-4 text-center text-xs text-gray-400">Это всё</p>
+        <p className="py-4 text-center text-xs text-gray-400 lg:hidden">Это всё</p>
       )}
     </div>
   );
