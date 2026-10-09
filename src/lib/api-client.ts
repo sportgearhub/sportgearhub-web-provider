@@ -1,5 +1,6 @@
 import type {
-  AccrualLine,
+  AccrualTypeInfo,
+  AccrualsPage,
   BalanceFees,
   BalancePeriodsPage,
   BalanceSummary,
@@ -1012,8 +1013,21 @@ export const financeApi = {
    * range endpoints beside it bind `page_size`. The finance spec shows `page_size` for this one
    * too; the endpoint does not read it.
    */
-  accruals: (query: ListQuery = {}) =>
-    providerRequest<Paged<AccrualLine>>(`/balance/accruals?${listQuery(query)}`),
+  accruals: ({ bookingNumber, ...query }: ListQuery & { bookingNumber?: string } = {}) => {
+    const qs = listQuery(query);
+    // Narrows to one booking and is applied *before* the filter. A separate parameter rather than
+    // a filterable field, because the number lives on the booking while an accrual references it
+    // by id — but it is the number a seller reads off the screen, so it is what a search sends.
+    const narrowed = bookingNumber ? `${qs}&booking_number=${encodeURIComponent(bookingNumber)}` : qs;
+    return providerRequest<AccrualsPage>(`/balance/accruals?${narrowed}`);
+  },
+
+  /**
+   * The names of the accrual types, rather than a table of them in here. It exists so that adding
+   * a type does not need a deploy of this app to stop a seller reading `damage_compensation` in a
+   * column.
+   */
+  accrualTypes: () => providerRequest<AccrualTypeInfo[]>('/balance/accrual-types'),
 };
 
 /** `date_from` and `date_to` are dates, not timestamps, and both ends are inclusive. */

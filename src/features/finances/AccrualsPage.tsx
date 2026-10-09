@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../components/ui/Toast';
 import { Pagination } from '../../components/table/TableControls';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, bookingsApi, financeApi } from '../../lib/api-client';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
-import type { AccrualLine, Pagination as PageInfo } from '../../types';
+import type { AccrualLine, AccrualTotals, AccrualTypeInfo, Pagination as PageInfo } from '../../types';
 import { accrualState, isoDate, money, shortDate } from './financeFormat';
 
 /** The ranges a seller asks about, as RSQL on `created_at`. */
@@ -30,6 +30,11 @@ const RANGES = [
 export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [items, setItems] = useState<AccrualLine[]>([]);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
+  const [totals, setTotals] = useState<AccrualTotals | null>(null);
+  const [types, setTypes] = useState<AccrualTypeInfo[]>([]);
+  const [type, setType] = useState<string>('');
+  const [query, setQuery] = useState('');
+  const [bookingNumber, setBookingNumber] = useState('');
   const [days, setDays] = useState<number>(30);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -58,17 +63,34 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const filter = useMemo(() => {
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
-    return `created_at=ge=${isoDate(from)}`;
-  }, [days]);
+    const parts = [`created_at=ge=${isoDate(from)}`];
+    if (type) parts.push(`accrual_type==${type}`);
+    return parts.join(';');
+  }, [days, type]);
 
-  useEffect(() => { setPage(1); }, [filter, pageSize]);
+  /** The names of the types, so a new one is legible without a deploy of this app. */
+  useEffect(() => {
+    let cancelled = false;
+    financeApi.accrualTypes()
+      .then(next => { if (!cancelled) setTypes(next); })
+      .catch(() => { /* the chips simply stay at «все» */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Typing a booking number should not fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setBookingNumber(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => { setPage(1); }, [filter, pageSize, bookingNumber]);
 
   useEffect(() => {
     let cancelled = false;
     const append = page > 1;
     if (append) setLoadingMore(true); else setLoading(true);
     setError('');
-    financeApi.accruals({ filter, sort: '-created_at', page, pageSize })
+    financeApi.accruals({ filter, sort: '-created_at', page, pageSize, bookingNumber: bookingNumber || undefined })
       .then(result => {
         if (cancelled) return;
         const next = result.items ?? [];
@@ -78,13 +100,15 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
           return [...current, ...next.filter(item => !seen.has(item.bookingNumber))];
         });
         setPageInfo(result.pagination ?? null);
+        // Of everything the filter matched, not of this page — which is the point of it.
+        setTotals(result.totals ?? null);
       })
       .catch(err => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Не удалось загрузить начисления.');
       })
       .finally(() => { if (!cancelled) { setLoading(false); setLoadingMore(false); } });
     return () => { cancelled = true; };
-  }, [filter, page, pageSize]);
+  }, [filter, page, pageSize, bookingNumber]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMore = Boolean(pageInfo && pageInfo.page < pageInfo.totalPages);
@@ -98,24 +122,84 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
     return () => observer.disconnect();
   }, [phone, hasMore, loading, loadingMore, items.length]);
 
+  const typeTitle = (sysName?: string) =>
+    (sysName ? types.find(item => item.sysName === sysName)?.title ?? sysName : null);
+
   return (
     <div className="pb-8">
       {/* `top-0`, because the bar above this screen is drawn outside the scrolling area — at
           `top-14` the list scrolled through a 56-pixel band above this one and the first row read
           as cut off. The hairline is so rows passing under it look covered rather than clipped. */}
-      <div className="sticky top-0 z-10 flex gap-1 border-b border-gray-200/70 bg-gray-50 px-3 py-3 sm:px-6">
-        {RANGES.map(range => (
+      <div className="sticky top-0 z-10 space-y-2 border-b border-gray-200/70 bg-gray-50 px-3 py-3 sm:px-6">
+        <div className="flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {RANGES.map(range => (
+            <button
+              key={range.value}
+              type="button"
+              onClick={() => setDays(range.value)}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+                days === range.value ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+
+          {/* The types come from the API: a new one appears here without a deploy of this app. */}
+          {types.length > 0 && <span className="w-px shrink-0 bg-gray-200" />}
           <button
-            key={range.value}
             type="button"
-            onClick={() => setDays(range.value)}
-            className={`rounded-xl px-3 py-1.5 text-sm font-medium transition ${
-              days === range.value ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+            onClick={() => setType('')}
+            className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+              type === '' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
             }`}
           >
-            {range.label}
+            Все
           </button>
-        ))}
+          {types.map(item => (
+            <button
+              key={item.sysName}
+              type="button"
+              onClick={() => setType(item.sysName)}
+              title={item.description ?? undefined}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+                type === item.sysName ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+              }`}
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Номер бронирования"
+            inputMode="search"
+            className="h-10 w-full rounded-xl bg-white pl-9 pr-3 text-base text-gray-900 outline-none transition placeholder:text-gray-500 sm:h-9 sm:text-sm"
+          />
+        </div>
+
+        {/* What the filter matched, not what is on screen — which is why narrowing to refunds
+            answers «сколько вернулось» without paging through it by hand. */}
+        {totals && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-gray-500">
+            <span>
+              Начислений: <span className="font-medium text-gray-900">{totals.count}</span>
+            </span>
+            <span>
+              Клиенты заплатили: <span className="font-medium text-gray-900">{money(totals.grossAmount)}</span>
+            </span>
+            <span>
+              Комиссия: <span className="font-medium text-gray-900">{money(-totals.commissionAmount)}</span>
+            </span>
+            <span className="text-gray-900">
+              Вам: <span className="font-semibold">{money(totals.sellerAmount)}</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -158,6 +242,11 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
                       </td>
                       <td className="px-4 py-2.5">
                         <Badge variant={state.variant} size="xs" tone="strong" shape="square">{state.label}</Badge>
+                        {line.accrualType && line.accrualType !== 'rental' && (
+                          <span className="mt-0.5 block text-[11px] text-gray-500">
+                            {typeTitle(line.accrualType)}
+                          </span>
+                        )}
                         {line.state === 'held' && (
                           <span className="mt-0.5 block text-[11px] text-gray-500">
                             {line.releasesAt ? `до ${shortDate(line.releasesAt)}` : 'после аренды'}
@@ -261,6 +350,13 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
                   />
                 </span>
                 <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {/* An unknown type is shown as itself: a row dropped because its type is new
+                      reads to a seller as money that went missing. */}
+                  {line.accrualType && line.accrualType !== 'rental' && (
+                    <Badge variant="gray" size="xs" tone="strong" shape="square">
+                      {typeTitle(line.accrualType)}
+                    </Badge>
+                  )}
                   <Badge variant={state.variant} size="xs" tone="strong" shape="square">{state.label}</Badge>
                   {/* Held with no release date means the gear has not been collected yet. */}
                   {line.state === 'held' && (
@@ -278,9 +374,12 @@ export function AccrualsPage({ onNavigate }: { onNavigate: (path: string) => voi
               {open && (
                 <div className="px-3 pb-3">
                   <dl className="rounded-xl bg-gray-50 p-3 text-sm">
+                    {line.accrualType && <Row label="Тип" value={typeTitle(line.accrualType) ?? '—'} />}
                     <Row label="Клиент заплатил" value={money(line.grossAmount)} />
                     <Row label="Комиссия площадки" value={money(-line.commissionAmount)} />
-                    {line.refundedAmount > 0 && <Row label="Возвращено клиенту" value={money(-line.refundedAmount)} />}
+                    {/* What actually went back, which is a fact about this row rather than a term
+                        in the sum above it — a refund row's own amounts are already negative. */}
+                    {line.refundedAmount > 0 && <Row label="Возвращено клиенту" value={money(line.refundedAmount)} />}
                     <Row label="Вам" value={money(line.sellerAmount)} strong />
                     <Row label="Аренда" value={`${shortDate(line.rentalStartAt)} — ${shortDate(line.rentalEndAt)}`} />
                     {line.accruedAt && <Row label="Начислено" value={shortDate(line.accruedAt) ?? '—'} />}

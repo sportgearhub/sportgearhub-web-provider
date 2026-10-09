@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, financeApi } from '../../lib/api-client';
-import type { SellerStatement } from '../../types';
+import type { AccrualTypeInfo, SellerStatement } from '../../types';
 import { accrualState, money, shortDate } from './financeFormat';
 
 /**
@@ -21,6 +21,18 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [types, setTypes] = useState<AccrualTypeInfo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    financeApi.accrualTypes()
+      .then(next => { if (!cancelled) setTypes(next); })
+      .catch(() => { /* an unknown type still renders, as itself */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const typeTitle = (sysName?: string) =>
+    (sysName ? types.find(item => item.sysName === sysName)?.title ?? sysName : null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,12 +96,15 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
               <ul className="mt-2 divide-y divide-gray-100">
                 {statement.lines.map(line => {
                   const state = accrualState(line.state);
-                  const open = openKey === line.bookingNumber;
+                  // A booking can have more than one line here — the rental and the refund that
+                  // reversed part of it — so the key is the pair, not the number.
+                  const key = `${line.bookingNumber}-${line.accrualType ?? ''}`;
+                  const open = openKey === key;
                   return (
-                    <li key={line.bookingNumber}>
+                    <li key={key}>
                       <button
                         type="button"
-                        onClick={() => setOpenKey(open ? null : line.bookingNumber)}
+                        onClick={() => setOpenKey(open ? null : key)}
                         aria-expanded={open}
                         className="w-full py-3 text-left"
                       >
@@ -116,13 +131,21 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
                           />
                         </span>
                         <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {/* A refunded booking is a line of its own rather than an edit of the
+                              rental's — a week that has closed goes on agreeing with the rows it
+                              was computed from. */}
+                          {line.accrualType && line.accrualType !== 'rental' && (
+                            <Badge variant="gray" size="xs" tone="strong" shape="square">
+                              {typeTitle(line.accrualType)}
+                            </Badge>
+                          )}
                           <Badge variant={state.variant} size="xs" tone="strong" shape="square">
                             {state.label}
                           </Badge>
                           {/* A cancelled booking stays in the statement with nothing owed: the seller
                               saw that booking, and a line that silently vanishes reads as money lost. */}
                           {line.refundedAmount > 0 && (
-                            <span className="text-xs text-gray-500">возврат {money(line.refundedAmount)}</span>
+                            <span className="text-xs text-gray-500">вернули {money(line.refundedAmount)}</span>
                           )}
                         </span>
                       </button>
@@ -132,7 +155,7 @@ export function StatementPage({ periodEnd, onNavigate }: { periodEnd: string; on
                           <Row label="Клиент заплатил" value={money(line.grossAmount)} />
                           <Row label="Комиссия площадки" value={money(-line.commissionAmount)} />
                           {line.refundedAmount > 0 && (
-                            <Row label="Возвращено клиенту" value={money(-line.refundedAmount)} />
+                            <Row label="Возвращено клиенту" value={money(line.refundedAmount)} />
                           )}
                           <Row label="Вам" value={money(line.sellerAmount)} strong />
                           <Row

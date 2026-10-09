@@ -1041,8 +1041,42 @@ export interface BalanceFees {
   };
 }
 
+/**
+ * What kind of row an accrual is.
+ *
+ * Today only `rental` and `rental_refund` are written, and the other two are in the list because
+ * they will be: a damage claim resolved for the seller, and a payment the bank reversed. An
+ * unknown value is rendered as itself rather than dropped — a row hidden because its type is new
+ * reads to a seller as money that went missing.
+ */
+export type AccrualType = 'rental' | 'rental_refund' | 'damage_compensation' | 'chargeback' | string;
+
+/** The names for those, read from the API so a new one does not need a deploy to be legible. */
+export interface AccrualTypeInfo {
+  sysName: AccrualType;
+  title: string;
+  description: string | null;
+}
+
+/**
+ * What the matched rows add up to — the filter's total, not the page's.
+ *
+ * The three figures are the ones that add up across a booking's lines: gross is what was kept,
+ * paid minus returned. `refundedAmount` is deliberately absent, being a fact about a row rather
+ * than a term in a sum.
+ */
+export interface AccrualTotals {
+  count: number;
+  grossAmount: number;
+  commissionAmount: number;
+  sellerAmount: number;
+}
+
 /** A booking's line in a statement or in the accrual list. */
 export interface AccrualLine {
+  /** The row's own identity — what a seller quotes to support. Absent on a statement's lines. */
+  accrualId?: string;
+  accrualType?: AccrualType;
   bookingNumber: string;
   productTitle: string;
   rentalStartAt: string;
@@ -1053,9 +1087,20 @@ export interface AccrualLine {
   refundedAmount: number;
   /** In a statement: as it stood when the week closed. In the accrual list: as of now. */
   state: 'paid' | 'available' | 'held' | 'cancelled' | string;
+  /**
+   * Negative on a refund, and zero when the booking was refunded before its rental — nothing had
+   * been accrued to reverse. Never assume a credit; `refundedAmount` says what went back either way.
+   */
   accruedAt?: string;
   paidAt?: string | null;
   releasesAt?: string | null;
+}
+
+/** The accrual list's envelope: rows, the page, and what the whole filtered set adds up to. */
+export interface AccrualsPage {
+  items: AccrualLine[];
+  pagination: Pagination;
+  totals: AccrualTotals;
 }
 
 export interface SellerStatement {
