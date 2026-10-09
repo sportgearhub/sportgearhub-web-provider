@@ -60,7 +60,13 @@ function AuthRoute({ page }: { page: 'sign-in' | 'passcode' | 'passcode-setup' |
     case 'passcode-setup':
       return <PasscodeSetupPage onNavigate={onNavigate} />;
     case 'complete-registration':
-      return <CompleteRegistrationPage token={params.get('token')} onNavigate={onNavigate} />;
+      return (
+        <CompleteRegistrationPage
+          token={params.get('token')}
+          channel={params.get('channel') === 'email' ? 'email' : 'phone'}
+          onNavigate={onNavigate}
+        />
+      );
     default:
       return <SignInPage onNavigate={onNavigate} />;
   }

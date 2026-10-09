@@ -782,6 +782,44 @@ export const authApi = {
     return loadSession();
   },
 
+  /**
+   * Sign in by e-mail, the other credential.
+   *
+   * Not a fallback: a seller who registered with an address and never gave a number has only this
+   * door, and one who has both can use either. The shape mirrors the phone's exactly — start,
+   * verify-code, and a registration token when the address is unknown — and `verify-code` takes the
+   * address itself rather than the verification id, which is what the generated spec says and the
+   * prose guide gets wrong.
+   */
+  requestEmailCode: (email: string) =>
+    request<VerificationStarted>('/api/v1/auth/email/start', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ email }),
+    }),
+  verifyEmailCode: async (email: string, code: string) => {
+    const result = await request<SimpleTokenResponse>('/api/v1/auth/email/verify-code', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (result.status === 'registration_required') {
+      return { status: 'registration_required' as const, registrationToken: result.registrationToken! };
+    }
+
+    storeSimpleToken(result);
+    return { status: 'authenticated' as const, session: await loadSession() };
+  },
+  completeEmailRegistration: async (data: { token: string; name: string; surname: string; birthday: string }) => {
+    storeSimpleToken(await request<SimpleTokenResponse>('/api/v1/auth/email/complete-registration', {
+      method: 'POST',
+      auth: false,
+      body: JSON.stringify(data),
+    }));
+    return loadSession();
+  },
+
   // --- email as an optional, verified attribute ---
   startEmailAttach: (email: string) =>
     request<VerificationStarted>('/api/v1/auth/email/attach/start', {

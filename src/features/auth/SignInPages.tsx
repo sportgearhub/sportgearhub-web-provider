@@ -3,17 +3,22 @@ import { Button } from '../../components/ui/Button';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { AuthLink, AuthShell, authControlClass } from './authShared';
+import { Mail } from 'lucide-react';
+import { AuthLink, AuthShell, IconInput, authControlClass } from './authShared';
 import { useToast } from '../../components/ui/Toast';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
-import { authPath, type Navigate } from './authUtils';
+import { authPath, type AuthChannel, type Navigate } from './authUtils';
 
 // There are no passwords. A new session starts with a one-time code mailed to the address; a browser the
 // user has already trusted can unlock with a short passcode instead (see PasscodeSignInPage).
 export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
-  const { verifyPhoneCode } = useAuth();
+  const { verifyCode } = useAuth();
   const [step, setStep] = useState<'phone' | 'waiting' | 'code'>('phone');
+  // Neither credential is the fallback: a seller who registered with an address and never gave a
+  // number has only that door, and one who has both can use either.
+  const [channel, setChannel] = useState<AuthChannel>('phone');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [started, setStarted] = useState<VerificationStarted | null>(null);
@@ -22,6 +27,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
   const digits = phone.replace(/\D/g, '');
   const e164 = `+7${digits}`;
+  const contact = channel === 'email' ? email.trim() : e164;
 
   useEffect(() => {
     if (authApi.hasTrustedDevice()) onNavigate(authPath('/passcode'), true);
@@ -29,18 +35,23 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
   const onProven = () => onNavigate(authApi.hasTrustedDevice() ? '/' : authPath('/passcode-setup'));
 
+  // The registration screen has to finish on the same channel it started on, so it is told which.
   const onRegistration = (registrationToken: string) =>
-    onNavigate(`${authPath('/complete-registration')}?token=${encodeURIComponent(registrationToken)}`);
+    onNavigate(
+      `${authPath('/complete-registration')}?token=${encodeURIComponent(registrationToken)}&channel=${channel}`
+    );
 
   const begin = async () => {
     setLoading(true);
     try {
-      const result = await authApi.requestPhoneCode(e164);
+      const result = channel === 'email'
+        ? await authApi.requestEmailCode(contact)
+        : await authApi.requestPhoneCode(contact);
       setStarted(result);
       setCode('');
       // The API says whether there is anything to type yet. With a SIM push there is not, until
-      // and unless it falls back to SMS.
-      setStep(result.stage === 'pending' ? 'waiting' : 'code');
+      // and unless it falls back to SMS. An e-mail is always a code to type.
+      setStep(channel === 'phone' && result.stage === 'pending' ? 'waiting' : 'code');
     } catch (err) {
       toast.show(err instanceof ApiError ? err.message : 'Не удалось отправить код. Попробуйте ещё раз.');
     } finally {
@@ -48,10 +59,14 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     }
   };
 
-  const handlePhoneSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (digits.length !== 10) {
+    if (channel === 'phone' && digits.length !== 10) {
       toast.show('Укажите корректный номер телефона.');
+      return;
+    }
+    if (channel === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact)) {
+      toast.show('Укажите корректный адрес почты.');
       return;
     }
     await begin();
@@ -60,7 +75,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   const submitCode = async (value: string) => {
     setLoading(true);
     try {
-      const result = await verifyPhoneCode(e164, value);
+      const result = await verifyCode(channel, contact, value);
       if ('registrationToken' in result) return onRegistration(result.registrationToken);
       onProven();
     } catch (err) {
@@ -95,19 +110,21 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   if (step === 'code') {
     return (
       <AuthShell
-        title="Введите код из SMS"
-        subtitle={<>Код отправлен на +7 {digits}. Действует 10 минут.</>}
+        title={channel === 'email' ? 'Введите код из письма' : 'Введите код из SMS'}
+        subtitle={<>Код отправлен на {channel === 'email' ? contact : `+7 ${digits}`}. Действует 10 минут.</>}
         busy={loading ? 'Проверяем код…' : undefined}
         footer={
           <>
             <AuthLink onClick={() => void begin()}>Отправить код ещё раз</AuthLink>
-            <AuthLink onClick={() => setStep('phone')} tone="muted">Изменить номер</AuthLink>
+            <AuthLink onClick={() => setStep('phone')} tone="muted">
+              {channel === 'email' ? 'Изменить адрес' : 'Изменить номер'}
+            </AuthLink>
           </>
         }
       >
         {toast.node}
         <PasscodeInput
-          label="Код из SMS"
+          label={channel === 'email' ? 'Код из письма' : 'Код из SMS'}
           value={code}
           onChange={next => {
             setCode(next);
@@ -125,12 +142,35 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   return (
     <AuthShell
       title="Кабинет продавца"
-      subtitle="Пришлём код в SMS."
+      subtitle={channel === 'email' ? 'Пришлём код на почту.' : 'Пришлём код в SMS.'}
       busy={loading ? 'Отправляем код…' : undefined}
+      footer={
+        /* The other door, named rather than hidden behind «ещё». Nobody is signing in «by another
+           method»; they are signing in with the credential they have. */
+        <AuthLink
+          onClick={() => setChannel(channel === 'email' ? 'phone' : 'email')}
+          disabled={loading}
+        >
+          {channel === 'email' ? 'Войти по номеру телефона' : 'Войти по почте'}
+        </AuthLink>
+      }
     >
       {toast.node}
-      <form onSubmit={handlePhoneSubmit} className="space-y-5">
-        <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {channel === 'email' ? (
+          <IconInput
+            icon={Mail}
+            label="Почта"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+          />
+        ) : (
+          <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
+        )}
 
         {/* No spinner in the button: the bar across the top of the page is saying it, and this
             one is about to be replaced by the next step anyway. */}
@@ -281,7 +321,7 @@ export function PasscodeSignInPage({ onNavigate }: { onNavigate: Navigate }) {
             onNavigate(authPath('/sign-in'), true);
           }}
         >
-          Войти по коду из SMS
+          Войти по одноразовому коду
         </AuthLink>
       }
     >

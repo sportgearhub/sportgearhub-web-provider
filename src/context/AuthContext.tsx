@@ -1,6 +1,7 @@
 import { clearSelectedProvider } from '../lib/active-provider';
 import { createContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import type { AuthUser, ProviderSummary, Session } from '../types';
+import type { AuthChannel } from '../features/auth/authUtils';
 import { authApi, onUnauthorized } from '../lib/api-client';
 
 interface AuthContextType {
@@ -10,9 +11,22 @@ interface AuthContextType {
   loading: boolean;
   // Sign-in is phone-first: send a code to the number, then exchange it. An unknown number comes
   // back as a registration token rather than an error.
-  requestPhoneCode: (phone: string) => Promise<void>;
-  verifyPhoneCode: (phone: string, code: string) => Promise<Session | { registrationToken: string }>;
-  completePhoneRegistration: (data: { token: string; name: string; surname: string; birthday: string }) => Promise<Session>;
+  /**
+   * The two credentials, as one shape.
+   *
+   * A phone number and an address are both ways in, with no primary and no secondary, so every
+   * screen in the flow takes the channel as a value rather than existing twice.
+   */
+  requestCode: (channel: AuthChannel, contact: string) => Promise<void>;
+  verifyCode: (
+    channel: AuthChannel,
+    contact: string,
+    code: string
+  ) => Promise<Session | { registrationToken: string }>;
+  completeRegistration: (
+    channel: AuthChannel,
+    data: { token: string; name: string; surname: string; birthday: string }
+  ) => Promise<Session>;
   passcodeSignIn: (passcode: string) => Promise<Session>;
   acceptInvitation: (invitationId: string) => Promise<Session>;
   signOut: () => Promise<void>;
@@ -90,19 +104,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void reloadSession();
   }, [reloadSession]);
 
-  const requestPhoneCode = async (phone: string) => {
-    await authApi.requestPhoneCode(phone);
+  const requestCode = async (channel: AuthChannel, contact: string) => {
+    await (channel === 'email' ? authApi.requestEmailCode(contact) : authApi.requestPhoneCode(contact));
   };
 
-  const verifyPhoneCode = async (phone: string, code: string) => {
-    const result = await authApi.verifyPhoneCode(phone, code);
+  const verifyCode = async (channel: AuthChannel, contact: string, code: string) => {
+    const result = await (channel === 'email'
+      ? authApi.verifyEmailCode(contact, code)
+      : authApi.verifyPhoneCode(contact, code));
     return result.status === 'registration_required'
       ? { registrationToken: result.registrationToken }
       : adopt(result.session);
   };
 
-  const completePhoneRegistration = async (data: { token: string; name: string; surname: string; birthday: string }) =>
-    adopt(await authApi.completePhoneRegistration(data));
+  const completeRegistration = async (
+    channel: AuthChannel,
+    data: { token: string; name: string; surname: string; birthday: string }
+  ) => adopt(await (channel === 'email'
+    ? authApi.completeEmailRegistration(data)
+    : authApi.completePhoneRegistration(data)));
 
   const passcodeSignIn = async (passcode: string) => adopt(await authApi.passcodeSignIn(passcode));
 
@@ -124,9 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         providers,
         loading,
-        requestPhoneCode,
-        verifyPhoneCode,
-        completePhoneRegistration,
+        requestCode,
+        verifyCode,
+        completeRegistration,
         passcodeSignIn,
         acceptInvitation,
         signOut,

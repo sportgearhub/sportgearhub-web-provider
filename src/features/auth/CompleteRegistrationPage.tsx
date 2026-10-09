@@ -5,7 +5,7 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError } from '../../lib/api-client';
 import { AuthShell, authControlClass } from './authShared';
 import { useToast } from '../../components/ui/Toast';
-import type { Navigate } from './authUtils';
+import type { AuthChannel, Navigate } from './authUtils';
 
 type FieldErrors = { name?: string; surname?: string; birthday?: string };
 
@@ -24,8 +24,17 @@ function birthdayError(value: string): string | undefined {
 // Reached when a one-time code proved a number that has no account yet. The number itself is
 // carried by the registration token, so it is never re-submitted — and nothing else is asked for:
 // an email is optional and attached later, from the profile, with its own confirmation.
-export function CompleteRegistrationPage({ token, onNavigate }: { token: string | null; onNavigate: Navigate }) {
-  const { completePhoneRegistration } = useAuth();
+export function CompleteRegistrationPage({
+  token,
+  channel = 'phone',
+  onNavigate,
+}: {
+  token: string | null;
+  /** Which credential proved them. Registration has to finish on the channel it started on. */
+  channel?: AuthChannel;
+  onNavigate: Navigate;
+}) {
+  const { completeRegistration } = useAuth();
   const [form, setForm] = useState({ name: '', surname: '', birthday: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const toast = useToast();
@@ -64,7 +73,7 @@ export function CompleteRegistrationPage({ token, onNavigate }: { token: string 
     setFieldErrors({});
     setLoading(true);
     try {
-      await completePhoneRegistration({
+      await completeRegistration(channel, {
         token,
         name: form.name.trim(),
         surname: form.surname.trim(),
