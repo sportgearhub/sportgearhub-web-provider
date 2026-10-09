@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Archive,
   ExternalLink,
+  ImageOff,
   MoreHorizontal,
   PauseCircle,
   Pencil,
@@ -20,7 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
-import { ApiError, productsApi } from '../../lib/api-client';
+import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
 import { ProductImagesSection } from './ProductImagesSection';
 import { ProductQuoteCalculator } from './ProductQuoteCalculator';
 import { ProductReadinessCard } from './ProductReadinessCard';
@@ -208,19 +209,51 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
             />}
           </span>
           {canSubmit && (
-            <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>
+            <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()} className="hidden sm:inline-flex">
               <Send size={13} /> Отправить на проверку
             </Button>
           )}
         </div>
       }
     >
+      {/* What the card is, at the top of its own page: the photo, the name in full, the state as
+          a chip, and the two numbers an operator is asked about across a counter. The bar above
+          truncates the name to one line, which is a label rather than the thing itself. */}
+      <section className="mb-2 flex gap-3 bg-white p-4 sm:hidden">
+        {product.mediaPreviewUrl ? (
+          <img
+            src={mediaUrl(product.mediaPreviewUrl)}
+            alt=""
+            className="h-20 w-20 shrink-0 rounded-xl border border-gray-200 object-cover"
+          />
+        ) : (
+          <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-300">
+            <ImageOff size={22} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <Badge variant={meta.variant} size="xs" tone="strong" shape="square">{meta.label}</Badge>
+          <h1 className="mt-1.5 text-base font-semibold leading-5 text-gray-950">{product.title}</h1>
+          <p className="mt-0.5 truncate text-xs text-gray-500">{product.category?.title ?? '—'}</p>
+          <p className="mt-1.5 flex items-center gap-2">
+            {product.price != null && (
+              <span className="rounded-lg bg-gray-100 px-2 py-1 text-sm font-semibold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+            )}
+            <span className={`ml-auto text-xs ${product.quantity > 0 ? 'text-gray-500' : 'text-amber-700'}`}>
+              {product.quantity} шт
+            </span>
+          </p>
+        </div>
+      </section>
+
       {/* The status, said in words, where it is read before anything else. A card that came back
           from review looks identical to one that was never sent; the difference is what to do next,
           so the page says it. */}
       {(canSubmit || underReview || product.status === 'suspended') && (
         <div
-          className={`mb-4 rounded-xl border px-4 py-3 text-sm leading-5 ${
+          className={`mx-3 mb-4 rounded-xl border px-4 py-3 text-sm leading-5 sm:mx-0 ${
             product.status === 'changes_requested' || product.status === 'rejected'
               ? 'border-amber-200 bg-amber-50 text-amber-900'
               : product.status === 'suspended'
@@ -260,9 +293,13 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
 
       {/* Above the grid, not inside the left column: a row of tabs there pushed the left column's
           first card down by its own height and left the sidebar hanging above it. */}
-      <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="mb-4 inline-flex max-w-full" />
+      <div className="mb-2 overflow-x-auto px-3 pb-1 sm:mb-4 sm:px-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <SegmentedTabs items={DETAIL_TABS} value={tab} onChange={setTab} className="inline-flex max-w-full" />
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+      {/* Bands of white on a phone, two columns on a desktop; and room at the end for the bar
+          that carries what to do next. */}
+      <div className="grid gap-2 pb-24 sm:gap-4 sm:pb-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="space-y-4">
           {tab === 'about' && <SettingsCard
             title="О товаре"
@@ -404,6 +441,17 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         }}
       />
     </SectionPage>
+
+    {/* What to do next, where a thumb is. A card that came back from review is read top to
+        bottom and the ask is at the bottom of it — which is the wrong end of a phone to put
+        the one button that answers it. */}
+    {canSubmit && (
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+        <Button variant="primary" loading={busy} onClick={() => void submit()} className="h-11 w-full justify-center">
+          <Send size={15} /> Отправить на проверку
+        </Button>
+      </div>
+    )}
 
     <BottomSheet
       open={menuOpen}

@@ -21,6 +21,13 @@ import { DeclineForm } from './DeclineForm';
 
 type Action = 'handover' | 'return' | 'issue' | 'decline';
 
+const ACTION_TITLES: Record<Action, string> = {
+  handover: 'Выдача',
+  return: 'Возврат',
+  issue: 'Сообщить о проблеме',
+  decline: 'Отклонить заявку',
+};
+
 /**
  * One booking, in full.
  *
@@ -112,6 +119,19 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   const canDecline = awaiting;
   const canIssue = Boolean(booking.fulfillment?.issueReportingAllowed);
 
+  /**
+   * The one move the booking is waiting for, in the order it is waited for. The API's own flags
+   * decide which are open — the same rules the command endpoints enforce — so this picks from
+   * its answer rather than deriving one from the status.
+   */
+  const primary: { label: string; run: () => void } | null = awaiting
+    ? { label: 'Подтвердить заявку', run: () => void confirm() }
+    : fulfillment?.handover?.handoverAllowed
+      ? { label: 'Записать выдачу', run: () => setAction('handover') }
+      : fulfillment?.return?.returnAllowed
+        ? { label: 'Принять возврат', run: () => setAction('return') }
+        : null;
+
   return (
     <>
       {/* The same bar as everywhere one level in: a way back, the number, and what can be done
@@ -138,6 +158,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       breadcrumb={{ label: 'Заказы', path: '/bookings' }}
       onNavigate={onNavigate}
       error={error}
+      bare
       action={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={status.variant} size="md">{status.label}</Badge>
@@ -146,24 +167,50 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       }
     >
       {notice && (
-        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{notice}</p>
+        <p className="mx-3 mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 sm:mx-0">
+          {notice}
+        </p>
       )}
 
-      {action && (
-        <div className="mb-4 max-w-2xl">
-          {action === 'handover' && <HandoverForm bookingId={bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setAction(null)} />}
-          {action === 'return' && <ReturnForm bookingId={bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setAction(null)} />}
-          {action === 'issue' && <IssueReportForm bookingId={bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setAction(null)} />}
-          {action === 'decline' && <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />}
+      {/* What was booked, at the top of its own page: the photo, the name in full, the state, the
+          window and who is coming for it. The bar above has room for the number alone. */}
+      <section className="mb-2 bg-white p-4 sm:hidden">
+        <div className="flex gap-3">
+          {booking.product.mediaPreviewUrl ? (
+            <img
+              src={mediaUrl(booking.product.mediaPreviewUrl)}
+              alt=""
+              className="h-20 w-20 shrink-0 rounded-xl border border-gray-200 object-cover"
+            />
+          ) : (
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-300">
+              <ImageOff size={22} />
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-1">
+              <Badge variant={status.variant} size="xs" tone="strong" shape="square">{status.label}</Badge>
+              {stage && <Badge variant={stage.variant} size="xs" tone="strong" shape="square">{stage.label}</Badge>}
+            </span>
+            <h1 className="mt-1.5 text-base font-semibold leading-5 text-gray-950">{booking.product.title}</h1>
+            <p className="mt-1 text-xs font-medium text-gray-900">
+              {formatWindow(booking.schedule?.startAt, booking.schedule?.endAt) ?? '—'}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-gray-500">
+              {booking.customer?.fullName ?? 'Клиент'}
+              {(booking.schedule?.quantity ?? 1) > 1 ? ` · ${booking.schedule?.quantity} шт` : ''}
+            </p>
+          </div>
         </div>
-      )}
+      </section>
 
-      {!action && (
-        <div className="mb-4 flex flex-wrap gap-2">
+      {/* The moves that are open, on a desktop where there is a row to put them in. On a phone
+          the first of them is a bar at the bottom and the rest are behind the dots. */}
+      <div className="mb-4 hidden flex-wrap gap-2 sm:flex">
           {awaiting && (
             <>
               <Button variant="primary" loading={busy} onClick={() => void confirm()}>Подтвердить заявку</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')} className="hidden lg:inline-flex">
+              <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')}>
                 Отклонить
               </Button>
             </>
@@ -180,20 +227,21 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               <AlertCircle size={14} /> Сообщить о проблеме
             </Button>
           )}
-        </div>
-      )}
+      </div>
 
-      <div className="max-w-3xl space-y-4">
+      <div className="max-w-3xl space-y-2 sm:space-y-4">
         <SettingsCard title="Товар" description="Что забронировали.">
           <div className="flex gap-3">
+            {/* The hero above already showed it; on a phone this card is the detail, not the
+                picture again. */}
             {booking.product.mediaPreviewUrl ? (
               <img
                 src={mediaUrl(booking.product.mediaPreviewUrl)}
                 alt=""
-                className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
+                className="hidden h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover sm:block"
               />
             ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300">
+              <span className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300 sm:flex">
                 <ImageOff size={18} />
               </span>
             )}
@@ -297,8 +345,48 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               <CopyValue value={booking.support.correlationRef} label="номер обращения" className="text-xs" />
             </SettingsCard>
           )}
+        {/* Room at the end for the bar below. */}
+        <div className={primary ? 'h-16 sm:hidden' : 'hidden'} />
       </div>
     </SectionPage>
+
+    {/* The one move this booking is waiting for, where a thumb is. The rest — decline, report a
+        problem — are behind the dots in the bar above. */}
+    {primary && (
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+        <Button
+          variant="primary"
+          loading={busy}
+          onClick={primary.run}
+          className="h-11 w-full justify-center"
+        >
+          {primary.label}
+        </Button>
+      </div>
+    )}
+
+    {/* Handover, return, decline and issue: the command's own fields in a sheet, which is a
+        centred dialog on a desktop. They used to replace the page above them, so the booking you
+        were reading disappeared the moment you acted on it. */}
+    <BottomSheet
+      open={action !== null}
+      onClose={() => setAction(null)}
+      title={action ? ACTION_TITLES[action] : ''}
+      center
+    >
+      {action === 'handover' && (
+        <HandoverForm bookingId={bookingId} onSuccess={done('Выдача записана.')} onCancel={() => setAction(null)} />
+      )}
+      {action === 'return' && (
+        <ReturnForm bookingId={bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setAction(null)} />
+      )}
+      {action === 'issue' && (
+        <IssueReportForm bookingId={bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setAction(null)} />
+      )}
+      {action === 'decline' && (
+        <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />
+      )}
+    </BottomSheet>
 
     <BottomSheet
       open={menuOpen}

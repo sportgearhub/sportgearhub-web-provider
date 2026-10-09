@@ -18,8 +18,11 @@ export function SettingsCard({
   footer?: ReactNode;
   children: ReactNode;
 }) {
+  // On a phone a white panel on grey needs no border — the fill is the edge, and a band across
+  // the screen with round corners is the shape the rest of the console uses. The desktop keeps its
+  // outline, where sections sit on white.
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <section className="overflow-hidden rounded-2xl bg-white sm:rounded-xl sm:border sm:border-gray-200">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-3.5 sm:px-5 sm:py-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-950">{title}</h2>
