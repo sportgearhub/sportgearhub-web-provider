@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronRight, ChevronsUpDown, ImageOff, Layers, Plus, Search } from 'lucide-react';
+import { ChevronsUpDown, ImageOff, Layers, Plus, Search, type LucideIcon } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
@@ -271,7 +271,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           and the search box stay put while the list moves under them, because searching a long
           catalogue from the bottom of it should not mean scrolling back up first. */}
       <div className="md:hidden">
-        <div className="sticky top-0 z-20 bg-white px-4 pb-3 pt-4">
+        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4">
           <div className="flex items-baseline justify-between gap-3">
             <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
             {pageInfo && (
@@ -283,33 +283,32 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           <div className="mt-3 flex">{searchField}</div>
         </div>
 
-        <div className="rounded-b-2xl bg-white px-4 pb-1">
-          {/* Eight statuses do not fit across a phone, and a strip that scrolls sideways hides
-              most of them. One row saying which is on and what is behind it reads at a glance. */}
+        {/* Its own card, touching the list it filters. Eight statuses do not fit across a phone,
+            and a strip that scrolls sideways hides most of them; one row saying which is on, how
+            many are in it and that there are others reads at a glance. */}
+        <div className="px-3 pt-3">
           <button
             type="button"
             onClick={() => { setPendingTab(tab); setSheetOpen(true); }}
-            className="flex w-full items-center gap-3 border-t border-gray-100 py-3 text-left transition active:bg-gray-50"
+            className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left transition active:bg-gray-50"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-gray-900">{slice.label}</span>
               <span className="mt-0.5 block text-xs text-gray-500">Выберите статус продуктов</span>
             </span>
-            {totalForTab != null && (
-              <span className="shrink-0 text-sm tabular-nums text-gray-500">{totalForTab}</span>
-            )}
+            {totalForTab != null && <Count value={totalForTab} />}
             <ChevronsUpDown size={16} className="shrink-0 text-gray-400" />
           </button>
+        </div>
 
-          <button
-            type="button"
+        {/* The other places this screen leads, as tiles rather than rows: squares read as things
+            to tap, and a row of them has room for the next one. */}
+        <div className="flex gap-2 overflow-x-auto px-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FeatureTile
+            icon={Layers}
+            label="Группы товаров"
             onClick={() => onNavigate('/products/groups')}
-            className="flex w-full items-center gap-3 border-t border-gray-100 py-3 text-left transition active:bg-gray-50"
-          >
-            <Layers size={17} className="shrink-0 text-gray-400" />
-            <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">Группа товаров</span>
-            <ChevronRight size={16} className="shrink-0 text-gray-400" />
-          </button>
+          />
         </div>
       </div>
 
@@ -487,7 +486,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         title="Статус товаров"
-        description="Покажем только те карточки, которые в этом состоянии."
+        center
         footer={
           <Button
             variant="primary"
@@ -498,7 +497,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           </Button>
         }
       >
-        <ul>
+        <ul className="divide-y divide-gray-100 border-y border-gray-100">
           {SLICES.map(item => {
             const chosen = item.value === pendingTab;
             return (
@@ -506,16 +505,19 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
                 <button
                   type="button"
                   onClick={() => setPendingTab(item.value)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition active:bg-gray-50"
+                  className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition active:bg-gray-50"
                 >
-                  <span className={`min-w-0 flex-1 text-sm ${chosen ? 'font-semibold text-gray-950' : 'text-gray-800'}`}>
+                  <span className={`min-w-0 flex-1 text-sm ${chosen ? 'font-medium text-gray-950' : 'text-gray-800'}`}>
                     {item.label}
                   </span>
-                  {counts[item.value] != null && (
-                    <span className="shrink-0 text-sm tabular-nums text-gray-500">{counts[item.value]}</span>
-                  )}
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                    {chosen && <Check size={17} className="text-blue-600" />}
+                  {counts[item.value] != null && <Count value={counts[item.value]} />}
+                  {/* The mark of a single choice, where a single choice is marked. */}
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                      chosen ? 'border-blue-600' : 'border-gray-300'
+                    }`}
+                  >
+                    {chosen && <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
                   </span>
                 </button>
               </li>
@@ -524,6 +526,30 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </ul>
       </BottomSheet>
     </>
+  );
+}
+
+/** A count beside a label: grey, pill-shaped, never competing with the label it belongs to. */
+function Count({ value }: { value: number }) {
+  return (
+    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">
+      {value}
+    </span>
+  );
+}
+
+function FeatureTile({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl bg-white px-2 text-center transition active:bg-gray-50"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <Icon size={18} />
+      </span>
+      <span className="text-[11px] font-medium leading-tight text-gray-800">{label}</span>
+    </button>
   );
 }
 

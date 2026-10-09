@@ -93,13 +93,15 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const todayLabel = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <p className="text-sm text-gray-500">{todayLabel}</p>
-        {/* The header used to carry the cabinet's name on every screen. Without it on a phone,
-            the one place that must say which cabinet you are in is the one you land on. */}
+    <div className="space-y-4 px-3 pb-6 pt-3 lg:space-y-6 lg:p-6">
+      {/* The top of the screen, as every other section has it: one white block the width of the
+          phone, round along its underside. The console draws no bar here, so this is the bar —
+          and the one place that must say which cabinet you are in is the one you land on. */}
+      <div className="-mx-3 -mt-3 rounded-b-2xl bg-white px-4 pb-4 pt-4 lg:hidden">
+        <p className="truncate text-lg font-semibold text-gray-950">{provider.displayName}</p>
+        <p className="mt-0.5 text-sm text-gray-500">{todayLabel}</p>
         {/* The direction, where a phone has no header to carry it. */}
-        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1 lg:hidden">
+        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1">
           {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
             <button
               key={key}
@@ -114,6 +116,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           ))}
         </div>
       </div>
+
+      <p className="hidden text-sm text-gray-500 lg:block">{todayLabel}</p>
 
 
       {error && (

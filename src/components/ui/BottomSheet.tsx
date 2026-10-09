@@ -15,6 +15,7 @@ export function BottomSheet({
   onClose,
   title,
   description,
+  center,
   children,
   footer,
 }: {
@@ -22,6 +23,8 @@ export function BottomSheet({
   onClose: () => void;
   title: string;
   description?: string;
+  /** Put the name in the middle, with the close button laid over the right-hand end. */
+  center?: boolean;
   children: ReactNode;
   footer?: ReactNode;
 }) {
@@ -58,8 +61,8 @@ export function BottomSheet({
           shown ? 'translate-y-0' : 'translate-y-full sm:translate-y-0'
         }`}
       >
-        <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-5">
-          <div className="min-w-0">
+        <div className={`relative flex items-start gap-3 px-5 pb-3 pt-5 ${center ? 'justify-center' : 'justify-between'}`}>
+          <div className={center ? 'min-w-0 px-6 text-center' : 'min-w-0'}>
             <h2 className="text-base font-semibold text-gray-950">{title}</h2>
             {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
           </div>
@@ -67,13 +70,16 @@ export function BottomSheet({
             type="button"
             onClick={onClose}
             aria-label="Закрыть"
-            className="-mr-1 shrink-0 rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+            className={`shrink-0 rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 ${
+              center ? 'absolute right-4 top-4' : '-mr-1'
+            }`}
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">{children}</div>
+        {/* No padding of its own: a list inside wants its separators to reach both edges. */}
+        <div className="min-h-0 flex-1 overflow-y-auto pb-2">{children}</div>
 
         {footer && (
           <div className="border-t border-gray-100 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>

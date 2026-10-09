@@ -66,9 +66,12 @@ function taskFor(relativePath: string): {
   hideNav: boolean;
   help?: string;
   center?: boolean;
+  card?: boolean;
 } | null {
   // The viewfinder is the page: a bar to leave by and the camera under it, nothing across it.
-  if (relativePath === '/scan') return { title: 'Сканер', backTo: '/', hideNav: true, center: true };
+  if (relativePath === '/scan') {
+    return { title: 'Сканер', backTo: '/', hideNav: true, center: true, card: true };
+  }
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
   if (relativePath === '/products/groups') {
     return {

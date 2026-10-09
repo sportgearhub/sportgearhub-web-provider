@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CameraOff, Keyboard, Loader2, QrCode, ScanLine } from 'lucide-react';
-import { BottomSheet } from '../../components/ui/BottomSheet';
-import { Button } from '../../components/ui/Button';
+import { CameraOff, Loader2, QrCode, ScanLine } from 'lucide-react';
 import { ApiError, bookingsApi } from '../../lib/api-client';
 import { cn } from '../../lib/utils';
 import type { BookingListItem } from '../../types';
@@ -61,8 +59,6 @@ async function loadDetector(): Promise<BarcodeDetectorLike> {
  * API that does not already exist; when a scanning endpoint arrives, only `findBooking` changes.
  */
 export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const [manual, setManual] = useState('');
-  const [typing, setTyping] = useState(false);
   const [status, setStatus] = useState<'starting' | 'scanning' | 'paused' | 'denied'>('starting');
   const [looking, setLooking] = useState(false);
   const [error, setError] = useState('');
@@ -160,33 +156,30 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
   const scanning = status === 'scanning' && !paused;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* The frame is the content. Full-bleed on a phone; inset on a desktop, where a black
-          rectangle from edge to edge would be a mistake rather than a viewfinder. */}
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-gray-950 lg:m-6 lg:rounded-2xl">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-10">
+      {/* The viewfinder, in the middle of the screen — one object on the ground, under a bar that
+          floats on the same ground. A black rectangle filling every edge is a broken page; a
+          square you hold a phone up to is a thing you point. */}
+      <div className="relative aspect-square w-full max-w-sm overflow-hidden rounded-3xl bg-gray-950 shadow-lg">
         <video
           ref={videoRef}
           playsInline
           muted
-          className={cn('absolute inset-0 h-full w-full object-cover transition-opacity', scanning ? 'opacity-100' : 'opacity-0')}
+          className={cn(
+            'absolute inset-0 h-full w-full object-cover transition-opacity',
+            scanning ? 'opacity-100' : 'opacity-0'
+          )}
         />
 
+        {/* The frame is the aim: the brackets mark where the code has to be, with nothing dimmed,
+            because everything inside this square is being read. */}
         {scanning && (
-          <>
-            {/* A window to aim through: the brackets are where the code has to be, and the dimmed
-                surround is everything the detector is being shown but need not read. */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="relative h-60 w-60 max-w-[72vw] rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
-                <Corner className="left-0 top-0 rounded-tl-2xl border-l-4 border-t-4" />
-                <Corner className="right-0 top-0 rounded-tr-2xl border-r-4 border-t-4" />
-                <Corner className="bottom-0 left-0 rounded-bl-2xl border-b-4 border-l-4" />
-                <Corner className="bottom-0 right-0 rounded-br-2xl border-b-4 border-r-4" />
-              </div>
-            </div>
-            <p className="pointer-events-none absolute inset-x-0 top-6 px-8 text-center text-sm leading-5 text-white/90">
-              Наведите камеру на QR-код в приложении клиента
-            </p>
-          </>
+          <div className="pointer-events-none absolute inset-6">
+            <Corner className="left-0 top-0 rounded-tl-xl border-l-4 border-t-4" />
+            <Corner className="right-0 top-0 rounded-tr-xl border-r-4 border-t-4" />
+            <Corner className="bottom-0 left-0 rounded-bl-xl border-b-4 border-l-4" />
+            <Corner className="bottom-0 right-0 rounded-br-xl border-b-4 border-r-4" />
+          </div>
         )}
 
         {!scanning && !looking && (
@@ -198,22 +191,13 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
             ) : (
               <QrCode size={30} className="text-gray-500" />
             )}
-            <p className="max-w-xs text-sm leading-5 text-gray-300">
+            <p className="max-w-[16rem] text-sm leading-5 text-gray-300">
               {status === 'denied'
-                ? 'Нет доступа к камере. Разрешите его в настройках браузера или введите номер вручную.'
+                ? 'Нет доступа к камере. Разрешите его в настройках браузера.'
                 : status === 'starting'
                   ? 'Готовим камеру…'
                   : 'Камера выключена.'}
             </p>
-            {status !== 'starting' && (
-              <button
-                type="button"
-                onClick={resume}
-                className="mt-1 flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition active:bg-gray-200"
-              >
-                <ScanLine size={16} /> Включить камеру
-              </button>
-            )}
           </div>
         )}
 
@@ -223,81 +207,38 @@ export function ScanPage({ onNavigate }: { onNavigate: (path: string) => void })
             <p className="text-sm text-white">Ищем бронирование…</p>
           </div>
         )}
-
-        {error && (
-          <p className="absolute inset-x-4 top-4 rounded-xl bg-red-600 px-3 py-2.5 text-sm leading-5 text-white shadow-lg">
-            {error}
-          </p>
-        )}
-
-        {/* The two things to do over a viewfinder, over the picture rather than beside it. */}
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <button
-            type="button"
-            onClick={() => setTyping(true)}
-            className="flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-2.5 text-sm font-medium text-white backdrop-blur transition active:bg-white/25"
-          >
-            <Keyboard size={16} /> Ввести номер
-          </button>
-          {scanning ? (
-            <button
-              type="button"
-              onClick={() => setPaused(true)}
-              className="rounded-full bg-white/15 px-4 py-2.5 text-sm font-medium text-white backdrop-blur transition active:bg-white/25"
-            >
-              Остановить
-            </button>
-          ) : (
-            status !== 'starting' && (
-              <button
-                type="button"
-                onClick={resume}
-                className="rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition active:bg-gray-200"
-              >
-                Сканировать
-              </button>
-            )
-          )}
-        </div>
       </div>
 
-      <BottomSheet
-        open={typing}
-        onClose={() => setTyping(false)}
-        title="Номер бронирования"
-        description="Если сканировать нечем — номер есть у клиента в подтверждении."
-      >
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            setTyping(false);
-            setPaused(true);
-            void findRef.current(manual);
-          }}
-          className="px-3 pb-4 pt-1"
-        >
-          <div className="relative">
-            <Keyboard size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={manual}
-              onChange={event => setManual(event.target.value)}
-              placeholder="SGH-20260926083813816"
-              inputMode="text"
-              autoComplete="off"
-              autoFocus
-              className="h-11 w-full rounded-xl border border-gray-300 bg-white pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-            />
-          </div>
-          <Button type="submit" variant="primary" loading={looking} disabled={!manual.trim()} className="mt-3 h-11 w-full justify-center">
-            Найти
-          </Button>
-          <p className="mt-3 text-xs leading-5 text-gray-500">
-            Прототип. Читается номер бронирования — тот же, что клиент видит в подтверждении.
-            Отдельной ручки для сканирования в API пока нет: найденное открывается как обычное
-            бронирование, где уже есть выдача, возврат и обращение.
-          </p>
-        </form>
-      </BottomSheet>
+      <p className="mt-5 max-w-xs text-center text-sm leading-5 text-gray-600">
+        Наведите камеру на QR-код в приложении клиента — откроем его бронирование.
+      </p>
+
+      {error && (
+        <p className="mt-3 w-full max-w-sm rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-5 text-red-700">
+          {error}
+        </p>
+      )}
+
+      {/* One action under the frame, never two: whichever of the two states it is in. */}
+      {status !== 'starting' && !looking && (
+        scanning ? (
+          <button
+            type="button"
+            onClick={() => setPaused(true)}
+            className="mt-4 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-gray-900 shadow-sm transition active:bg-gray-100"
+          >
+            Остановить
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={resume}
+            className="mt-4 flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:bg-blue-700"
+          >
+            <ScanLine size={16} /> {status === 'denied' ? 'Попробовать снова' : 'Сканировать'}
+          </button>
+        )
+      )}
     </div>
   );
 }

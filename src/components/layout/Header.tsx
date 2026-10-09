@@ -10,7 +10,7 @@ import {
   CreditCard,
   FileText,
   HelpCircle,
-  LayoutDashboard,
+  Home,
   LogOut,
   MapPin,
   Package,
@@ -38,7 +38,7 @@ type NavItem = { label: string; path: string; icon: LucideIcon };
 /** Each workspace has its own sections; nothing is shared but the cabinet underneath them. */
 const navByWorkspace: Record<Workspace, NavItem[]> = {
   rental: [
-    { label: 'Главная', path: '/', icon: LayoutDashboard },
+    { label: 'Главная', path: '/', icon: Home },
     { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
     { label: 'Каталог', path: '/products', icon: Package },
     { label: 'Сканер', path: '/scan', icon: ScanLine },
@@ -47,7 +47,7 @@ const navByWorkspace: Record<Workspace, NavItem[]> = {
   // tap away on the home screen and in the menu, which is where a list of your own products
   // belongs anyway — it is visited to change something, not all day.
   experience: [
-    { label: 'Главная', path: '/x', icon: LayoutDashboard },
+    { label: 'Главная', path: '/x', icon: Home },
     { label: 'Расписание', path: '/x/schedule', icon: CalendarDays },
     { label: 'Брони', path: '/x/bookings', icon: CalendarCheck },
     { label: 'Финансы', path: '/x/finances', icon: Wallet },
@@ -88,7 +88,7 @@ interface HeaderProps {
    * the screen — the header becomes a way back and the name of what you are doing, and the section
    * bar goes away, because leaving halfway through by tapping «Каталог» is not a thing to offer.
    */
-  task?: { title: string; backTo: string; help?: string; center?: boolean } | null;
+  task?: { title: string; backTo: string; help?: string; center?: boolean; card?: boolean } | null;
 }
 
 export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) {
@@ -99,7 +99,15 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
     path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
   return (
-    <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm">
+    <header
+      className={cn(
+        'sticky top-0 z-30 bg-white shadow-sm',
+        // A page whose content is one object floating on the ground — the viewfinder — wants a
+        // bar that floats with it: rounded on every corner, with the ground visible down both
+        // sides. Everywhere else the bar is the top of the page and only its underside is round.
+        task?.card ? 'mx-3 mt-3 rounded-2xl lg:mx-0 lg:mt-0 lg:rounded-b-2xl lg:rounded-t-none' : 'rounded-b-2xl'
+      )}
+    >
       <div className="mx-auto flex min-h-16 w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
         {task ? (
           <div className="relative flex min-w-0 flex-1 items-center gap-2 lg:hidden">
@@ -141,7 +149,10 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
         </button>
 
         <CabinetSwitch />
-        <WorkspaceSwitch />
+        {/* A task bar on a phone is a way back and the name of the task. The cabinet and the
+            workspace are not choices to be made halfway through one, and beside a centred title
+            they are what knocks it off centre. */}
+        <WorkspaceSwitch className={task ? 'hidden lg:flex' : 'flex'} />
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         {/* Below `lg` the sections live in the bar at the bottom of the screen, within a thumb's
@@ -262,7 +273,7 @@ function CabinetSwitch() {
  * at all — so this changes the whole console rather than filtering a list. It is a dropdown and
  * not a tab bar because it is not navigation: nothing above it changes, everything below it does.
  */
-function WorkspaceSwitch() {
+function WorkspaceSwitch({ className }: { className?: string }) {
   const { workspace, setWorkspace } = useWorkspace();
   const menu = useDropdown('left', 240);
 
@@ -274,7 +285,10 @@ function WorkspaceSwitch() {
         onClick={menu.toggle}
         aria-haspopup="menu"
         aria-expanded={menu.open}
-        className="flex h-9 items-center gap-1.5 rounded-lg border border-input px-2.5 text-sm font-medium text-foreground transition hover:bg-sidebar-accent"
+        className={cn(
+          'h-9 items-center gap-1.5 rounded-lg border border-input px-2.5 text-sm font-medium text-foreground transition hover:bg-sidebar-accent',
+          className ?? 'flex'
+        )}
       >
         {workspaceMeta[workspace].label}
         <ChevronDown size={14} className="text-gray-400" />
@@ -324,7 +338,7 @@ function TaskHelp({ title, text }: { title: string; text: string }) {
         <HelpCircle size={20} />
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title={title}>
-        <p className="px-3 pb-4 pt-1 text-sm leading-6 text-gray-700">{text}</p>
+        <p className="px-5 pb-4 pt-1 text-sm leading-6 text-gray-700">{text}</p>
       </BottomSheet>
     </>
   );
