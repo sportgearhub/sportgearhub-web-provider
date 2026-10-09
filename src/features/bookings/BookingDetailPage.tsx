@@ -222,32 +222,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         </p>
       )}
 
-      {/* The moves that are open, on a desktop where there is a row to put them in. On a phone
-          the first of them is a bar at the bottom and the rest are behind the dots. */}
-      <div className="mb-4 hidden flex-wrap gap-2 sm:flex">
-          {awaiting && (
-            <>
-              <Button variant="primary" loading={busy} onClick={() => void confirm()}>Подтвердить заявку</Button>
-              <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')}>
-                Отклонить
-              </Button>
-            </>
-          )}
-          {/* The API decides which moves are open — the same rules the commands enforce. */}
-          {fulfillment?.handover?.handoverAllowed && (
-            <Button variant="primary" onClick={() => setAction('handover')}>Записать выдачу</Button>
-          )}
-          {fulfillment?.return?.returnAllowed && (
-            <Button variant="primary" onClick={() => setAction('return')}>Принять возврат</Button>
-          )}
-          {canIssue && (
-            <Button variant="ghost" onClick={() => setAction('issue')} className="hidden lg:inline-flex">
-              <AlertCircle size={14} /> Сообщить о проблеме
-            </Button>
-          )}
-      </div>
-
-      <div className="max-w-3xl space-y-2 sm:space-y-4">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4">
+        <div className="space-y-2 sm:space-y-4">
         <SettingsCard
           title="Товар"
           description="Что входит и какой залог брать."
@@ -378,20 +354,71 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               <CopyValue value={booking.support.correlationRef} label="номер обращения" className="text-xs" />
             </SettingsCard>
           )}
-        {/* Room at the end for the bar below. */}
-        <div className={primary ? 'h-16 sm:hidden' : 'hidden'} />
+        {/* Room at the end for the button that floats over it. */}
+        <div className={primary ? 'h-20 lg:hidden' : 'hidden'} />
+        </div>
+
+        {/* The rail: what this booking is waiting for, and everything that can be done to it.
+            A desktop had the same buttons in a row above the content, where they scrolled away
+            from the thing they act on — and two of them were only ever on the phone. */}
+        <aside className="hidden lg:sticky lg:top-4 lg:block">
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-sm font-semibold text-gray-950">Что дальше</p>
+
+            <div className="mt-3 space-y-2 [&>button]:w-full [&>button]:justify-center">
+              {awaiting && (
+                <Button variant="primary" loading={busy} onClick={() => void confirm()}>
+                  Подтвердить заявку
+                </Button>
+              )}
+              {/* The API decides which moves are open — the same rules the commands enforce. */}
+              {fulfillment?.handover?.handoverAllowed && (
+                <Button variant="primary" onClick={() => setAction('handover')}>Записать выдачу</Button>
+              )}
+              {fulfillment?.return?.returnAllowed && (
+                <Button variant="primary" onClick={() => setAction('return')}>Принять возврат</Button>
+              )}
+              {canDecline && (
+                <Button variant="secondary" disabled={busy} onClick={() => setAction('decline')}>
+                  Отклонить заявку
+                </Button>
+              )}
+              {canCancel && (
+                <Button variant="secondary" onClick={() => setAction('cancel')}>Отменить бронь</Button>
+              )}
+              {canIssue && (
+                <Button variant="ghost" onClick={() => setAction('issue')}>
+                  <AlertCircle size={14} /> Сообщить о проблеме
+                </Button>
+              )}
+              {!awaiting && !canCancel && !canIssue
+                && !fulfillment?.handover?.handoverAllowed && !fulfillment?.return?.returnAllowed && (
+                <p className="text-sm text-gray-500">По этой брони делать нечего — она закрыта.</p>
+              )}
+            </div>
+
+            {canCancel && (
+              <p className="mt-3 text-xs leading-4 text-gray-500">
+                При отмене клиенту возвращается вся сумма, включая залог.
+              </p>
+            )}
+          </div>
+        </aside>
       </div>
     </SectionPage>
 
     {/* The one move this booking is waiting for, where a thumb is. The rest — decline, report a
         problem — are behind the dots in the bar above. */}
+    {/* The one move this booking is waiting for, floating over the page within a thumb's reach
+        rather than as a bar sealing the bottom of it — the content goes on showing underneath,
+        which matters on a screen where the window and the customer are three lines up. */}
     {primary && (
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
         <Button
           variant="primary"
           loading={busy}
           onClick={primary.run}
-          className="h-11 w-full justify-center"
+          className="pointer-events-auto h-12 rounded-full px-6 text-base shadow-lg shadow-blue-600/25"
         >
           {primary.label}
         </Button>
