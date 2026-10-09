@@ -374,11 +374,14 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         </div>
 
         {/* The other places this screen leads, as tiles rather than rows: squares read as things
-            to tap, and a row of them has room for the next one. Its own band, edge to edge — a
-            card with margins inside a screen this narrow is two kinds of edge to look at. It
-            scrolls away under the part that stays: the name and the search box are worth keeping
-            on screen, a shortcut you have already seen is not. */}
-        <div className="mt-2 rounded-2xl bg-white py-3 md:hidden">
+            to tap, and a row of them has room for the next one. They are the bottom of the same
+            white block — no gap, no second edge — and they scroll away under the part that stays,
+            because the name and the search box are worth keeping on screen and a shortcut you
+            have already seen is not.
+
+            The overlap is what hides the seam: the stuck part's rounded underside is over white
+            while the tiles are there, and over the ground once they are gone. */}
+        <div className="-mt-4 rounded-b-2xl bg-white pb-2.5 pt-4 md:hidden">
           <div className="flex gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <FeatureTile
               icon={Layers}
@@ -743,12 +746,12 @@ function FeatureTile({ icon: Icon, label, onClick }: { icon: LucideIcon; label: 
     <button
       type="button"
       onClick={onClick}
-      className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl bg-white px-2 text-center transition active:bg-gray-50"
+      className="flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl bg-gray-50 px-1.5 text-center transition active:bg-gray-100"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-        <Icon size={18} />
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+        <Icon size={16} />
       </span>
-      <span className="text-[11px] font-medium leading-tight text-gray-800">{label}</span>
+      <span className="text-[10px] font-medium leading-tight text-gray-800">{label}</span>
     </button>
   );
 }
