@@ -32,10 +32,16 @@ const groups: { title: string; items: Row[] }[] = [
     ],
   },
   {
-    title: 'Реквизиты и договор',
+    title: 'Деньги',
+    items: [
+      { label: 'Финансы', path: '/finances', icon: Wallet },
+      { label: 'Реквизиты выплат', path: '/settings/payouts', icon: CreditCard },
+    ],
+  },
+  {
+    title: 'Документы',
     items: [
       { label: 'Информация о продавце', path: '/settings/seller', icon: Building2 },
-      { label: 'Реквизиты выплат', path: '/settings/payouts', icon: CreditCard },
       { label: 'Договоры', path: '/settings/contracts', icon: FileText },
     ],
   },
@@ -46,7 +52,7 @@ const shortcutsByWorkspace: Record<Workspace, Row[]> = {
   rental: [
     { label: 'Сканер', path: '/scan', icon: ScanLine },
     { label: 'Каталог', path: '/products', icon: Package },
-    { label: 'Выплаты', path: '/settings/payouts', icon: Wallet },
+    { label: 'Финансы', path: '/finances', icon: Wallet },
   ],
   experience: [
     { label: 'Впечатления', path: '/x/experiences', icon: Sparkles },
@@ -113,21 +119,30 @@ export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void })
 
       {groups.map(group => (
         <section key={group.title}>
-          <p className="px-1 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
-          <div className="overflow-hidden rounded-xl bg-white">
+          <p className="px-4 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
+          {/* Rows the way a phone draws them: the glyph in a tinted square so the column of them
+              reads as a column, and the rule between two rows starting where the words do rather
+              than cutting across the icons. */}
+          <div className="overflow-hidden rounded-2xl bg-white">
             {group.items.map((item, index) => (
               <button
                 key={item.path}
                 type="button"
                 onClick={() => onNavigate(item.path)}
-                className={cn(
-                  'flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-900 transition active:bg-gray-50',
-                  index > 0 && 'border-t border-gray-100'
-                )}
+                className="flex w-full items-center gap-3 px-3 py-1 text-left text-sm text-gray-900 transition active:bg-gray-50"
               >
-                <item.icon size={17} className="shrink-0 text-gray-400" />
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                <ChevronRight size={16} className="shrink-0 text-gray-400" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                  <item.icon size={18} />
+                </span>
+                <span
+                  className={cn(
+                    'flex min-w-0 flex-1 items-center gap-3 py-3',
+                    index > 0 && 'border-t border-gray-100'
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <ChevronRight size={16} className="shrink-0 text-gray-400" />
+                </span>
               </button>
             ))}
           </div>

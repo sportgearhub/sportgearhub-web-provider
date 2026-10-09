@@ -13,6 +13,7 @@ import { BookingFiltersPage } from './features/bookings/BookingFiltersPage';
 import { BookingsCalendarPage } from './features/bookings/BookingsCalendarPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
+import { FinancesPage } from './features/finances/FinancesPage';
 import { RatingsPage } from './features/ratings/Ratings';
 import {
   ExperienceBookingsPage,
@@ -113,6 +114,11 @@ function MenuRoute() {
   return <MenuPage onNavigate={navigateTo} />;
 }
 
+function FinancesRoute() {
+  const { navigateTo } = useConsole();
+  return <FinancesPage onNavigate={navigateTo} />;
+}
+
 function ScanRoute() {
   const { navigateTo } = useConsole();
   return <ScanPage onNavigate={navigateTo} />;
@@ -200,6 +206,7 @@ const router = createBrowserRouter([
           { path: 'bookings/calendar', element: <BookingsCalendarRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
+          { path: 'finances', element: <FinancesRoute /> },
           { path: 'menu', element: <MenuRoute /> },
           { path: 'ratings', element: <RatingsPage /> },
 

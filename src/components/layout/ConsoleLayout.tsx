@@ -24,6 +24,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/x/bookings': { title: '' },
   '/x/finances': { title: '' },
   '/menu': { title: '' },
+  '/finances': { title: '' },
   '/ratings': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
@@ -52,7 +53,7 @@ const SETTINGS_TITLES: Record<string, string> = {
   '/settings/account': 'Аккаунт',
 };
 
-const PAGE_TITLES: Record<string, string> = { '/ratings': 'Оценки' };
+const PAGE_TITLES: Record<string, string> = { '/ratings': 'Оценки', '/finances': 'Финансы' };
 
 /**
  * Screens that are somewhere you went, rather than one of the sections you switch between.
@@ -120,7 +121,17 @@ function taskFor(relativePath: string): {
   }
 
   const plain = PAGE_TITLES[relativePath];
-  if (plain) return { title: plain, backTo: '/', hideNav: false };
+  if (plain) {
+    return {
+      title: plain,
+      backTo: relativePath === '/finances' ? '/menu' : '/',
+      hideNav: false,
+      help: relativePath === '/finances'
+        ? 'Площадка принимает оплату от клиента и переводит вам сумму за вычетом комиссии. '
+          + 'Деньги уходят на реквизиты из раздела «Реквизиты выплат» — их же видит эквайринг.'
+        : undefined,
+    };
+  }
 
   const settings = SETTINGS_TITLES[relativePath];
   if (settings) {
