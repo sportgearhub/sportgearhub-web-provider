@@ -10,6 +10,7 @@ import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
+import { useGoBack } from '../../lib/useGoBack';
 import type { BookingDetail, FulfillmentDetail } from '../../types';
 import { bookingStatusMeta, fulfillmentStageMeta, formatWindow } from './bookingMeta';
 import { BookingProductPanel } from './BookingProductPanel';
@@ -36,6 +37,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<Action | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const goBack = useGoBack('/bookings');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,7 +85,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   if (loading) {
     return (
       <>
-        <SubPageHeader title="Бронирование" onBack={() => onNavigate('/bookings')} />
+        <SubPageHeader title="Бронирование" onBack={goBack} />
         <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate}>
           <SkeletonDetail rows={6} />
         </SectionPage>
@@ -94,7 +96,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   if (!booking) {
     return (
       <>
-        <SubPageHeader title="Бронирование" onBack={() => onNavigate('/bookings')} />
+        <SubPageHeader title="Бронирование" onBack={goBack} />
         <SectionPage title="Бронирование" breadcrumb={{ label: 'Заказы', path: '/bookings' }} onNavigate={onNavigate} error={error}>
           <Button variant="secondary" onClick={() => onNavigate('/bookings')}>К заказам</Button>
         </SectionPage>
@@ -116,7 +118,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           to this booking in the corner. */}
       <SubPageHeader
         title={`№${booking.bookingNumber}`}
-        onBack={() => onNavigate('/bookings')}
+        onBack={goBack}
         action={
           (canDecline || canIssue) ? (
             <button

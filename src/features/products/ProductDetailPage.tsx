@@ -12,6 +12,7 @@ import {
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
+import { useGoBack } from '../../lib/useGoBack';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
@@ -68,6 +69,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [priceSummary, setPriceSummary] = useState<ProductPricingSummary | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const phone = useMediaQuery(PHONE);
+  const goBack = useGoBack('/products');
 
   const load = async () => {
     setLoading(true);
@@ -160,7 +162,7 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
           own bar and its section strip are not drawn on this route. */}
       <SubPageHeader
         title={product.title}
-        onBack={() => onNavigate('/products')}
+        onBack={goBack}
         action={
           <button
             type="button"

@@ -6,6 +6,7 @@ import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { ProductCard, ProductCardSkeleton } from './ProductCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
+import { useGoBack } from '../../lib/useGoBack';
 import type { ProductSummary } from '../../types';
 
 type Group = { name: string; items: ProductSummary[] };
@@ -170,6 +171,7 @@ export function ProductGroupPage({ groupName, onNavigate }: { groupName: string;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const goBack = useGoBack('/products/groups');
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +189,7 @@ export function ProductGroupPage({ groupName, onNavigate }: { groupName: string;
     <>
       <SubPageHeader
         title={groupName}
-        onBack={() => onNavigate('/products/groups')}
+        onBack={goBack}
         action={
           <button
             type="button"

@@ -388,6 +388,10 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               label="Группы товаров"
               onClick={() => onNavigate('/products/groups')}
             />
+            {/* The catalogue's scanner is the label on the box, not the pass on the customer's
+                phone: it reads a barcode and searches for it. One tap here, and the same thing
+                with its explanation in the menu above. */}
+            <FeatureTile icon={ScanBarcode} label="Сканер" onClick={() => setScanOpen(true)} />
           </div>
         </div>
 

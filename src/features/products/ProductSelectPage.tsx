@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { useToast } from '../../components/ui/Toast';
 import { ApiError, productsApi } from '../../lib/api-client';
+import { useGoBack } from '../../lib/useGoBack';
 import type { ProductSummary } from '../../types';
 import { ProductCard, ProductCardSkeleton } from './ProductCard';
 import { filtersToRsql, useCatalogueFilters } from './catalogueFilters';
@@ -40,6 +41,7 @@ export function ProductSelectPage({
   const [confirming, setConfirming] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const toast = useToast();
+  const goBack = useGoBack('/products');
 
   const filter = useMemo(
     () => ['status!=archived', ...filtersToRsql(chosen)].join(';'),
@@ -106,7 +108,7 @@ export function ProductSelectPage({
       <SubPageHeader
         title="Выбор товаров"
         description="Отметьте, что отправить в архив"
-        onBack={() => onNavigate('/products')}
+        onBack={goBack}
         action={
           <button
             type="button"

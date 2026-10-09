@@ -8,6 +8,7 @@ import { Header, MobileNavBar } from './Header';
 import { SubPageHeader } from './SubPageHeader';
 import { WorkspaceContext, WORKSPACE_STORAGE_KEY, readWorkspace, type Workspace } from '../../features/workspace/workspace';
 import { PageHeading, type PageBreadcrumb } from './PageHeading';
+import { useGoBack } from '../../lib/useGoBack';
 
 export type PageConfig = { title: string; subtitle?: string; breadcrumbs?: PageBreadcrumb[] };
 
@@ -156,6 +157,9 @@ export function ConsoleLayout() {
     return chosen ?? (providers.length === 1 ? providers[0] : null);
   }, [providers, selectedId]);
   const relativePath = location.pathname || '/';
+  // Read before the early returns below, because a hook cannot be called after one.
+  const task = taskFor(relativePath);
+  const goBack = useGoBack(task?.backTo ?? '/');
 
   // The selection must be in place before a page's first render, not after it: pages load their
   // data in effects, and children's effects run before this layout's would.
@@ -179,7 +183,6 @@ export function ConsoleLayout() {
   };
 
   const page = headerContent ?? pageFor(relativePath);
-  const task = taskFor(relativePath);
   const status = statusMeta(provider.status);
   const showStatusBanner = provider.status !== 'active' && relativePath !== '/';
 
@@ -199,11 +202,7 @@ export function ConsoleLayout() {
             only back-and-a-name are drawn from the table above; a screen with something of its
             own in the corner is marked `bare` and draws its own. */}
         {task && !task.bare && (
-          <SubPageHeader
-            title={task.title}
-            help={task.help}
-            onBack={() => navigateTo(task.backTo)}
-          />
+          <SubPageHeader title={task.title} help={task.help} onBack={goBack} />
         )}
         {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
