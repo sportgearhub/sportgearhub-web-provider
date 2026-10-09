@@ -8,7 +8,7 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError, bookingsApi, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
-import { MobileHomeHeader } from '../../components/layout/MobileHomeHeader';
+import { CabinetHeader } from '../../components/layout/CabinetHeader';
 import { RatingsSection } from '../ratings/Ratings';
 import { dayBounds } from '../bookings/bookingMeta';
 import { statusMeta } from '../providers/providerStatus';
@@ -93,7 +93,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   return (
     <div className="space-y-4 px-3 pb-6 pt-3 lg:space-y-6 lg:p-6">
-      <MobileHomeHeader className="-mx-3 -mt-3" />
+      <CabinetHeader onNavigate={onNavigate} workspaceToggle className="-mx-3 -mt-3" />
 
       <p className="hidden text-sm text-gray-500 lg:block">{todayLabel}</p>
 

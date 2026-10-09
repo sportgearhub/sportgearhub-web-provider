@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { CopyValue } from '../../components/ui/CopyValue';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
-import { MobileHomeHeader } from '../../components/layout/MobileHomeHeader';
+import { CabinetHeader } from '../../components/layout/CabinetHeader';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SettingsCard } from '../../components/layout/SettingsCard';
 import {
@@ -329,7 +329,7 @@ export function ExperienceDashboardPage({ onNavigate }: { onNavigate: (path: str
 
   return (
     <>
-      <MobileHomeHeader />
+      <CabinetHeader onNavigate={onNavigate} workspaceToggle />
       <SectionPage title="Впечатления" description="Сегодня и ближайшие выходы.">
         <PrototypeNote>Демонстрационные данные — API впечатлений ещё не существует.</PrototypeNote>
 

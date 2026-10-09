@@ -750,12 +750,12 @@ function FeatureTile({ icon: Icon, label, onClick }: { icon: LucideIcon; label: 
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl bg-gray-50 px-1.5 text-center transition active:bg-gray-100"
+      className="flex h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 px-2 text-center transition active:bg-gray-100"
     >
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-        <Icon size={16} />
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <Icon size={22} />
       </span>
-      <span className="text-[10px] font-medium leading-tight text-gray-800">{label}</span>
+      <span className="text-[11px] font-medium leading-tight text-gray-800">{label}</span>
     </button>
   );
 }

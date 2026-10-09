@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Building2,
   ChevronRight,
@@ -7,7 +6,6 @@ import {
   LogOut,
   MapPin,
   Package,
-  Repeat,
   CalendarDays,
   ScanLine,
   Sparkles,
@@ -18,9 +16,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
-import { useProvider } from '../providers/ProviderContext';
-import { CabinetSwitchDialog } from '../providers/CabinetSwitchDialog';
-import { useWorkspace, workspaceMeta, type Workspace } from '../workspace/workspace';
+import { CabinetHeader } from '../../components/layout/CabinetHeader';
+import { useWorkspace, type Workspace } from '../workspace/workspace';
 import { cn } from '../../lib/utils';
 
 type Row = { label: string; path: string; icon: LucideIcon };
@@ -41,10 +38,6 @@ const groups: { title: string; items: Row[] }[] = [
       { label: 'Реквизиты выплат', path: '/settings/payouts', icon: CreditCard },
       { label: 'Договоры', path: '/settings/contracts', icon: FileText },
     ],
-  },
-  {
-    title: 'Учётная запись',
-    items: [{ label: 'Аккаунт', path: '/settings/account', icon: UserRound }],
   },
 ];
 
@@ -72,45 +65,33 @@ const shortcutsByWorkspace: Record<Workspace, Row[]> = {
  */
 export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { user, signOut } = useAuth();
-  const provider = useProvider();
-  const { workspace, setWorkspace } = useWorkspace();
-  const [switching, setSwitching] = useState(false);
+  // Which shortcuts to show: the work differs between the two businesses even though the cabinet
+  // and its settings do not.
+  const { workspace } = useWorkspace();
 
   return (
-    <div className="space-y-4 px-3 pb-6 pt-1">
-      <section className="rounded-xl bg-white p-4">
-        <p className="truncate text-base font-semibold text-gray-950">{user?.name}</p>
-        <p className="truncate text-sm text-gray-500">{user?.phone ?? user?.email}</p>
+    <div className="space-y-4 px-3 pb-6">
+      {/* The cabinet is the header here, as it is on the home screens: its mark, its name with a
+          way to change it, how customers reach it, and its settings in the corner. The two
+          businesses are not offered on this screen — this is the cabinet's own list, and the
+          switch belongs where the work is. */}
+      <CabinetHeader onNavigate={onNavigate} className="-mx-3" />
 
-        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1">
-          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setWorkspace(key)}
-              className={cn(
-                'flex-1 rounded-lg px-3 py-1.5 text-sm transition',
-                key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
-              )}
-            >
-              {workspaceMeta[key].label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setSwitching(true)}
-          className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left transition active:bg-gray-100"
-        >
-          <Building2 size={17} className="shrink-0 text-gray-400" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-gray-900">{provider.displayName}</span>
-            <span className="block text-xs text-gray-500">Сменить кабинет</span>
-          </span>
-          <Repeat size={15} className="shrink-0 text-gray-400" />
-        </button>
-      </section>
+      {/* Who is signed in — and a way into that account, rather than a card that only says it. */}
+      <button
+        type="button"
+        onClick={() => onNavigate('/settings/account')}
+        className="flex w-full items-center gap-3 rounded-xl bg-white px-4 py-3 text-left transition active:bg-gray-50"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+          <UserRound size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-gray-950">{user?.name}</span>
+          <span className="block truncate text-xs text-gray-500">{user?.phone ?? user?.email}</span>
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-gray-400" />
+      </button>
 
       <section className="rounded-xl bg-white p-3">
         <div className="grid grid-cols-3 gap-2">
@@ -119,10 +100,10 @@ export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void })
               key={item.path}
               type="button"
               onClick={() => onNavigate(item.path)}
-              className="flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition active:bg-gray-50"
+              className="flex flex-col items-center gap-2.5 rounded-xl px-2 py-4 text-center transition active:bg-gray-50"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-                <item.icon size={20} />
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                <item.icon size={26} />
               </span>
               <span className="text-xs font-medium text-gray-800">{item.label}</span>
             </button>
@@ -161,9 +142,6 @@ export function MenuPage({ onNavigate }: { onNavigate: (path: string) => void })
         <LogOut size={16} /> Выйти
       </button>
 
-      {switching && (
-        <CabinetSwitchDialog open currentProviderId={provider.providerId} onClose={() => setSwitching(false)} />
-      )}
     </div>
   );
 }
