@@ -15,6 +15,8 @@ import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
 import { SettingsListPage } from './features/menu/SettingsListPage';
 import { FinancesPage } from './features/finances/FinancesPage';
+import { StatementPage } from './features/finances/StatementPage';
+import { AccrualsPage } from './features/finances/AccrualsPage';
 import { RatingsPage } from './features/ratings/Ratings';
 import {
   ExperienceBookingsPage,
@@ -125,6 +127,12 @@ function SettingsListRoute() {
   return <SettingsListPage onNavigate={navigateTo} />;
 }
 
+function StatementRoute() {
+  const { navigateTo } = useConsole();
+  const { periodEnd = '' } = useParams();
+  return <StatementPage periodEnd={periodEnd} onNavigate={navigateTo} />;
+}
+
 function ScanRoute() {
   const { navigateTo } = useConsole();
   return <ScanPage onNavigate={navigateTo} />;
@@ -213,6 +221,8 @@ const router = createBrowserRouter([
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
           { path: 'finances', element: <FinancesRoute /> },
+          { path: 'finances/accruals', element: <AccrualsPage /> },
+          { path: 'finances/statements/:periodEnd', element: <StatementRoute /> },
           { path: 'menu', element: <MenuRoute /> },
           { path: 'ratings', element: <RatingsPage /> },
 

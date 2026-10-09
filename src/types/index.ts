@@ -949,3 +949,123 @@ export interface ActivityOption {
   name: string;
   sortOrder: number;
 }
+
+// ─── Money ────────────────────────────────────────────────────────────────────
+
+/**
+ * Why an accrual is not payable yet. `awaiting_handover` — the gear has not been collected, so the
+ * rental has not happened. `post_return_hold` — the day after it ends, during which a customer can
+ * still raise something.
+ */
+export type HoldReason = 'awaiting_handover' | 'post_return_hold' | string;
+
+export interface HeldAccrual {
+  bookingNumber: string;
+  grossAmount: number;
+  sellerAmount: number;
+  rentalEndsAt: string | null;
+  /**
+   * When it frees up — `null` when the gear has not been collected, which is information rather
+   * than a missing value: there is nothing to count from yet.
+   */
+  releasesAt: string | null;
+  reason: HoldReason;
+}
+
+/**
+ * One closed week, as a checkpoint rather than a recomputation: the figures are what was true when
+ * the week closed. `endAmount` equals the other three added up — `paidAmount` is negative so the
+ * arithmetic is checkable on screen — and `heldAmount` sits beside that sum, not inside it.
+ */
+export interface BalancePeriod {
+  begin: string;
+  end: string;
+  startAmount: number;
+  accruedAmount: number;
+  paidAmount: number;
+  endAmount: number;
+  heldAmount: number;
+}
+
+export interface BalanceSummary {
+  /** What the next settlement run will send. Computed by the rule the payout uses — never re-derive it. */
+  availableAmount: number;
+  /** Accrued and not payable yet. Still the seller's money. */
+  heldAmount: number;
+  paidOutAmount: number;
+  nextReleaseAt: string | null;
+  held: HeldAccrual[];
+  periods: BalancePeriod[];
+}
+
+export interface BalancePeriodsPage {
+  /** The whole range, not the page: page two reports the same totals as page one. */
+  totals: Omit<BalancePeriod, 'begin' | 'end' | 'heldAmount'>;
+  items: BalancePeriod[];
+  totalItemsCount: number;
+}
+
+/** How much to trust a cost: a reconciled fact, an expectation from the tariff, or a missing price. */
+export type CostSource = 'register' | 'tariff' | 'not_configured' | string;
+
+/**
+ * One of the platform's own costs. These come out of *our* commission — the seller pays none of
+ * them, and `sellerAmount` is unaffected by every one. They belong nested under the commission as
+ * an explanation of it, never as a line in the seller's column.
+ */
+export interface PlatformCost {
+  /** `acquiring`, `payout` or `fiscalization`. Branch on this, not on position; more will appear. */
+  sysName: string;
+  amount: number;
+  /** Of `grossAmount`, like every percent here — not of the line above it. */
+  percent: number;
+  source: CostSource;
+}
+
+export interface BalanceFees {
+  grossAmount: number;
+  sellerAmount: number;
+  sellerPercent: number;
+  platformCommission: {
+    amount: number;
+    percent: number;
+    platformCosts: PlatformCost[];
+    platformCostsAmount: number;
+    /** Can be negative, and the sign must show: a small hire can cost us more than it earns. */
+    netAmount: number;
+    netPercent: number;
+  };
+}
+
+/** A booking's line in a statement or in the accrual list. */
+export interface AccrualLine {
+  bookingNumber: string;
+  productTitle: string;
+  rentalStartAt: string;
+  rentalEndAt: string;
+  grossAmount: number;
+  commissionAmount: number;
+  sellerAmount: number;
+  refundedAmount: number;
+  /** In a statement: as it stood when the week closed. In the accrual list: as of now. */
+  state: 'paid' | 'available' | 'held' | 'cancelled' | string;
+  accruedAt?: string;
+  paidAt?: string | null;
+  releasesAt?: string | null;
+}
+
+export interface SellerStatement {
+  periodBegin: string;
+  periodEnd: string;
+  startAmount: number;
+  accruedAmount: number;
+  paidAmount: number;
+  endAmount: number;
+  heldAmount: number;
+  lines: AccrualLine[];
+  /**
+   * Summed from the lines, where the totals above are read from the closed period. A difference
+   * means something was accrued whose booking is not in the period — worth reporting, not rounding.
+   */
+  linesAccruedAmount: number;
+}

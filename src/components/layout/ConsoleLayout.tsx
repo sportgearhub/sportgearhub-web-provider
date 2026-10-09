@@ -25,6 +25,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/x/finances': { title: '' },
   '/menu': { title: '' },
   '/finances': { title: '' },
+  '/finances/accruals': { title: '' },
   '/ratings': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings': { title: '' },
@@ -81,6 +82,25 @@ function taskFor(relativePath: string): {
   // Picking cards: its own bar, with the count and «выбрать все» in the corner.
   if (relativePath === '/products/select') {
     return { title: 'Выбор товаров', backTo: '/products', hideNav: true, bare: true };
+  }
+  if (relativePath === '/finances/accruals') {
+    return {
+      title: 'Начисления',
+      backTo: '/finances',
+      hideNav: true,
+      help: 'Каждая бронь, по которой вам начислены деньги. Итогов здесь нет: итог за период — '
+        + 'это зафиксированный факт закрытой недели, а у произвольного диапазона его нет. '
+        + 'Суммы за период смотрите в «Движении» на экране «Финансы».',
+    };
+  }
+  if (relativePath.startsWith('/finances/statements/')) {
+    return {
+      title: 'Выписка за неделю',
+      backTo: '/finances',
+      hideNav: true,
+      help: 'Документ за закрытую неделю: статусы в нём — такие, какими они были на момент закрытия, '
+        + 'а не сегодняшние. Отменённые брони остаются в выписке с нулём, чтобы строка не исчезала.',
+    };
   }
   if (relativePath === '/bookings/filters') {
     return { title: 'Фильтры', backTo: '/bookings', hideNav: true };

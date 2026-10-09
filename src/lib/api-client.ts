@@ -1,4 +1,9 @@
 import type {
+  AccrualLine,
+  BalanceFees,
+  BalancePeriodsPage,
+  BalanceSummary,
+  SellerStatement,
   Product,
   ActivityOption,
   ProductAttributes,
@@ -929,6 +934,80 @@ export const providersApi = {
 };
 
 // The provider's own lifecycle, scoped by the provider in the URL.
+/**
+ * The seller's money.
+ *
+ * Four levels, deliberately separate, because they answer different questions and grow at
+ * different rates: how much can I have now, how has my balance moved, where did the money go, and
+ * which bookings made up that week.
+ *
+ * Two of them take a date range as `date_from`/`date_to`, inclusive, defaulting to the last thirty
+ * days when omitted. A period is included when it *overlaps* the range, so asking about a Wednesday
+ * returns the week containing it.
+ */
+export const financeApi = {
+  /** The summary, with the reason behind every hold. */
+  balance: () => providerRequest<BalanceSummary>('/balance'),
+
+  /** Closed weeks over a range. `totals` covers the whole range, not the page. */
+  periods: (query: { dateFrom?: string; dateTo?: string; page?: number; pageSize?: number } = {}) =>
+    providerRequest<BalancePeriodsPage>(`/balance/periods?${dateRangeQuery(query)}`),
+
+  /** Where the money went, over a range. A breakdown rather than a list, so it does not page. */
+  fees: (query: { dateFrom?: string; dateTo?: string } = {}) =>
+    providerRequest<BalanceFees>(`/balance/fees?${dateRangeQuery(query)}`),
+
+  /**
+   * The bookings behind one week, named by the period's end exactly as `periods[].end` gives it —
+   * a date, `2026-10-12`. 404 when the seller has no period ending then.
+   */
+  statement: (periodEnd: string) =>
+    providerRequest<SellerStatement>(`/statements/${encodeURIComponent(periodEnd)}`),
+
+  /**
+   * A statement's lines, over any range, because a statement cannot take one: its totals come from
+   * a checkpoint. RSQL as the other lists use it. Filterable: booking_id, outcome_type, status,
+   * gross_collected_amount, seller_amount, commission_amount, refunded_amount, created_at,
+   * executed_at. There are no totals here on purpose — those come from /balance/periods.
+   */
+  accruals: (query: ListQuery = {}) =>
+    providerRequest<Paged<AccrualLine>>(`/balance/accruals?${accrualQuery(query)}`),
+};
+
+/**
+ * The accrual list's query.
+ *
+ * Same RSQL as the product and booking lists, but the two specs spell the page size differently —
+ * `pageSize` for those lists, `page_size` in the finance examples — and the API relaxes case on the
+ * way in without relaxing the separator, so one of them would simply not bind. Both are sent with
+ * the same value: whichever the endpoint reads, it reads the number we meant, and an unknown query
+ * parameter is ignored. Drop the other once it is confirmed which one it is.
+ */
+function accrualQuery({ filter, sort, page, pageSize }: ListQuery) {
+  const qs = new URLSearchParams();
+  if (filter) qs.set('filter', filter);
+  if (sort) qs.set('sort', sort);
+  qs.set('page', String(page ?? 1));
+  qs.set('page_size', String(pageSize ?? 20));
+  qs.set('pageSize', String(pageSize ?? 20));
+  return qs.toString();
+}
+
+/** `date_from` and `date_to` are dates, not timestamps, and both ends are inclusive. */
+function dateRangeQuery({
+  dateFrom,
+  dateTo,
+  page,
+  pageSize,
+}: { dateFrom?: string; dateTo?: string; page?: number; pageSize?: number }) {
+  const qs = new URLSearchParams();
+  if (dateFrom) qs.set('date_from', dateFrom);
+  if (dateTo) qs.set('date_to', dateTo);
+  if (page != null) qs.set('page', String(page));
+  if (pageSize != null) qs.set('page_size', String(pageSize));
+  return qs.toString();
+}
+
 export const providerApi = {
   readiness: () => providerRequest<ProviderReadiness>('/readiness'),
   submitForReview: () => providerRequest<ProviderReadiness>('/submit-for-review', { method: 'POST' }),
