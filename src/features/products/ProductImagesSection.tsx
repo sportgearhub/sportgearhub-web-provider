@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
-import { AlertCircle, Check, ChevronLeft, ChevronRight, Image as ImageIcon, Pencil, Plus, RotateCw, Trash2, Upload, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronLeft, ChevronRight, Image as ImageIcon, Plus, RotateCw, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { TopSheet } from '../../components/ui/TopSheet';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
 import type { ProductImage } from '../../types';
 
@@ -58,9 +58,7 @@ export function ProductImagesSection({ productId }: { productId: string }) {
         }
         action={
           images.length > 0 ? (
-            <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-              <Pencil size={13} /> Редактировать
-            </Button>
+            <SectionEdit onClick={() => setEditing(true)} label="Редактировать фотографии" />
           ) : null
         }
       >

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Pencil, Save } from 'lucide-react';
+import { CheckCircle2, Save } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
@@ -75,15 +75,11 @@ export function PayoutsPage() {
             action={
               <>
                 {statusBadge(details)}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  aria-label={`${details.hasDetails ? 'Редактировать' : 'Добавить'} реквизиты выплат`}
+                <SectionEdit
                   onClick={() => setEditing(true)}
-                >
-                  <Pencil size={13} /> {details.hasDetails ? 'Редактировать' : 'Добавить'}
-                </Button>
+                  empty={!details.hasDetails}
+                  label="Редактировать реквизиты выплат"
+                />
               </>
             }
           >

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
@@ -10,7 +10,7 @@ import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SellerDetailsFields, SellerKindChoice, emptySellerDraft, sellerDraftError, sellerDraftToInput, type SellerDraft } from '../providers/SellerDetailsFields';
 import { kindLabel } from '../providers/providerStatus';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 
 export const taxationLabel = (value: string) => taxationLabels[value] ?? value;
 export const vatLabel = (value: string) => vatLabels[value] ?? value;
@@ -131,15 +131,10 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
             title="Юридическое лицо"
             description="Кому платформа перечисляет деньги. Форма собственности и ИНН не меняются — для другого лица нужен новый кабинет."
             action={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label="Редактировать данные юридического лица"
+              <SectionEdit
                 onClick={() => onNavigate('/settings/seller/edit')}
-              >
-                <Pencil size={14} /> Редактировать
-              </Button>
+                label="Редактировать данные юридического лица"
+              />
             }
           >
             <DetailList>
@@ -165,15 +160,11 @@ export function SellerProfileSettings({ onNavigate }: { onNavigate: (path: strin
             title="Реквизиты выплат"
             description="Счёт, на который платформа переводит выручку за вычетом комиссии."
             action={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label={`${payout?.hasDetails ? 'Редактировать' : 'Добавить'} реквизиты выплат`}
+              <SectionEdit
                 onClick={() => onNavigate('/settings/payouts')}
-              >
-                <Pencil size={14} /> {payout?.hasDetails ? 'Редактировать' : 'Добавить'}
-              </Button>
+                empty={!payout?.hasDetails}
+                label="Редактировать реквизиты выплат"
+              />
             }
           >
             {payout?.hasDetails ? (

@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
@@ -25,7 +24,6 @@ export function EmailAttachDialog({ open, onClose }: { open: boolean; onClose: (
   const [loading, setLoading] = useState(false);
 
   const current = user?.email ?? null;
-  const verified = current !== null && user?.emailVerified !== false;
 
   const sendCode = async (address: string) => {
     setError('');
@@ -81,11 +79,11 @@ export function EmailAttachDialog({ open, onClose }: { open: boolean; onClose: (
         Сюда приходят уведомления кабинета: счета, акты и письма о заказах и выплатах.
       </p>
 
+      {/* Just the address. It is here because a code confirmed it, so saying «подтверждена»
+          beside it states the condition of being shown at all. */}
       {current && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-          {verified && <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />}
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
           <span className="text-sm font-medium text-gray-900">{current}</span>
-          <span className="ml-auto text-xs text-gray-500">{verified ? 'Подтверждена' : 'Не подтверждена'}</span>
         </div>
       )}
 

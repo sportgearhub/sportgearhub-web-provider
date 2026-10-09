@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Save, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
@@ -12,7 +12,7 @@ import type { Provider } from '../../types';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SectionPage } from '../../components/layout/SectionPage';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 
 /** What the shop looks like to a customer. Read here, changed on /settings/shop/edit. */
 export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => void }) {
@@ -49,15 +49,7 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           description="Название, контакты и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."
           action={
             !loading && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label="Редактировать профиль проката"
-                onClick={() => onNavigate('/settings/shop/edit')}
-              >
-                <Pencil size={14} /> Редактировать
-              </Button>
+              <SectionEdit onClick={() => onNavigate('/settings/shop/edit')} label="Редактировать профиль проката" />
             )
           }
         >

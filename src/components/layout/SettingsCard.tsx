@@ -7,11 +7,14 @@ import { Pencil, Plus } from 'lucide-react';
  * «Редактировать» under «Реквизиты выплат» needs no further explanation, a loose link does.
  */
 /**
- * The pencil at the end of a section's header.
+ * The pencil at the end of a section's header, and nothing else.
  *
- * An action that sits in the header of the thing it changes cannot be ambiguous, and on a phone it
- * does not need the word: a pencil beside «Правила аренды» is the only thing it could mean. The
- * word comes back where there is room for it.
+ * An action that sits in the header of the thing it changes cannot be ambiguous: a pencil beside
+ * «Правила аренды» is the only thing it could mean, and the word «Редактировать» beside it is the
+ * icon's caption rather than information. A plus where there is nothing there yet, since adding
+ * the first one and changing an existing one are different promises.
+ *
+ * The label is still said — to a screen reader, and in the tooltip a pointer gets.
  */
 export function SectionEdit({
   onClick,
@@ -29,10 +32,10 @@ export function SectionEdit({
       type="button"
       onClick={onClick}
       aria-label={empty ? 'Добавить' : label}
-      className="-mr-1 flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-blue-700 transition active:bg-blue-50 sm:hover:bg-blue-50"
+      title={empty ? 'Добавить' : label}
+      className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 active:bg-gray-100"
     >
-      <Icon size={16} />
-      <span className="hidden sm:inline">{empty ? 'Добавить' : label}</span>
+      <Icon size={17} />
     </button>
   );
 }

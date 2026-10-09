@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmailAttachDialog } from './EmailAttachDialog';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { SkeletonRows } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
@@ -16,7 +16,7 @@ import { SellerProfileEdit } from './SellerProfileEdit';
 import { ShopProfileEdit, ShopProfileView } from './ShopProfileSettings';
 import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
-import { SettingsCard } from '../../components/layout/SettingsCard';
+import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 
@@ -436,7 +436,6 @@ function AccountSettings() {
   const [emailOpen, setEmailOpen] = useState(false);
 
   const email = user?.email ?? '';
-  const emailVerified = Boolean(email) && user?.emailVerified !== false;
 
   return (
     <div className="p-6">
@@ -446,24 +445,17 @@ function AccountSettings() {
             <DetailRow label="Имя" value={user?.name} />
             <DetailRow label="Телефон" value={user?.phone} hint="По нему выполняется вход" />
             <DetailRow label="Почта" hint="Сюда приходят счета, акты и письма о заказах и выплатах">
-              <div className="flex flex-wrap items-center gap-2">
+              {/* No «подтверждена» beside it. An address only gets here by being confirmed with a
+                  code, so the badge said the same thing for every address that could be shown. */}
+              <div className="flex items-center gap-2">
                 {email
-                  ? <span className="text-gray-900">{email}</span>
-                  : <span className="text-gray-400">Не указана</span>}
-                {email && (
-                  <Badge variant={emailVerified ? 'green' : 'yellow'}>
-                    {emailVerified ? 'Подтверждена' : 'Не подтверждена'}
-                  </Badge>
-                )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  aria-label={`${email ? 'Редактировать' : 'Добавить'} почту аккаунта`}
+                  ? <span className="min-w-0 flex-1 truncate text-gray-900">{email}</span>
+                  : <span className="min-w-0 flex-1 text-gray-400">Не указана</span>}
+                <SectionEdit
                   onClick={() => setEmailOpen(true)}
-                >
-                  <Pencil size={13} /> {email ? 'Редактировать' : 'Добавить'}
-                </Button>
+                  empty={!email}
+                  label="Изменить почту аккаунта"
+                />
               </div>
             </DetailRow>
           </DetailList>
