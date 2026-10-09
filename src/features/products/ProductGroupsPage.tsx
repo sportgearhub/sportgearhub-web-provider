@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, ImageOff, Layers } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import { Archive, ArrowLeft, ChevronRight, ImageOff, Layers, MoreVertical, Pencil, Plus, type LucideIcon } from 'lucide-react';
+import { BottomSheet } from '../../components/ui/BottomSheet';
+import { Button } from '../../components/ui/Button';
+import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
+import { ProductCard, ProductCardSkeleton } from './ProductCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError, mediaUrl, productsApi } from '../../lib/api-client';
 import type { ProductSummary } from '../../types';
-import { formatPrice, productStatus } from './productStatus';
 
 type Group = { name: string; items: ProductSummary[] };
+
+/** A value the server understands in RSQL, quoted so spaces and Cyrillic survive the query. */
+const quote = (value: string) => `"${value.replace(/"/g, '\\"')}"`;
 
 /**
  * The catalogue read by group instead of by card.
@@ -20,7 +25,6 @@ export function ProductGroupsPage({ onNavigate }: { onNavigate: (path: string) =
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [openName, setOpenName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,8 +52,6 @@ export function ProductGroupsPage({ onNavigate }: { onNavigate: (path: string) =
       .map(([name, items]) => ({ name, items }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }, [products]);
-
-  const ungrouped = products.filter(product => !product.groupName?.trim()).length;
 
   return (
     <div className="px-3 pb-8 pt-3 sm:px-6">
@@ -95,13 +97,11 @@ export function ProductGroupsPage({ onNavigate }: { onNavigate: (path: string) =
       {!loading && groups.length > 0 && (
         <ul className="space-y-2">
           {groups.map(group => {
-            const open = openName === group.name;
             return (
               <li key={group.name} className="overflow-hidden rounded-xl bg-white">
                 <button
                   type="button"
-                  onClick={() => setOpenName(open ? null : group.name)}
-                  aria-expanded={open}
+                  onClick={() => onNavigate(`/products/groups/${encodeURIComponent(group.name)}`)}
                   className="flex w-full items-center gap-3 p-3 text-left transition active:bg-gray-50"
                 >
                   <span className="flex shrink-0 -space-x-2">
@@ -115,49 +115,15 @@ export function ProductGroupsPage({ onNavigate }: { onNavigate: (path: string) =
                       {group.items.length} {plural(group.items.length)}
                     </span>
                   </span>
-                  <ChevronDown
-                    size={17}
-                    className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-                  />
+                  <ChevronRight size={17} className="shrink-0 text-gray-400" />
                 </button>
 
-                {open && (
-                  <ul className="border-t border-gray-100">
-                    {group.items.map(item => {
-                      const meta = productStatus(item.status);
-                      return (
-                        <li key={item.productId}>
-                          <button
-                            type="button"
-                            onClick={() => onNavigate(`/products/${item.productId}`)}
-                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition active:bg-gray-50"
-                          >
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm text-gray-900">{item.title}</span>
-                              <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
-                                <Badge variant={meta.variant}>{meta.label}</Badge>
-                                {item.price != null && <span>{formatPrice(item.price)}</span>}
-                                <span>· {item.quantity} шт</span>
-                                {item.isGroupFace && <span className="text-blue-700">· главная в группе</span>}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
               </li>
             );
           })}
         </ul>
       )}
 
-      {!loading && ungrouped > 0 && (
-        <p className="mt-3 px-1 text-xs leading-5 text-gray-500">
-          Ещё {ungrouped} {plural(ungrouped)} без группы — они продаются сами по себе.
-        </p>
-      )}
     </div>
   );
 }
@@ -188,5 +154,149 @@ function Thumb({ url, title }: { url: string | null; title: string }) {
       alt={title}
       className="h-10 w-10 rounded-lg border-2 border-white object-cover ring-1 ring-gray-200"
     />
+  );
+}
+
+/**
+ * One group's own page.
+ *
+ * The group name is the bar's title, the cards are the content, and the corner has a menu for
+ * the group itself. There is no group endpoint — a group is cards that share a `group_name` — so
+ * this is the ordinary list filtered by that name, and everything the menu offers beyond looking
+ * is marked as the prototype it is.
+ */
+export function ProductGroupPage({ groupName, onNavigate }: { groupName: string; onNavigate: (path: string) => void }) {
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    productsApi.list({ filter: `group_name==${quote(groupName)}`, sort: 'title', page: 1, pageSize: 100 })
+      .then(result => { if (!cancelled) setProducts(result.items ?? []); })
+      .catch(err => {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Не удалось загрузить группу.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [groupName]);
+
+  return (
+    <>
+      <TaskHeaderCard
+        title={groupName}
+        onBack={() => onNavigate('/products/groups')}
+        action={
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Действия с группой"
+            className="rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
+          >
+            <MoreVertical size={20} />
+          </button>
+        }
+      />
+
+      {/* The desktop keeps its own way back, since the bar above is a phone's. */}
+      <div className="hidden px-6 pt-6 lg:block">
+        <button
+          type="button"
+          onClick={() => onNavigate('/products/groups')}
+          className="mb-2 flex items-center gap-1.5 text-sm text-gray-500 transition hover:text-gray-900"
+        >
+          <ArrowLeft size={14} /> Группы товаров
+        </button>
+        <h1 className="text-xl font-semibold text-gray-950">{groupName}</h1>
+      </div>
+
+      <div className="px-3 pb-8 pt-3 sm:px-6">
+        {error && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+        <ul className="space-y-2">
+          {loading && Array.from({ length: 3 }, (_, row) => <ProductCardSkeleton key={row} />)}
+          {!loading && products.length === 0 && (
+            <li className="rounded-xl bg-white px-4 py-12 text-center text-sm text-gray-600">
+              В этой группе больше нет товаров.
+            </li>
+          )}
+          {!loading && products.map(product => (
+            <ProductCard
+              key={product.productId}
+              product={product}
+              onOpen={() => onNavigate(`/products/${product.productId}`)}
+            />
+          ))}
+        </ul>
+      </div>
+
+      <BottomSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        title={groupName}
+        center
+        footer={
+          <Button variant="secondary" className="w-full justify-center" onClick={() => setMenuOpen(false)}>
+            Закрыть
+          </Button>
+        }
+      >
+        <ul className="divide-y divide-gray-100 border-y border-gray-100">
+          <GroupMenuRow
+            icon={Plus}
+            title="Добавить товар в группу"
+            note={`Новая карточка с названием группы «${groupName}».`}
+            onClick={() => { setMenuOpen(false); onNavigate('/products/new'); }}
+          />
+          <GroupMenuRow
+            icon={Pencil}
+            title="Переименовать группу"
+            note="Прототип: в API нет групповой операции — пока название меняется в каждой карточке."
+            disabled
+          />
+          <GroupMenuRow
+            icon={Archive}
+            title="Снять всю группу с продажи"
+            note="Прототип: массовых действий над группой в API пока нет."
+            disabled
+          />
+        </ul>
+      </BottomSheet>
+    </>
+  );
+}
+
+function GroupMenuRow({
+  icon: Icon,
+  title,
+  note,
+  onClick,
+  disabled,
+}: {
+  icon: LucideIcon;
+  title: string;
+  note: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="flex w-full items-center gap-3 px-5 py-3 text-left transition active:bg-gray-50 disabled:opacity-60"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+          <Icon size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-gray-950">{title}</span>
+          <span className="mt-0.5 block text-xs leading-4 text-gray-500">{note}</span>
+        </span>
+      </button>
+    </li>
   );
 }

@@ -67,12 +67,21 @@ function taskFor(relativePath: string): {
   help?: string;
   center?: boolean;
   card?: boolean;
+  /** The page draws its own bar on a phone, because it has something of its own to put in it. */
+  bare?: boolean;
 } | null {
   // The viewfinder is the page: a bar to leave by and the camera under it, nothing across it.
   if (relativePath === '/scan') {
     return { title: 'Сканер', backTo: '/', hideNav: true, center: true, card: true };
   }
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
+  if (relativePath === '/products/filters') {
+    return { title: 'Фильтры', backTo: '/products', hideNav: true, center: true, card: true };
+  }
+  // A group's own page: the bar carries the group's name and a menu for it, so the page draws it.
+  if (relativePath.startsWith('/products/groups/')) {
+    return { title: 'Группа', backTo: '/products/groups', hideNav: true, bare: true };
+  }
   if (relativePath === '/products/groups') {
     return {
       title: 'Группы товаров',
@@ -85,6 +94,10 @@ function taskFor(relativePath: string): {
   }
   const editing = relativePath.match(/^\/products\/([^/]+)\/edit$/);
   if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}`, hideNav: true };
+  // A card's own page: its bar carries the card's name and a menu for it, so the page draws it.
+  if (/^\/products\/[^/]+$/.test(relativePath)) {
+    return { title: 'Товар', backTo: '/products', hideNav: true, bare: true };
+  }
 
   const plain = PAGE_TITLES[relativePath];
   if (plain) return { title: plain, backTo: '/', hideNav: false };
@@ -160,7 +173,7 @@ export function ConsoleLayout() {
         {/* No app bar on a phone. A logo and a row of links at the top of a small screen cost a
             fifth of it to say what the person already knows; the sections are at the bottom and
             the page says its own name. A task keeps the bar, because it is the way back. */}
-        <div className={task ? '' : 'hidden lg:block'}>
+        <div className={task && !task.bare ? '' : 'hidden lg:block'}>
           <Header currentPath={relativePath} onNavigate={navigateTo} task={task} />
         </div>
         {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}

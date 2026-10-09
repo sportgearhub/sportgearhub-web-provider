@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Pencil, Send } from 'lucide-react';
+import {
+  Archive,
+  ExternalLink,
+  MoreVertical,
+  PauseCircle,
+  Pencil,
+  PlayCircle,
+  Send,
+  type LucideIcon,
+} from 'lucide-react';
+import { BottomSheet } from '../../components/ui/BottomSheet';
+import { TaskHeaderCard } from '../../components/layout/TaskHeaderCard';
+import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
 import { ActionMenu } from '../../components/ui/ActionMenu';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
@@ -54,6 +66,8 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const [tab, setTab] = useState<DetailTab>('about');
   const [infoSections, setInfoSections] = useState<OfferInfoSection[]>([]);
   const [priceSummary, setPriceSummary] = useState<ProductPricingSummary | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const phone = useMediaQuery(PHONE);
 
   const load = async () => {
     setLoading(true);
@@ -140,39 +154,62 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
   const underReview = product.status === 'pending_review';
 
   return (
+    <>
+      {/* On a phone: the same floating bar as the other screens opened from a list — a way back,
+          the card's name, and everything that can be done to it behind the dots. The console's
+          own bar and its section strip are not drawn on this route. */}
+      <TaskHeaderCard
+        title={product.title}
+        onBack={() => onNavigate('/products')}
+        action={
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Действия с товаром"
+            className="rounded-lg p-2 text-gray-600 transition active:bg-gray-100"
+          >
+            <MoreVertical size={20} />
+          </button>
+        }
+      />
+
     <SectionPage
       title={product.title}
       description={meta.hint}
-      breadcrumb={{ label: 'Каталог', path: '/products' }}
+      breadcrumb={phone ? undefined : { label: 'Каталог', path: '/products' }}
       onNavigate={onNavigate}
       error={error}
       action={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={meta.variant} size="md">{meta.label}</Badge>
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-label="Редактировать товар"
-            onClick={() => onNavigate(`/products/${productId}/edit`)}
-          >
-            <Pencil size={14} /> Редактировать
-          </Button>
+          {/* On a phone these are in the sheet; what stays on screen is the one thing the card
+              is waiting for. */}
+          <span className="hidden items-center gap-2 lg:flex">
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-label="Редактировать товар"
+              onClick={() => onNavigate(`/products/${productId}/edit`)}
+            >
+              <Pencil size={14} /> Редактировать
+            </Button>
+            {!underReview && <ActionMenu
+              label="Ещё"
+              items={[
+                ...(canPause ? [{ label: 'Снять с продажи', onClick: () => void run(() => productsApi.deactivate(productId)) }] : []),
+                ...(canActivate ? [{ label: 'Вернуть в продажу', onClick: () => void run(() => productsApi.activate(productId)) }] : []),
+                // Nothing while an administrator has the card — archiving it underneath them is
+                // precisely the kind of move «ничего» is meant to exclude.
+                ...(underReview ? [] : [{ label: 'В архив', danger: true, onClick: () => void run(() => productsApi.archive(productId)) }]),
+              ]}
+              disabled={busy}
+            />}
+          </span>
           {canSubmit && (
             <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>
               <Send size={13} /> Отправить на проверку
             </Button>
           )}
-          {!underReview && <ActionMenu
-            label="Ещё"
-            items={[
-              ...(canPause ? [{ label: 'Снять с продажи', onClick: () => void run(() => productsApi.deactivate(productId)) }] : []),
-              ...(canActivate ? [{ label: 'Вернуть в продажу', onClick: () => void run(() => productsApi.activate(productId)) }] : []),
-              // Nothing while an administrator has the card — archiving it underneath them is
-              // precisely the kind of move «ничего» is meant to exclude.
-              ...(underReview ? [] : [{ label: 'В архив', danger: true, onClick: () => void run(() => productsApi.archive(productId)) }]),
-            ]}
-            disabled={busy}
-          />}
         </div>
       }
     >
@@ -365,6 +402,99 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         }}
       />
     </SectionPage>
+
+    <BottomSheet
+      open={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      title={product.title}
+      center
+      footer={
+        <Button variant="secondary" className="w-full justify-center" onClick={() => setMenuOpen(false)}>
+          Закрыть
+        </Button>
+      }
+    >
+      <ul className="divide-y divide-gray-100 border-y border-gray-100">
+        <SheetRow
+          icon={Pencil}
+          title="Редактировать"
+          note="Изменения уходят на проверку, когда вы их отправите."
+          onClick={() => { setMenuOpen(false); onNavigate(`/products/${productId}/edit`); }}
+        />
+        {canPause && (
+          <SheetRow
+            icon={PauseCircle}
+            title="Снять с продажи"
+            note="Клиенты перестанут видеть карточку. Вернуть можно в любой момент."
+            onClick={() => { setMenuOpen(false); void run(() => productsApi.deactivate(productId)); }}
+          />
+        )}
+        {canActivate && (
+          <SheetRow
+            icon={PlayCircle}
+            title="Вернуть в продажу"
+            note="Карточка снова появится у клиентов."
+            onClick={() => { setMenuOpen(false); void run(() => productsApi.activate(productId)); }}
+          />
+        )}
+        <SheetRow
+          icon={ExternalLink}
+          title="Открыть на сайте"
+          note="Карточка глазами клиента."
+          href={storefrontProductUrl(productId)}
+          onClick={() => setMenuOpen(false)}
+        />
+        {/* Nothing while an administrator has the card: archiving it underneath them is precisely
+            the kind of move the status table excludes. */}
+        {!underReview && product.status !== 'archived' && (
+          <SheetRow
+            icon={Archive}
+            title="В архив"
+            note="Товар перестанет продаваться."
+            onClick={() => { setMenuOpen(false); void run(() => productsApi.archive(productId)); }}
+          />
+        )}
+      </ul>
+    </BottomSheet>
+    </>
+  );
+}
+
+function SheetRow({
+  icon: Icon,
+  title,
+  note,
+  onClick,
+  href,
+}: {
+  icon: LucideIcon;
+  title: string;
+  note: string;
+  onClick?: () => void;
+  /** For the one row that leaves the console: a link, so it opens in a tab of its own. */
+  href?: string;
+}) {
+  const body = (
+    <>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <Icon size={19} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-gray-950">{title}</span>
+        <span className="mt-0.5 block text-xs leading-4 text-gray-500">{note}</span>
+      </span>
+    </>
+  );
+  const className = 'flex w-full items-center gap-3 px-5 py-3 text-left transition active:bg-gray-50';
+
+  return (
+    <li>
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" onClick={onClick} className={className}>{body}</a>
+      ) : (
+        <button type="button" onClick={onClick} className={className}>{body}</button>
+      )}
+    </li>
   );
 }
 

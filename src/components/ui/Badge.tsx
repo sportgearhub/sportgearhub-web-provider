@@ -7,7 +7,7 @@ type Variant = 'green' | 'yellow' | 'red' | 'blue' | 'gray' | 'orange' | 'teal';
 const badgeVariants = cva(
   // A pill with a fixed height, so a status sits level with the buttons beside it instead of
   // shrinking to the height of its own text.
-  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-medium leading-none transition-colors',
+  'inline-flex shrink-0 items-center whitespace-nowrap border font-medium leading-none transition-colors',
   {
     variants: {
       variant: {
@@ -20,15 +20,41 @@ const badgeVariants = cva(
         teal: 'border-teal-200 bg-teal-50 text-teal-700',
       },
       size: {
+        /** On a card, where the status is a mark beside the name rather than a thing to read. */
+        xs: 'h-5 px-1.5 text-[11px]',
         /** Inline, in a table row or beside a title. */
         sm: 'h-6 px-2.5 text-xs',
         /** Standing next to buttons, where it has to match their height to sit level. */
         md: 'h-8 px-3.5 text-sm',
       },
+      /**
+       * `soft` is the tint a table wants: quiet enough that a column of them is still a column.
+       * `strong` is for a single chip on a white card, where a tint that pale reads as disabled —
+       * same hue, more of it, and no border, since the fill is already the edge.
+       */
+      tone: {
+        soft: '',
+        strong: 'border-transparent',
+      },
+      shape: {
+        pill: 'rounded-full',
+        square: 'rounded-md',
+      },
     },
+    compoundVariants: [
+      { tone: 'strong', variant: 'green', class: 'bg-emerald-100 text-emerald-800' },
+      { tone: 'strong', variant: 'yellow', class: 'bg-amber-100 text-amber-800' },
+      { tone: 'strong', variant: 'red', class: 'bg-red-100 text-red-800' },
+      { tone: 'strong', variant: 'blue', class: 'bg-blue-100 text-blue-800' },
+      { tone: 'strong', variant: 'gray', class: 'bg-gray-100 text-gray-700' },
+      { tone: 'strong', variant: 'orange', class: 'bg-orange-100 text-orange-800' },
+      { tone: 'strong', variant: 'teal', class: 'bg-teal-100 text-teal-800' },
+    ],
     defaultVariants: {
       variant: 'gray',
       size: 'sm',
+      tone: 'soft',
+      shape: 'pill',
     },
   }
 );
@@ -36,12 +62,14 @@ const badgeVariants = cva(
 interface BadgeProps {
   children: ReactNode;
   variant?: Variant;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
+  tone?: 'soft' | 'strong';
+  shape?: 'pill' | 'square';
 }
 
-export function Badge({ children, variant = 'gray', size = 'sm' }: BadgeProps) {
+export function Badge({ children, variant = 'gray', size = 'sm', tone = 'soft', shape = 'pill' }: BadgeProps) {
   return (
-    <span className={cn(badgeVariants({ variant, size }))}>
+    <span className={cn(badgeVariants({ variant, size, tone, shape }))}>
       {children}
     </span>
   );

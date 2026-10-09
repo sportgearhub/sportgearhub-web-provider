@@ -21,7 +21,8 @@ import {
 } from './features/experiences/ExperiencePages';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
-import { ProductGroupsPage } from './features/products/ProductGroupsPage';
+import { ProductGroupPage, ProductGroupsPage } from './features/products/ProductGroupsPage';
+import { ProductFiltersPage } from './features/products/ProductFiltersPage';
 import { ProductForm } from './features/products/ProductForm';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
@@ -130,6 +131,17 @@ function ProductGroupsRoute() {
   return <ProductGroupsPage onNavigate={navigateTo} />;
 }
 
+function ProductGroupRoute() {
+  const { navigateTo } = useConsole();
+  const { groupName = '' } = useParams();
+  return <ProductGroupPage groupName={decodeURIComponent(groupName)} onNavigate={navigateTo} />;
+}
+
+function ProductFiltersRoute() {
+  const { navigateTo } = useConsole();
+  return <ProductFiltersPage onNavigate={navigateTo} />;
+}
+
 function ProductDetailRoute() {
   const { navigateTo } = useConsole();
   const { productId = '' } = useParams();
@@ -179,6 +191,8 @@ const router = createBrowserRouter([
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
           { path: 'products/groups', element: <ProductGroupsRoute /> },
+          { path: 'products/groups/:groupName', element: <ProductGroupRoute /> },
+          { path: 'products/filters', element: <ProductFiltersRoute /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },
           { path: 'products/:productId/edit', element: <ProductFormRoute mode="edit" /> },
           // The catalogue was two sections until the API collapsed them into one product.

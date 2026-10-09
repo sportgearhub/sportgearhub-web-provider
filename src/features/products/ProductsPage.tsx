@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Archive,
-  Check,
   ChevronsUpDown,
   ImageOff,
+  ExternalLink,
   Layers,
   ListChecks,
+  Pencil,
   MoreVertical,
   Plus,
   ScanBarcode,
   Search,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
@@ -27,6 +29,9 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { ScanSheet } from '../scan/ScanSheet';
 import { ApiError, mediaUrl, productCategoriesApi, productsApi } from '../../lib/api-client';
+import { PHONE, useMediaQuery } from '../../lib/useMediaQuery';
+import { countActive, filtersToRsql, useCatalogueFilters } from './catalogueFilters';
+import { ProductCard, ProductCardSkeleton } from './ProductCard';
 import type { Pagination as PageInfo, ProductCategory, ProductRoutability, ProductSummary } from '../../types';
 import { formatPrice, productStatus, productStatusMeta } from './productStatus';
 
@@ -120,7 +125,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [columns, setColumns] = useState<ColumnSetting[]>(loadColumns);
 
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+
+  // A phone has no paging controls: it loads the next page as the list runs out. That is a
+  // difference in behaviour rather than in layout, so it cannot be left to a breakpoint.
+  const phone = useMediaQuery(PHONE);
+  const chosen = useCatalogueFilters();
 
   // The status sheet: what is chosen in it is not applied until «Применить», so a phone can be
   // scrolled through the list of states without the page reloading under each tap.
@@ -137,6 +148,8 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [confirming, setConfirming] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Which card's menu is open — the card itself, since the sheet names it.
+  const [cardMenu, setCardMenu] = useState<ProductSummary | null>(null);
   const toast = useToast();
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(columns)); }, [columns]);
@@ -151,7 +164,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   // Everything being asked for except the slice — the search box and the column menus. Kept apart
   // so the same terms can be counted against every status, not only the one on screen.
   const extraFilter = useMemo(() => {
-    const parts: string[] = [];
+    const parts: string[] = [...filtersToRsql(chosen)];
     if (debouncedQuery) parts.push(`title=contains=${quote(debouncedQuery)}`);
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (values.length === 0) return;
@@ -161,7 +174,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       parts.push(`${field}=in=(${values.map(quote).join(',')})`);
     });
     return parts.join(';');
-  }, [debouncedQuery, columnFilters]);
+  }, [chosen, debouncedQuery, columnFilters]);
 
   const filter = useMemo(() => {
     const slice = SLICES.find(item => item.value === tab);
@@ -171,11 +184,13 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   // The endpoint's sort syntax is a `-` prefix for descending — `-updated_at` — not Spring Data's
   // `updated_at,desc`, which it rejects without saying which half it disliked.
   const sortParam = useMemo(() => {
+    // A phone has no column headers to sort by, so the filters screen says it outright.
+    if (phone) return chosen.sort;
     if (!sort) return '';
     const field = COLUMNS.find(column => column.key === sort.key)?.field;
     if (!field) return '';
     return sort.direction === 'desc' ? `-${field}` : field;
-  }, [sort]);
+  }, [phone, chosen.sort, sort]);
 
   // Any change to what is being asked for starts again from the first page.
   const firstLoad = useRef(true);
@@ -186,21 +201,48 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const append = phone && page > 1;
+    if (append) setLoadingMore(true); else setLoading(true);
     setError('');
     const slice = SLICES.find(item => item.value === tab);
     fetchSlice(slice, { filter: filter || undefined, sort: sortParam || undefined, page, pageSize })
       .then(result => {
         if (cancelled) return;
-        setProducts(result.items ?? []);
+        const next = result.items ?? [];
+        // Appending by id rather than by concatenation: a card archived from this very list
+        // shifts the window, and the same card arriving twice would render twice.
+        setProducts(current => {
+          if (!append) return next;
+          const seen = new Set(current.map(item => item.productId));
+          return [...current, ...next.filter(item => !seen.has(item.productId))];
+        });
         setPageInfo(result.pagination ?? null);
       })
       .catch(err => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Не удалось загрузить каталог.');
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) { setLoading(false); setLoadingMore(false); } });
     return () => { cancelled = true; };
-  }, [tab, filter, sortParam, page, pageSize, reloadKey]);
+  }, [tab, filter, sortParam, page, pageSize, reloadKey, phone]);
+
+  /**
+   * The end of the list, as a thing to notice.
+   *
+   * A sentinel below the last card: when it comes into view there is another page, so ask for it.
+   * No scroll handler and no arithmetic about heights — the browser already knows when something
+   * is on screen, and it is not this component's business which element is scrolling.
+   */
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasMore = Boolean(pageInfo && pageInfo.page < pageInfo.totalPages);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!phone || !node || !hasMore || loading || loadingMore) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) setPage(current => current + 1);
+    }, { rootMargin: '400px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [phone, hasMore, loading, loadingMore, products.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,6 +349,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   };
 
   const slice = SLICES.find(item => item.value === tab) ?? SLICES[0];
+  const activeFilters = countActive(chosen);
   const totalForTab = counts[tab] ?? pageInfo?.totalItems ?? null;
 
   const searchField = (
@@ -325,11 +368,14 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
 
   return (
     <>
+      {/* Everything on one wrapper, because a sticky element sticks only as far as its parent
+          goes: with the header in a box of its own it unstuck the moment that box scrolled out,
+          which is exactly what it looked like. */}
+      <div>
       {/* On a phone this block is the header — the console's own bar is not drawn here. The name
           and the search box stay put while the list moves under them, because searching a long
           catalogue from the bottom of it should not mean scrolling back up first. */}
-      <div className="md:hidden">
-        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4">
+        <div className="sticky top-0 z-20 rounded-b-2xl bg-white px-4 pb-3 pt-4 md:hidden">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
             {/* The count is on the filter below, which is where it belongs — it is the count of
@@ -343,13 +389,45 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               <MoreVertical size={20} />
             </button>
           </div>
-          <div className="mt-3 flex">{searchField}</div>
+          <div className="mt-3 flex items-center gap-2">
+            {searchField}
+            {/* The rest of the filters are a screen, not a menu — a phone has no column headers
+                to hang them off. The badge is how many are doing something right now. */}
+            <button
+              type="button"
+              onClick={() => onNavigate('/products/filters')}
+              aria-label="Фильтры"
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition active:bg-gray-200"
+            >
+              <SlidersHorizontal size={18} />
+              {activeFilters > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white">
+                  {activeFilters}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Its own card, touching the list it filters. Eight statuses do not fit across a phone,
-            and a strip that scrolls sideways hides most of them; one row saying which is on, how
-            many are in it and that there are others reads at a glance. */}
-        <div className="px-3 pt-3">
+        {/* The other places this screen leads, as tiles rather than rows: squares read as things
+            to tap, and a row of them has room for the next one. They are the bottom of the same
+            white block and scroll away under the part that stays — the name and the search box
+            are worth keeping on screen; a shortcut you have already seen is not.
+
+            The overlap is what makes the seam invisible: the stuck part's rounded underside is
+            over white while the tiles are there, and over the ground once they are gone. */}
+        <div className="-mt-4 flex gap-2 overflow-x-auto rounded-b-2xl bg-white px-3 pb-3 pt-4 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FeatureTile
+            icon={Layers}
+            label="Группы товаров"
+            onClick={() => onNavigate('/products/groups')}
+          />
+        </div>
+
+        {/* Then the filter, in its own card, touching the list it filters. Eight statuses do not
+            fit across a phone, and a strip that scrolls sideways hides most of them; one row
+            saying which is on, how many are in it and that there are others reads at a glance. */}
+        <div className="px-3 pt-3 md:hidden">
           <button
             type="button"
             onClick={() => { setPendingTab(tab); setSheetOpen(true); }}
@@ -363,17 +441,6 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             <ChevronsUpDown size={16} className="shrink-0 text-gray-400" />
           </button>
         </div>
-
-        {/* The other places this screen leads, as tiles rather than rows: squares read as things
-            to tap, and a row of them has room for the next one. */}
-        <div className="flex gap-2 overflow-x-auto px-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <FeatureTile
-            icon={Layers}
-            label="Группы товаров"
-            onClick={() => onNavigate('/products/groups')}
-          />
-        </div>
-      </div>
 
       {/* The desktop keeps the heading, the strip of slices and the column settings. */}
       <div className="hidden px-6 pt-6 md:block">
@@ -472,71 +539,39 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
               read: the state is what a seller scans for, and it should not be hunted for under
               the thing it describes. */}
           <ul className="space-y-2 md:hidden">
-            {loading && Array.from({ length: 5 }, (_, row) => (
-              <li key={`m-skeleton-${row}`} className="flex items-center gap-3 rounded-xl bg-white p-3">
-                <Skeleton className="h-14 w-14 shrink-0" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-3.5 w-2/3" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-              </li>
-            ))}
+            {loading && Array.from({ length: 5 }, (_, row) => <ProductCardSkeleton key={`m-skeleton-${row}`} />)}
             {!loading && products.length === 0 && (
               <li className="rounded-xl bg-white px-4 py-12 text-center text-sm text-gray-600">
                 {filter || tab !== 'all' ? 'Ничего не нашлось. Попробуйте изменить фильтры.' : 'В каталоге пока пусто.'}
               </li>
             )}
-            {!loading && products.map(product => {
-              const meta = productStatus(product.status);
-              const ticked = selected.includes(product.productId);
-              return (
-                <li
-                  key={product.productId}
-                  className={`overflow-hidden rounded-xl bg-white ${ticked ? 'ring-2 ring-blue-500' : ''}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => selecting
-                      ? toggleSelected(product.productId)
-                      : onNavigate(`/products/${product.productId}`)}
-                    className="w-full p-3 text-left transition active:bg-gray-50"
-                  >
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      {selecting && (
-                        <span
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
-                            ticked ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-                          }`}
-                        >
-                          {ticked && <Check size={13} strokeWidth={3} />}
-                        </span>
-                      )}
-                      <Badge variant={meta.variant}>{meta.label}</Badge>
-                      {blocked[product.productId] && <Badge variant="orange">нельзя забронировать</Badge>}
-                    </span>
-                    <span className="mt-2.5 flex items-start gap-3">
-                      <Thumb url={product.mediaPreviewUrl} title={product.title} size="lg" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium leading-5 text-gray-900">{product.title}</span>
-                        <span className="mt-1 block text-xs text-gray-500">{product.category?.title ?? '—'}</span>
-                      </span>
-                    </span>
-                    <span className="mt-2.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
-                      {product.price != null && (
-                        <span className="rounded-lg bg-gray-100 px-2 py-1 text-sm font-medium text-gray-900">
-                          {formatPrice(product.price)}
-                        </span>
-                      )}
-                      <span className={product.quantity > 0 ? '' : 'text-amber-700'}>{product.quantity} шт</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
+            {!loading && products.map(product => (
+              <ProductCard
+                key={product.productId}
+                product={product}
+                blocked={blocked[product.productId]}
+                selecting={selecting}
+                ticked={selected.includes(product.productId)}
+                onOpen={() => onNavigate(`/products/${product.productId}`)}
+                onToggle={() => toggleSelected(product.productId)}
+                onMenu={() => setCardMenu(product)}
+              />
+            ))}
+
+            {/* The next page, before it is here: the same card, greyed. A spinner says only that
+                something is happening; this says what is about to appear. */}
+            {loadingMore && Array.from({ length: 3 }, (_, row) => <ProductCardSkeleton key={`m-more-${row}`} />)}
           </ul>
 
+          {/* What the observer watches. Below the list, so reaching it means reaching the end. */}
+          <div ref={sentinelRef} aria-hidden="true" className="h-1 md:hidden" />
+
+          {!loading && !hasMore && products.length > 0 && (
+            <p className="py-4 text-center text-xs text-gray-400 md:hidden">Это всё</p>
+          )}
+
           {pageInfo && !loading && (
-            <div className="mt-2 rounded-xl bg-white md:mt-0 md:rounded-none">
+            <div className="hidden rounded-xl bg-white md:block md:rounded-none">
             <Pagination
               page={pageInfo.page}
               totalPages={pageInfo.totalPages}
@@ -548,6 +583,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* «Добавить» within a thumb's reach, over the list rather than above it, where the
@@ -578,9 +614,9 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         <button
           type="button"
           onClick={() => onNavigate('/products/new')}
-          className="fixed bottom-[calc(4rem+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-1.5 rounded-full bg-blue-600 py-3 pl-4 pr-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
+          className="fixed bottom-[calc(4rem+0.625rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full bg-blue-600 py-2 pl-3 pr-4 text-[13px] font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
         >
-          <Plus size={18} /> Добавить
+          <Plus size={16} /> Добавить
         </button>
       )}
 
@@ -610,6 +646,60 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
             note="Отметить несколько карточек и сделать с ними одно — например, отправить в архив."
             onClick={() => { setMenuOpen(false); setSelecting(true); setSelected([]); }}
           />
+        </ul>
+      </BottomSheet>
+
+      {/* What can be done to one card, from the list. The card is named at the top, because a
+          sheet that just says «В архив» is a sheet about nothing. */}
+      <BottomSheet
+        open={cardMenu !== null}
+        onClose={() => setCardMenu(null)}
+        title={cardMenu?.title ?? ''}
+        center
+        footer={
+          <Button variant="secondary" className="w-full justify-center" onClick={() => setCardMenu(null)}>
+            Закрыть
+          </Button>
+        }
+      >
+        <ul className="divide-y divide-gray-100 border-y border-gray-100">
+          <MenuRow
+            icon={ExternalLink}
+            title="Открыть карточку"
+            note="Фото, состав комплекта, цены и правила."
+            onClick={() => { const card = cardMenu; setCardMenu(null); if (card) onNavigate(`/products/${card.productId}`); }}
+          />
+          <MenuRow
+            icon={Pencil}
+            title="Редактировать"
+            note="Изменения уходят на проверку, когда вы их отправите."
+            onClick={() => { const card = cardMenu; setCardMenu(null); if (card) onNavigate(`/products/${card.productId}/edit`); }}
+          />
+          <MenuRow
+            icon={ListChecks}
+            title="Выбрать товары"
+            note="Отметить этот и другие, чтобы сделать с ними одно."
+            onClick={() => {
+              const card = cardMenu;
+              setCardMenu(null);
+              setSelecting(true);
+              setSelected(card ? [card.productId] : []);
+            }}
+          />
+          {/* A card on review cannot be archived — that is the API's rule, and offering it
+              anyway would be offering an error message. */}
+          {cardMenu && cardMenu.status !== 'pending_review' && cardMenu.status !== 'archived' && (
+            <MenuRow
+              icon={Archive}
+              title="В архив"
+              note="Товар перестанет продаваться. Вернуть можно из вкладки «Архив»."
+              onClick={() => {
+                const card = cardMenu;
+                setCardMenu(null);
+                if (card) { setSelected([card.productId]); setConfirming(true); }
+              }}
+            />
+          )}
         </ul>
       </BottomSheet>
 
