@@ -260,7 +260,9 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
         value={query}
         onChange={event => setQuery(event.target.value)}
         placeholder="Поиск по названию"
-        className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/15 md:h-9 md:rounded-lg md:border-gray-300 md:bg-white md:text-sm"
+        // No outline on a phone: the field sits on the white of the header, and a filled shape
+        // is already a box to type in. The desktop keeps its border, where it sits on a page.
+        className="h-10 w-full rounded-xl bg-gray-100 pl-9 pr-3 text-base text-gray-900 outline-none transition placeholder:text-gray-500 md:h-9 md:rounded-lg md:border md:border-gray-300 md:bg-white md:text-sm md:focus:border-blue-500 md:focus:ring-2 md:focus:ring-blue-500/15"
       />
     </div>
   );
