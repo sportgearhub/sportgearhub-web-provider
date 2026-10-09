@@ -21,6 +21,7 @@ import {
 } from './features/experiences/ExperiencePages';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
+import { ProductGroupsPage } from './features/products/ProductGroupsPage';
 import { ProductForm } from './features/products/ProductForm';
 import { SettingsPage, type SettingsTab } from './features/settings/SettingsPage';
 import { NotFoundPage, RouteErrorPage } from './features/errors/ErrorPages';
@@ -124,6 +125,11 @@ function ProductsRoute() {
   return <ProductsPage onNavigate={navigateTo} />;
 }
 
+function ProductGroupsRoute() {
+  const { navigateTo } = useConsole();
+  return <ProductGroupsPage onNavigate={navigateTo} />;
+}
+
 function ProductDetailRoute() {
   const { navigateTo } = useConsole();
   const { productId = '' } = useParams();
@@ -172,6 +178,7 @@ const router = createBrowserRouter([
           { path: 'x/finances', element: <ExperienceRoute page="finances" /> },
           { path: 'products', element: <ProductsRoute /> },
           { path: 'products/new', element: <ProductFormRoute mode="create" /> },
+          { path: 'products/groups', element: <ProductGroupsRoute /> },
           { path: 'products/:productId', element: <ProductDetailRoute /> },
           { path: 'products/:productId/edit', element: <ProductFormRoute mode="edit" /> },
           // The catalogue was two sections until the API collapsed them into one product.

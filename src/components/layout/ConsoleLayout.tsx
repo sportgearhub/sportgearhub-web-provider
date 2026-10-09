@@ -60,8 +60,18 @@ const PAGE_TITLES: Record<string, string> = { '/ratings': 'Оценки' };
  * inside the console and keeps the section bar, while writing a card takes the whole screen, since
  * offering «Каталог» halfway through is offering to throw the draft away.
  */
-function taskFor(relativePath: string): { title: string; backTo: string; hideNav: boolean } | null {
+function taskFor(relativePath: string): { title: string; backTo: string; hideNav: boolean; help?: string } | null {
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
+  if (relativePath === '/products/groups') {
+    return {
+      title: 'Группы товаров',
+      backTo: '/products',
+      hideNav: true,
+      help: 'Товары с одинаковым названием группы покупатель видит как одну карточку с выбором — '
+        + 'например, один велосипед в трёх размерах рамы. Название группы задаётся в карточке товара: '
+        + 'совпало — товары в одной группе.',
+    };
+  }
   const editing = relativePath.match(/^\/products\/([^/]+)\/edit$/);
   if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}`, hideNav: true };
 

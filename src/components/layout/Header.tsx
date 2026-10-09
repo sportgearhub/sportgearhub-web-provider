@@ -9,6 +9,7 @@ import {
   ChevronDown,
   CreditCard,
   FileText,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -26,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { selectProvider } from '../../lib/active-provider';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
+import { BottomSheet } from '../ui/BottomSheet';
 import { BrandWordmark } from './BrandWordmark';
 import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
@@ -86,7 +88,7 @@ interface HeaderProps {
    * the screen — the header becomes a way back and the name of what you are doing, and the section
    * bar goes away, because leaving halfway through by tapping «Каталог» is not a thing to offer.
    */
-  task?: { title: string; backTo: string } | null;
+  task?: { title: string; backTo: string; help?: string } | null;
 }
 
 export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) {
@@ -109,7 +111,8 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
             >
               <ArrowLeft size={20} />
             </button>
-            <span className="min-w-0 truncate text-base font-semibold text-gray-950">{task.title}</span>
+            <span className="min-w-0 flex-1 truncate text-base font-semibold text-gray-950">{task.title}</span>
+            {task.help && <TaskHelp title={task.title} text={task.help} />}
           </div>
         ) : null}
 
@@ -286,6 +289,32 @@ function WorkspaceSwitch() {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * The question mark at the end of a task bar.
+ *
+ * Some screens need a sentence of explanation that nobody wants on screen twice — what a group of
+ * cards is, say. It lives behind an icon in the corner every phone puts help in, and arrives as a
+ * sheet, so reading it costs nothing and leaves nothing behind.
+ */
+function TaskHelp({ title, text }: { title: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Справка"
+        className="-mr-2 shrink-0 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+      >
+        <HelpCircle size={20} />
+      </button>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title={title}>
+        <p className="px-3 pb-4 pt-1 text-sm leading-6 text-gray-700">{text}</p>
+      </BottomSheet>
     </>
   );
 }

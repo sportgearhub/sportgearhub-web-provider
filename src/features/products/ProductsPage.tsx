@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ImageOff, Plus, Search } from 'lucide-react';
+import { Check, ChevronRight, ChevronsUpDown, ImageOff, Layers, Plus, Search } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
-import { SectionPage } from '../../components/layout/SectionPage';
 import {
   ColumnHeader,
   ColumnSettings,
@@ -108,6 +108,12 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // The status sheet: what is chosen in it is not applied until «Применить», so a phone can be
+  // scrolled through the list of states without the page reloading under each tap.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [pendingTab, setPendingTab] = useState('all');
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(columns)); }, [columns]);
   useEffect(() => { localStorage.setItem(PAGE_SIZE_KEY, String(pageSize)); }, [pageSize]);
 
@@ -117,10 +123,10 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filter = useMemo(() => {
+  // Everything being asked for except the slice — the search box and the column menus. Kept apart
+  // so the same terms can be counted against every status, not only the one on screen.
+  const extraFilter = useMemo(() => {
     const parts: string[] = [];
-    const slice = SLICES.find(item => item.value === tab);
-    if (slice?.filter) parts.push(slice.filter);
     if (debouncedQuery) parts.push(`title=contains=${quote(debouncedQuery)}`);
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (values.length === 0) return;
@@ -130,7 +136,12 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       parts.push(`${field}=in=(${values.map(quote).join(',')})`);
     });
     return parts.join(';');
-  }, [tab, debouncedQuery, columnFilters]);
+  }, [debouncedQuery, columnFilters]);
+
+  const filter = useMemo(() => {
+    const slice = SLICES.find(item => item.value === tab);
+    return [slice?.filter, extraFilter].filter(Boolean).join(';');
+  }, [tab, extraFilter]);
 
   // The endpoint's sort syntax is a `-` prefix for descending — `-updated_at` — not Spring Data's
   // `updated_at,desc`, which it rejects without saying which half it disliked.
@@ -153,13 +164,7 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     setLoading(true);
     setError('');
     const slice = SLICES.find(item => item.value === tab);
-    const query = { filter: filter || undefined, sort: sortParam || undefined, page, pageSize };
-    const request = slice?.endpoint === 'needsAttention'
-      ? productsApi.needsAttention(query)
-      : slice?.endpoint === 'readyToPublish'
-        ? productsApi.readyToPublish(query)
-        : productsApi.list(query);
-    request
+    fetchSlice(slice, { filter: filter || undefined, sort: sortParam || undefined, page, pageSize })
       .then(result => {
         if (cancelled) return;
         setProducts(result.items ?? []);
@@ -187,6 +192,33 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
       .catch(() => { /* the list is still useful without it */ });
     return () => { cancelled = true; };
   }, []);
+
+  /**
+   * How many cards are in each status.
+   *
+   * There is no counts endpoint — `tab-counts` went away with `tab` — so each status is asked for
+   * one row and only its `total_items` is read. Eight small requests, made when the sheet opens
+   * rather than on every visit to the page, and a status whose request fails simply shows no
+   * number instead of a wrong one.
+   */
+  useEffect(() => {
+    if (!sheetOpen) return;
+    let cancelled = false;
+    void Promise.all(SLICES.map(slice => {
+      const query = {
+        filter: [slice.filter, extraFilter].filter(Boolean).join(';') || undefined,
+        page: 1,
+        pageSize: 1,
+      };
+      return fetchSlice(slice, query)
+        .then(result => [slice.value, result.pagination?.totalItems ?? null] as const)
+        .catch(() => [slice.value, null] as const);
+    })).then(entries => {
+      if (cancelled) return;
+      setCounts(Object.fromEntries(entries.filter((entry): entry is readonly [string, number] => entry[1] != null)));
+    });
+    return () => { cancelled = true; };
+  }, [sheetOpen, extraFilter]);
 
   const filterOptionsFor = (key: string) => {
     if (key === 'status') return Object.entries(productStatusMeta).map(([value, meta]) => ({ value, label: meta.label }));
@@ -218,39 +250,104 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
     );
   };
 
-  return (
-    <SectionPage
-      title="Каталог"
-      description={pageInfo ? `${pageInfo.totalItems} ${plural(pageInfo.totalItems)}` : undefined}
-      error={error}
-      action={
-        <Button variant="primary" onClick={() => onNavigate('/products/new')}>
-          <Plus size={15} /> Добавить
-        </Button>
-      }
-    >
-      <div className="space-y-3">
-        <SegmentedTabs
-          items={SLICES.map(item => ({ value: item.value, label: item.label }))}
-          value={tab}
-          onChange={setTab}
-        />
+  const slice = SLICES.find(item => item.value === tab) ?? SLICES[0];
+  const totalForTab = counts[tab] ?? pageInfo?.totalItems ?? null;
 
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="Поиск по названию"
-              className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 sm:text-sm"
-            />
+  const searchField = (
+    <div className="relative min-w-0 flex-1">
+      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input
+        value={query}
+        onChange={event => setQuery(event.target.value)}
+        placeholder="Поиск по названию"
+        className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-base outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/15 md:h-9 md:rounded-lg md:border-gray-300 md:bg-white md:text-sm"
+      />
+    </div>
+  );
+
+  return (
+    <>
+      {/* On a phone this block is the header — the console's own bar is not drawn here. The name
+          and the search box stay put while the list moves under them, because searching a long
+          catalogue from the bottom of it should not mean scrolling back up first. */}
+      <div className="md:hidden">
+        <div className="sticky top-0 z-20 bg-white px-4 pb-3 pt-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
+            {pageInfo && (
+              <span className="shrink-0 text-xs text-gray-500">
+                {pageInfo.totalItems} {plural(pageInfo.totalItems)}
+              </span>
+            )}
           </div>
-          <span className="hidden md:block">
-            <ColumnSettings columns={columns} onChange={setColumns} />
-          </span>
+          <div className="mt-3 flex">{searchField}</div>
         </div>
 
+        <div className="rounded-b-2xl bg-white px-4 pb-1">
+          {/* Eight statuses do not fit across a phone, and a strip that scrolls sideways hides
+              most of them. One row saying which is on and what is behind it reads at a glance. */}
+          <button
+            type="button"
+            onClick={() => { setPendingTab(tab); setSheetOpen(true); }}
+            className="flex w-full items-center gap-3 border-t border-gray-100 py-3 text-left transition active:bg-gray-50"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-gray-900">{slice.label}</span>
+              <span className="mt-0.5 block text-xs text-gray-500">Выберите статус продуктов</span>
+            </span>
+            {totalForTab != null && (
+              <span className="shrink-0 text-sm tabular-nums text-gray-500">{totalForTab}</span>
+            )}
+            <ChevronsUpDown size={16} className="shrink-0 text-gray-400" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('/products/groups')}
+            className="flex w-full items-center gap-3 border-t border-gray-100 py-3 text-left transition active:bg-gray-50"
+          >
+            <Layers size={17} className="shrink-0 text-gray-400" />
+            <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">Группа товаров</span>
+            <ChevronRight size={16} className="shrink-0 text-gray-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* The desktop keeps the heading, the strip of slices and the column settings. */}
+      <div className="hidden px-6 pt-6 md:block">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-950">Каталог</h1>
+            {pageInfo && (
+              <p className="mt-1 text-sm text-gray-500">{pageInfo.totalItems} {plural(pageInfo.totalItems)}</p>
+            )}
+          </div>
+          <Button variant="primary" onClick={() => onNavigate('/products/new')}>
+            <Plus size={15} /> Добавить
+          </Button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <SegmentedTabs
+            items={SLICES.map(item => ({ value: item.value, label: item.label }))}
+            value={tab}
+            onChange={setTab}
+          />
+          <div className="flex items-center gap-2">
+            {searchField}
+            <ColumnSettings columns={columns} onChange={setColumns} />
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <p className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 md:mx-6">
+          {error}
+        </p>
+      )}
+
+      {/* Room at the end for the floating button, so it never covers the last row. */}
+      <div className="px-3 pb-24 pt-3 md:px-6 md:pb-6">
         {/* The frame belongs to the table. On a phone the rows are the cards, so the container
             steps out of the way rather than becoming a card around cards. */}
         <div className="overflow-hidden md:rounded-xl md:border md:border-gray-200 md:bg-white">
@@ -375,8 +472,66 @@ export function ProductsPage({ onNavigate }: { onNavigate: (path: string) => voi
           )}
         </div>
       </div>
-    </SectionPage>
+
+      {/* «Добавить» within a thumb's reach, over the list rather than above it, where the
+          references put the one action a catalogue screen is for. */}
+      <button
+        type="button"
+        onClick={() => onNavigate('/products/new')}
+        className="fixed bottom-[calc(4rem+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-1.5 rounded-full bg-blue-600 py-3 pl-4 pr-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition active:bg-blue-700 md:hidden"
+      >
+        <Plus size={18} /> Добавить
+      </button>
+
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title="Статус товаров"
+        description="Покажем только те карточки, которые в этом состоянии."
+        footer={
+          <Button
+            variant="primary"
+            className="w-full justify-center"
+            onClick={() => { setTab(pendingTab); setSheetOpen(false); }}
+          >
+            Применить
+          </Button>
+        }
+      >
+        <ul>
+          {SLICES.map(item => {
+            const chosen = item.value === pendingTab;
+            return (
+              <li key={item.value}>
+                <button
+                  type="button"
+                  onClick={() => setPendingTab(item.value)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition active:bg-gray-50"
+                >
+                  <span className={`min-w-0 flex-1 text-sm ${chosen ? 'font-semibold text-gray-950' : 'text-gray-800'}`}>
+                    {item.label}
+                  </span>
+                  {counts[item.value] != null && (
+                    <span className="shrink-0 text-sm tabular-nums text-gray-500">{counts[item.value]}</span>
+                  )}
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                    {chosen && <Check size={17} className="text-blue-600" />}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </BottomSheet>
+    </>
   );
+}
+
+/** Each slice is either a filter on the list or an endpoint of its own; both take the same query. */
+function fetchSlice(slice: Slice | undefined, query: { filter?: string; sort?: string; page: number; pageSize: number }) {
+  if (slice?.endpoint === 'needsAttention') return productsApi.needsAttention(query);
+  if (slice?.endpoint === 'readyToPublish') return productsApi.readyToPublish(query);
+  return productsApi.list(query);
 }
 
 function plural(count: number) {
