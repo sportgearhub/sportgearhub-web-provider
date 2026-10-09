@@ -11,6 +11,7 @@ import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
+import { RatingsPage } from './features/ratings/Ratings';
 import {
   ExperienceBookingsPage,
   ExperienceDashboardPage,
@@ -161,6 +162,7 @@ const router = createBrowserRouter([
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
           { path: 'scan', element: <ScanRoute /> },
           { path: 'menu', element: <MenuRoute /> },
+          { path: 'ratings', element: <RatingsPage /> },
 
           // Впечатления — a prototype workspace with no API behind it yet.
           { path: 'x', element: <ExperienceRoute page="home" /> },

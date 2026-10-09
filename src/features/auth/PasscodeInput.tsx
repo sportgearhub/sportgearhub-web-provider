@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Delete } from 'lucide-react';
 
 // A fixed-length numeric passcode entry. It renders one box per digit but keeps a single input behind
 // them, so paste, autofill and mobile keyboards behave normally.
@@ -22,6 +23,16 @@ export function PasscodeInput({
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
+
+  const press = (digit: string) => {
+    if (disabled || value.length >= length) return;
+    onChange(value + digit);
+  };
+
+  const back = () => {
+    if (disabled || value.length === 0) return;
+    onChange(value.slice(0, -1));
+  };
 
   return (
     <div>
@@ -55,6 +66,49 @@ export function PasscodeInput({
           ))}
         </div>
       </div>
+
+      {/* A keypad of our own on touch screens.
+          The system keyboard covers half a phone to offer letters nobody needs here, and on the
+          way up it pushes the cells it is there to fill off the top of the screen. Three columns,
+          because that is where a thumb expects digits — and the hidden field above still accepts
+          a pasted code or a one-time-code autofill. */}
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:hidden">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(digit => (
+          <KeypadKey key={digit} onPress={() => press(digit)} disabled={disabled}>{digit}</KeypadKey>
+        ))}
+        <span aria-hidden="true" />
+        <KeypadKey onPress={() => press('0')} disabled={disabled}>0</KeypadKey>
+        <KeypadKey onPress={back} disabled={disabled || value.length === 0} label="Стереть">
+          <Delete size={20} />
+        </KeypadKey>
+      </div>
     </div>
+  );
+}
+
+function KeypadKey({
+  children,
+  onPress,
+  disabled,
+  label,
+}: {
+  children: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      // The hidden field keeps focus, so the caret never leaves and the system keyboard never
+      // arrives to fight this one for the screen.
+      onMouseDown={event => event.preventDefault()}
+      onClick={onPress}
+      disabled={disabled}
+      aria-label={label}
+      className="flex h-14 items-center justify-center rounded-xl bg-gray-100 text-2xl font-medium text-gray-900 transition active:bg-gray-200 disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }

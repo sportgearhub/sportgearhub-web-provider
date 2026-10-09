@@ -35,8 +35,10 @@ export function AuthShell({
           <BrandWordmark />
         </header>
 
-        <main className="flex flex-1 flex-col pt-10 lg:justify-center lg:pt-0">
-          <div className="w-full max-w-[380px]">
+        {/* Centred on a phone too. Top-aligned left a short form floating under the wordmark with
+            the rest of the screen empty below it, which reads as a page that failed to load. */}
+        <main className="flex flex-1 flex-col justify-center py-8 lg:py-0">
+          <div className="mx-auto w-full max-w-[380px] lg:mx-0">
             <h1 className="text-[27px] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[32px]">
               {title}
             </h1>

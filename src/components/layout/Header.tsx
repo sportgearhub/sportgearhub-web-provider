@@ -13,7 +13,7 @@ import {
   LogOut,
   MapPin,
   Package,
-  Repeat,
+  Plus,
   ScanLine,
   Store,
   UserRound,
@@ -22,6 +22,8 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { selectProvider } from '../../lib/active-provider';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
 import { BrandWordmark } from './BrandWordmark';
@@ -34,7 +36,7 @@ type NavItem = { label: string; path: string; icon: LucideIcon };
 /** Each workspace has its own sections; nothing is shared but the cabinet underneath them. */
 const navByWorkspace: Record<Workspace, NavItem[]> = {
   rental: [
-    { label: 'Дашборд', path: '/', icon: LayoutDashboard },
+    { label: 'Главная', path: '/', icon: LayoutDashboard },
     { label: 'Заказы', path: '/bookings', icon: CalendarCheck },
     { label: 'Каталог', path: '/products', icon: Package },
     { label: 'Сканер', path: '/scan', icon: ScanLine },
@@ -95,7 +97,7 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
     path === '/' || path === '/x' ? currentPath === path : currentPath.startsWith(path);
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background">
+    <header className="sticky top-0 z-30 rounded-b-2xl bg-white shadow-sm">
       <div className="mx-auto flex min-h-16 w-full max-w-screen-xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-2">
         {task ? (
           <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
@@ -124,6 +126,7 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
           <BrandWordmark size="sm" className="sm:text-lg" />
         </button>
 
+        <CabinetSwitch />
         <WorkspaceSwitch />
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
@@ -153,7 +156,6 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
             <ProfileMenu
             name={user?.name ?? ''}
             phone={user?.phone ?? ''}
-            cabinetName={provider.displayName}
             currentProviderId={provider.providerId}
             currentPath={currentPath}
             onNavigate={onNavigate}
@@ -175,6 +177,70 @@ export function Header({ currentPath, onNavigate, actions, task }: HeaderProps) 
  * rather than a dropdown — a menu anchored under a trigger that already sits on the bottom edge
  * would open off the screen.
  */
+/**
+ * The cabinet everything on screen belongs to, and the way to another one.
+ *
+ * It was a card inside the profile menu — two clicks and a dialog, from a place nobody opens to
+ * change cabinets. It is a name with a chevron in the header now, because that is where a person
+ * looks to check which company they are working in, and choosing from it switches directly rather
+ * than opening a dialog to confirm what was just clicked.
+ */
+function CabinetSwitch() {
+  const { providers } = useAuth();
+  const provider = useProvider();
+  const navigate = useNavigate();
+  const menu = useDropdown('left', 260);
+
+  if (providers.length <= 1) {
+    return <span className="hidden max-w-[14rem] truncate text-sm font-medium text-foreground lg:block">{provider.displayName}</span>;
+  }
+
+  return (
+    <>
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        onClick={menu.toggle}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        className="hidden h-9 max-w-[14rem] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-foreground transition hover:bg-sidebar-accent lg:flex"
+      >
+        <span className="truncate">{provider.displayName}</span>
+        <ChevronDown size={14} className="shrink-0 text-gray-400" />
+      </button>
+      {menu.render(
+        <div className="py-1">
+          {providers.map(item => (
+            <button
+              key={item.providerId}
+              type="button"
+              onClick={() => {
+                selectProvider(item.providerId);
+                menu.close();
+                navigate(0);
+              }}
+              className={cn(
+                'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-gray-50',
+                item.providerId === provider.providerId ? 'text-blue-700' : 'text-gray-900'
+              )}
+            >
+              <span className="min-w-0 flex-1 truncate">{item.displayName}</span>
+              {item.providerId === provider.providerId && <Check size={15} className="shrink-0 text-blue-600" />}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => { menu.close(); navigate('/providers/new'); }}
+            className="mt-1 flex w-full items-center gap-2 border-t px-3 py-2 text-left text-sm text-blue-700 transition hover:bg-gray-50"
+          >
+            <Plus size={14} /> Добавить кабинет
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * Which business you are running, as a switch rather than a setting.
  *
@@ -283,7 +349,6 @@ export function MobileNavBar({
 function ProfileMenu({
   name,
   phone,
-  cabinetName,
   currentProviderId,
   currentPath,
   onNavigate,
@@ -291,7 +356,6 @@ function ProfileMenu({
 }: {
   name: string;
   phone: string;
-  cabinetName: string;
   currentProviderId: string;
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -327,23 +391,6 @@ function ProfileMenu({
           <div className="border-b px-3 pb-2 pt-1">
             <p className="truncate text-sm font-medium text-foreground">{name}</p>
             <p className="truncate text-xs text-muted-foreground">{phone}</p>
-          </div>
-
-          {/* The cabinet everything on screen belongs to, and the way to another one. */}
-          <div className="border-b px-3 py-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Кабинет</p>
-            <p className="mt-0.5 truncate text-sm font-medium text-foreground">{cabinetName}</p>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                menu.close();
-                setSwitching(true);
-              }}
-              className="mt-1 flex items-center gap-1.5 text-sm font-medium text-blue-700 transition hover:text-blue-800"
-            >
-              <Repeat size={13} /> Сменить кабинет
-            </button>
           </div>
 
           {profileMenuGroups.map(group => (

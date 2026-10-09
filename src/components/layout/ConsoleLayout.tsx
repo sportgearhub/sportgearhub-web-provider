@@ -22,6 +22,7 @@ const pageConfig: Record<string, PageConfig> = {
   '/x/bookings': { title: '' },
   '/x/finances': { title: '' },
   '/menu': { title: '' },
+  '/ratings': { title: '' },
   // The settings section draws its own tab bar, so it asks the header for no title row.
   '/settings/shop': { title: '' },
   '/settings/seller': { title: '' },
@@ -49,6 +50,8 @@ const SETTINGS_TITLES: Record<string, string> = {
   '/settings/account': 'Аккаунт',
 };
 
+const PAGE_TITLES: Record<string, string> = { '/ratings': 'Оценки' };
+
 /**
  * Screens that are somewhere you went, rather than one of the sections you switch between.
  *
@@ -61,6 +64,9 @@ function taskFor(relativePath: string): { title: string; backTo: string; hideNav
   if (relativePath === '/products/new') return { title: 'Новый товар', backTo: '/products', hideNav: true };
   const editing = relativePath.match(/^\/products\/([^/]+)\/edit$/);
   if (editing) return { title: 'Редактирование', backTo: `/products/${editing[1]}`, hideNav: true };
+
+  const plain = PAGE_TITLES[relativePath];
+  if (plain) return { title: plain, backTo: '/', hideNav: false };
 
   const settings = SETTINGS_TITLES[relativePath];
   if (settings) {
@@ -129,7 +135,7 @@ export function ConsoleLayout() {
     <WorkspaceContext.Provider value={{ workspace, setWorkspace }}>
       {/* Grey ground on a phone so the white sections read as cards; plain white on a desktop,
           where the console is a page rather than an app. */}
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50 lg:bg-background">
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
         {/* No app bar on a phone. A logo and a row of links at the top of a small screen cost a
             fifth of it to say what the person already knows; the sections are at the bottom and
             the page says its own name. A task keeps the bar, because it is the way back. */}
@@ -139,7 +145,7 @@ export function ConsoleLayout() {
         {!task?.hideNav && <MobileNavBar currentPath={relativePath} onNavigate={navigateTo} />}
         {/* The bottom bar is fixed, so the scroll area has to end above it — otherwise the last
             row of every list sits underneath it. Task routes have no bar and need no gap. */}
-        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-gray-50 lg:bg-background ${task?.hideNav ? '' : 'pb-16 lg:pb-0'}`}>
+        <main className={`relative min-h-0 flex-1 overflow-y-auto bg-gray-50 ${task?.hideNav ? '' : 'pb-16 lg:pb-0'}`}>
           <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
               <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-6 sm:mt-4">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowRight, Building2, CheckCircle2, ChevronRight, Circle, Clock, Package, Send, ShoppingBag } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock, Package, Send, ShoppingBag } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +8,7 @@ import { useAuth } from '../../context/useAuth';
 import { ApiError, bookingsApi, dashboardApi, providerApi } from '../../lib/api-client';
 import type { DashboardResponse, ProviderReadiness, ProviderReadinessItem } from '../../types';
 import { useProvider } from '../providers/ProviderContext';
-import { CabinetSwitchDialog } from '../providers/CabinetSwitchDialog';
+import { RatingsSection } from '../ratings/Ratings';
 import { dayBounds } from '../bookings/bookingMeta';
 import { useWorkspace, workspaceMeta, type Workspace } from '../workspace/workspace';
 import { statusMeta } from '../providers/providerStatus';
@@ -34,13 +34,12 @@ const checklistMeta: Record<string, { title: string; path: string; hints: Record
 };
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
-  const { user, reloadSession } = useAuth();
+  const { reloadSession } = useAuth();
   const provider = useProvider();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const { workspace, setWorkspace } = useWorkspace();
   const [today, setToday] = useState<{ handover: number; ret: number; awaiting: number } | null>(null);
 
@@ -96,12 +95,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Добрый день, {user?.name.split(' ')[0]}</h2>
         <p className="text-sm text-gray-500">{todayLabel}</p>
         {/* The header used to carry the cabinet's name on every screen. Without it on a phone,
             the one place that must say which cabinet you are in is the one you land on. */}
-        {/* Direction first, cabinet second: both answer «как я сейчас работаю», and on a phone
-            neither is in a header, because there is no header. */}
+        {/* The direction, where a phone has no header to carry it. */}
         <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1 lg:hidden">
           {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
             <button
@@ -116,21 +113,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setSwitching(true)}
-          className="mt-2 flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-left lg:hidden"
-        >
-          <Building2 size={16} className="shrink-0 text-gray-400" />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{provider.displayName}</span>
-          <ChevronRight size={15} className="shrink-0 text-gray-400" />
-        </button>
       </div>
 
-      {switching && (
-        <CabinetSwitchDialog open currentProviderId={provider.providerId} onClose={() => setSwitching(false)} />
-      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -174,6 +158,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           <TodayTile label="Заявки" value={today?.awaiting} tone={today?.awaiting ? 'warn' : 'plain'} onClick={() => onNavigate('/bookings')} />
         </div>
       </section>
+
+      <RatingsSection onNavigate={onNavigate} />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard loading={loading} label="Товары в каталоге" value={dashboard?.counts?.activeProducts} total={dashboard?.counts?.totalProducts} icon={<Package size={18} className="text-blue-500" />} onClick={() => onNavigate('/products')} />
