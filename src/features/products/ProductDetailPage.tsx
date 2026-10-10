@@ -29,9 +29,11 @@ import { ProductPolicyDialog } from './ProductPolicyDialog';
 import { ProductInfoSectionsDialog } from './ProductInfoSectionsDialog';
 import { infoSectionLabel } from './infoSections';
 import { submitRefusalMessage } from './productStatus';
+import { SAMPLE_DURATIONS, deadTiers, quoteHours, referenceAmount } from './rentalTiers';
 import { storefrontProductUrl } from '../providers/providerStatus';
 import type {
   OfferInfoSection,
+  RentalTier,
   Product,
   ProductPolicy,
   ProductPricingPolicy,
@@ -314,19 +316,28 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
 
           <SettingsCard
             title="Цена"
-            description="Сколько стоит аренда."
+            description="Блоки времени и их цена. Клиент платит за самую дешёвую комбинацию, которая покрывает аренду."
             action={<SectionEdit onClick={() => onNavigate(`/products/${productId}/edit`)} />}
           >
             {pricing?.rentalTiers?.length ? (
-              <DetailList>
-                {pricing.rentalTiers.map((tier, index) => (
-                  <DetailRow
-                    key={index}
-                    label={tier.label || `До ${tier.upToHours} ч`}
-                    value={formatPrice(tier.price) ?? '—'}
-                  />
-                ))}
-              </DetailList>
+              <>
+                <DetailList>
+                  {pricing.rentalTiers.map((tier, index) => (
+                    <DetailRow
+                      key={index}
+                      // `up_to_hours` is a block's length, not a ceiling: «До 8 ч» said the
+                      // opposite of what the API does with it.
+                      label={tier.label || `Блок ${tier.upToHours} ч`}
+                      value={formatPrice(tier.price) ?? '—'}
+                    />
+                  ))}
+                </DetailList>
+
+                {/* What those blocks come to at a few durations, and which of them never applies. */}
+                <div className="mt-3 border-t border-gray-100 pt-3">
+                  <TierTable tiers={pricing.rentalTiers} />
+                </div>
+              </>
             ) : pricing?.baseAmount != null ? (
               <DetailList>
                 <DetailRow label="Цена" value={formatPrice(pricing.baseAmount) ?? '—'} />
@@ -496,6 +507,41 @@ export function ProductDetailPage({ productId, onNavigate }: { productId: string
         )}
       </ul>
     </BottomSheet>
+    </>
+  );
+}
+
+/** The same arithmetic the form shows while the price is being set, on the page that reads it back. */
+function TierTable({ tiers }: { tiers: RentalTier[] }) {
+  const priced = tiers.filter(tier => tier.upToHours > 0 && tier.price > 0);
+  const dead = deadTiers(priced);
+
+  return (
+    <>
+      <p className="text-xs font-medium text-gray-700">Что заплатит клиент</p>
+      <dl className="mt-1.5 space-y-1">
+        {SAMPLE_DURATIONS.map(sample => {
+          const total = quoteHours(priced, sample.hours);
+          if (total == null) return null;
+          const reference = referenceAmount(priced, sample.hours);
+          const saving = reference != null && reference > total ? reference - total : 0;
+          return (
+            <div key={sample.hours} className="flex items-baseline gap-2 text-sm">
+              <dt className="min-w-0 flex-1 text-gray-500">{sample.label}</dt>
+              <dd className="shrink-0 font-medium text-gray-900">{formatPrice(total)}</dd>
+              {saving > 0 && <dd className="shrink-0 text-xs text-emerald-700">выгода {formatPrice(saving)}</dd>}
+            </div>
+          );
+        })}
+      </dl>
+
+      {dead.length > 0 && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-4 text-amber-900">
+          {dead.map(tier => `${tier.upToHours} ч`).join(', ')} —
+          {dead.length === 1 ? ' этот блок никогда не применится' : ' эти блоки никогда не применятся'}:
+          то же время дешевле собрать из коротких блоков.
+        </p>
+      )}
     </>
   );
 }

@@ -15,7 +15,10 @@ import { Button } from '../../components/ui/Button';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { useToast } from '../../components/ui/Toast';
 import { ApiError, locationsApi, productCategoriesApi, productsApi } from '../../lib/api-client';
-import { PRICING_MODE_OPTIONS, DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
+import { Plus, Trash2 } from 'lucide-react';
+import { DEFAULT_PRICING_MODE } from '../../lib/pricing-options';
+import { SAMPLE_DURATIONS, deadTiers, quoteHours, referenceAmount } from './rentalTiers';
+import { formatPrice } from './productStatus';
 import type { EquipmentAttribute } from '../../lib/api-client';
 import { toAttributeMap } from '../../types';
 import type { ProductCategory, ProductReview, ProductStatus, ProviderLocation, RentalTier } from '../../types';
@@ -33,9 +36,13 @@ function stepFor(errorKey: string): StepKey {
   return 'about';
 }
 
+/**
+ * The blocks most rentals sell: an hour, a shift, a day. A seller adds or removes them — what
+ * matters is that the shortest one exists, because every longer block is priced against it.
+ */
 const STANDARD_TIERS: RentalTier[] = [
-  { upToHours: 1, price: 0, label: '1 час' },
-  { upToHours: 4, price: 0, label: 'Полдня' },
+  { upToHours: 1, price: 0, label: 'Час' },
+  { upToHours: 8, price: 0, label: 'Смена' },
   { upToHours: 24, price: 0, label: 'Сутки' },
 ];
 
@@ -81,6 +88,61 @@ const emptyDraft = (): Draft => ({
  * bottom of the screen — the same shape on a phone and on a desktop, because a rental card is
  * routinely added from behind the counter on a phone.
  */
+/** The next block a seller is likely to want: a shift after an hour, a day after a shift. */
+function nextBlockHours(tiers: { upToHours: number }[]) {
+  const longest = tiers.reduce((max, tier) => Math.max(max, tier.upToHours), 0);
+  if (longest < 1) return 1;
+  if (longest < 8) return 8;
+  if (longest < 24) return 24;
+  return longest * 2;
+}
+
+/**
+ * What the blocks above actually charge.
+ *
+ * A seller sets a day rate and assumes a day costs it. It does not: the API charges the cheapest
+ * combination of blocks, so a day rate above what the shorter blocks already come to is never used
+ * — and nothing refuses it. Rather than explain that, the form prices a few durations and says
+ * which block is doing nothing.
+ */
+function TierPreview({ tiers }: { tiers: RentalTier[] }) {
+  const priced = tiers.filter(tier => tier.upToHours > 0 && tier.price > 0);
+  if (priced.length === 0) return null;
+
+  const dead = deadTiers(priced);
+
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-xs font-medium text-gray-700">Что заплатит клиент</p>
+      <dl className="mt-1.5 space-y-1">
+        {SAMPLE_DURATIONS.map(sample => {
+          const total = quoteHours(priced, sample.hours);
+          const reference = referenceAmount(priced, sample.hours);
+          if (total == null) return null;
+          const saving = reference != null && reference > total ? reference - total : 0;
+          return (
+            <div key={sample.hours} className="flex items-baseline gap-2 text-sm">
+              <dt className="min-w-0 flex-1 text-gray-500">{sample.label}</dt>
+              <dd className="shrink-0 font-medium text-gray-900">{formatPrice(total)}</dd>
+              {saving > 0 && (
+                <dd className="shrink-0 text-xs text-emerald-700">выгода {formatPrice(saving)}</dd>
+              )}
+            </div>
+          );
+        })}
+      </dl>
+
+      {dead.length > 0 && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-4 text-amber-900">
+          {dead.map(tier => `${tier.upToHours} ч`).join(', ')} —
+          {dead.length === 1 ? ' этот блок никогда не применится' : ' эти блоки никогда не применятся'}:
+          то же время дешевле собрать из коротких блоков. Снизьте цену или уберите.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ProductForm({
   productId,
   onNavigate,
@@ -185,7 +247,6 @@ export function ProductForm({
     })),
     [locations]
   );
-  const isTiered = draft.pricingMode === 'rental_tiers';
 
   // The form is long enough that all of it at once buries the price under the characteristics.
   // Photos need a product to belong to, so that step exists only once there is one.
@@ -205,7 +266,7 @@ export function ProductForm({
   const isStepComplete = (key: StepKey) => {
     if (key === 'about') return Boolean(draft.title.trim() && draft.categorySlug && Number(draft.quantity) > 0);
     if (key === 'attributes') return attributes.every(attribute => !attributeError(attribute, draft.attributes[attribute.key] ?? ''));
-    if (key === 'price') return isTiered ? draft.tiers.some(tier => tier.price > 0) : Number(draft.baseAmount) > 0;
+    if (key === 'price') return draft.tiers.some(tier => tier.price > 0);
     // Публикация требует условий отмены; «запрещена» is an answer, so the step is done either way.
     if (key === 'policy') return !draft.cancellationAllowed || draft.leadTimeHours.trim() !== '';
     return false;
@@ -220,8 +281,7 @@ export function ProductForm({
       const message = attributeError(attribute, draft.attributes[attribute.key] ?? '');
       if (message) next[`attr:${attribute.key}`] = message;
     });
-    if (isTiered && !draft.tiers.some(tier => tier.price > 0)) next.pricing = 'Укажите цену хотя бы для одной ступени.';
-    if (!isTiered && !(Number(draft.baseAmount) > 0)) next.pricing = 'Укажите цену.';
+    if (!draft.tiers.some(tier => tier.price > 0)) next.pricing = 'Укажите цену хотя бы для одного блока.';
     setErrors(next);
     const firstBad = Object.keys(next)[0];
     if (firstBad) {
@@ -252,8 +312,9 @@ export function ProductForm({
         : await productsApi.create(body);
       await productsApi.putPricing(product.productId, {
         pricingMode: draft.pricingMode,
-        baseAmount: isTiered ? null : Number(draft.baseAmount),
-        rentalTiers: isTiered ? draft.tiers.filter(tier => tier.price > 0) : null,
+        // Blocks carry the price; there is no single amount in this mode.
+        baseAmount: null,
+        rentalTiers: draft.tiers.filter(tier => tier.price > 0),
         status: 'active',
       });
 
@@ -417,46 +478,59 @@ export function ProductForm({
           )}
 
           {currentStep === 'price' && (
-          <FormSection title="Цена" description="Используется при расчёте стоимости брони.">
-            <ChoiceCards
-              options={PRICING_MODE_OPTIONS.map(option => ({ value: option.value, title: option.label }))}
-              value={draft.pricingMode}
-              onChange={value => set('pricingMode', value)}
-            />
-            {isTiered ? (
-              <div className="space-y-2">
-                {draft.tiers.map((tier, index) => (
-                  <FieldRow key={index}>
-                    <FloatingInput
-                      label={tier.label || `До ${tier.upToHours} ч`}
-                      type="number"
-                      min="0"
-                      value={String(tier.price || '')}
-                      onChange={event => patchTier(index, { price: Number(event.target.value) || 0 })}
-                      suffix="₽"
-                    />
-                    <FloatingInput
-                      label="До скольких часов"
-                      type="number"
-                      min="1"
-                      value={String(tier.upToHours)}
-                      onChange={event => patchTier(index, { upToHours: Number(event.target.value) || 1 })}
-                    />
-                  </FieldRow>
-                ))}
-                {errors.pricing && <p className="px-1 text-xs text-red-600">{errors.pricing}</p>}
-              </div>
-            ) : (
-              <FloatingInput
-                label="Цена"
-                type="number"
-                min="0"
-                value={draft.baseAmount}
-                onChange={event => set('baseAmount', event.target.value)}
-                error={errors.pricing}
-                suffix="₽"
-              />
-            )}
+          <FormSection
+            title="Цена"
+            description="Вы задаёте блоки времени и цену каждого. Клиент платит за самую дешёвую комбинацию блоков, которая покрывает его аренду."
+          >
+            {/* The mode is not a choice: `rental_tiers` is the only one the API has. A picker with
+                one option is a question whose answer is already known. */}
+            <div className="space-y-2">
+              {draft.tiers.map((tier, index) => (
+                <div key={index} className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <FieldRow>
+                      <FloatingInput
+                        label="Блок, часов"
+                        type="number"
+                        min="1"
+                        value={String(tier.upToHours)}
+                        onChange={event => patchTier(index, { upToHours: Number(event.target.value) || 1 })}
+                      />
+                      <FloatingInput
+                        label="Цена блока"
+                        type="number"
+                        min="0"
+                        value={String(tier.price || '')}
+                        onChange={event => patchTier(index, { price: Number(event.target.value) || 0 })}
+                        suffix="₽"
+                      />
+                    </FieldRow>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set('tiers', draft.tiers.filter((_, i) => i !== index))}
+                    disabled={draft.tiers.length <= 1}
+                    aria-label="Убрать блок"
+                    title="Убрать блок"
+                    className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => set('tiers', [...draft.tiers, { upToHours: nextBlockHours(draft.tiers), price: 0, label: '' }])}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
+              >
+                <Plus size={15} /> Добавить блок
+              </button>
+
+              {errors.pricing && <p className="px-1 text-xs text-red-600">{errors.pricing}</p>}
+
+              <TierPreview tiers={draft.tiers} />
+            </div>
           </FormSection>
           )}
 
