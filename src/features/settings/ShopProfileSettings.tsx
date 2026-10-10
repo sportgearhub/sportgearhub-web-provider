@@ -4,7 +4,6 @@ import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
-import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { Textarea } from '../../components/ui/Textarea';
 import { useGoBack } from '../../lib/useGoBack';
 import { ApiError, profileApi } from '../../lib/api-client';
@@ -13,6 +12,7 @@ import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
+import { ContactsCard } from './ContactsCard';
 
 /** What the shop looks like to a customer. Read here, changed on /settings/shop/edit. */
 export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => void }) {
@@ -43,10 +43,10 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
   return (
     <div className="space-y-4 p-6">
       {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      <div className="max-w-3xl">
+      <div className="max-w-3xl space-y-4">
         <SettingsCard
           title="Витрина проката"
-          description="Название, контакты и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."
+          description="Название, адрес и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."
           action={
             !loading && (
               <SectionEdit onClick={() => onNavigate('/settings/shop/edit')} label="Редактировать профиль проката" />
@@ -58,13 +58,15 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           ) : (
             <DetailList>
               <DetailRow label="Название проката" value={profile?.displayName ?? provider.displayName} />
-              <DetailRow label="Email" value={profile?.contactEmail} />
-              <DetailRow label="Телефон" value={profile?.contactPhone} />
               <DetailRow label="Адрес" value={profile?.address} />
               <DetailRow label="Описание" value={profile?.description} />
             </DetailList>
           )}
         </SettingsCard>
+
+        {/* Eight kinds rather than the two the profile could hold — and the six that were in the
+            model all along, reachable from nowhere until the endpoint existed. */}
+        <ContactsCard />
       </div>
     </div>
   );
@@ -77,8 +79,6 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
   const goBack = useGoBack('/settings/shop');
   const [form, setForm] = useState({
     displayName: provider.displayName,
-    contactEmail: '',
-    contactPhone: '',
     address: '',
     description: '',
   });
@@ -95,9 +95,6 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
         if (cancelled) return;
         setForm({
           displayName: next.displayName ?? provider.displayName,
-          contactEmail: next.contactEmail ?? '',
-          // The input takes the local ten digits; the API stores +7…
-          contactPhone: (next.contactPhone ?? '').replace(/^\+7/, ''),
           address: next.address ?? '',
           description: next.description ?? '',
         });
@@ -124,8 +121,6 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
     try {
       await profileApi.patch({
         displayName,
-        contactEmail: form.contactEmail.trim() || undefined,
-        contactPhone: form.contactPhone.trim() ? `+7${form.contactPhone.replace(/\D/g, '')}` : undefined,
         address: form.address.trim() || undefined,
         description: form.description.trim() || undefined,
       });
@@ -155,17 +150,6 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
               label="Название проката"
               value={form.displayName}
               onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))}
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={form.contactEmail}
-              onChange={event => setForm(current => ({ ...current, contactEmail: event.target.value }))}
-            />
-            <RuPhoneInput
-              label="Телефон"
-              value={form.contactPhone}
-              onChange={value => setForm(current => ({ ...current, contactPhone: value }))}
             />
             <AddressAutocomplete
               label="Адрес"

@@ -1118,3 +1118,38 @@ export interface SellerStatement {
    */
   linesAccruedAmount: number;
 }
+
+// ─── Contacts ─────────────────────────────────────────────────────────────────
+
+/**
+ * The eight ways a seller can be reached. Six of them existed in the model and were reachable
+ * from nowhere until 2026-10-10, when the console could set only the phone and the e-mail.
+ */
+export type ContactKind = 'phone' | 'email' | 'telegram' | 'whatsapp' | 'max' | 'vk' | 'instagram' | 'link';
+
+export interface SellerContact {
+  contactId: string;
+  kind: ContactKind;
+  /**
+   * Normalised on write: a phone comes back E.164, an e-mail lowercased, a pasted
+   * `https://t.me/name` stored as `name`. Render this, never what was typed.
+   */
+  value: string;
+  label: string | null;
+  /**
+   * Not «shown to the customer» — it means the platform uses this one, for acquiring and for
+   * booking notifications. It is simply the first of its kind in the list, so it is set by order.
+   */
+  isPrimary: boolean;
+  /** What the customer sees. Messengers default to public, the phone and e-mail to hidden. */
+  isPublic: boolean;
+  sortOrder: number;
+}
+
+/** What a PUT sends: the whole set, in display order. What is left out is deleted. */
+export interface SellerContactInput {
+  kind: ContactKind;
+  value: string;
+  label?: string | null;
+  isPublic?: boolean;
+}

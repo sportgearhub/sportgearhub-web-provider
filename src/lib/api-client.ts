@@ -1,5 +1,7 @@
 import type {
   AccrualTypeInfo,
+  SellerContact,
+  SellerContactInput,
   AccrualsPage,
   BalanceFees,
   BalancePeriodsPage,
@@ -1044,6 +1046,19 @@ function dateRangeQuery({
   if (pageSize != null) qs.set('page_size', String(pageSize));
   return qs.toString();
 }
+
+/**
+ * How a seller can be reached, and which of those a customer sees.
+ *
+ * A `PUT` replaces the whole set, like a pickup point's opening hours: what the form ended up with
+ * is what the seller has, and **the order of the array is the display order** — so reordering is
+ * the same call, and the first phone in it is the one the platform itself uses.
+ */
+export const contactsApi = {
+  list: () => providerRequest<SellerContact[]>('/contacts'),
+  put: (contacts: SellerContactInput[]) =>
+    providerRequest<SellerContact[]>('/contacts', { method: 'PUT', body: JSON.stringify({ contacts }) }),
+};
 
 export const providerApi = {
   readiness: () => providerRequest<ProviderReadiness>('/readiness'),

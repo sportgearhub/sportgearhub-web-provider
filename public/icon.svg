@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sportgearhub">
+  <!-- A rounded square, the shape every platform crops a tab and a home screen icon to anyway:
+       drawn at a 28% radius so iOS does not round it twice. The glyph is the wordmark's «hub»
+       chip — skewed, white, with the underline that sits beneath «gear» — which is the only part
+       of the mark that still reads at sixteen pixels. -->
+  <rect width="64" height="64" rx="18" fill="#2563eb"/>
+  <g transform="skewX(-8)">
+    <path d="M26.5 18h6.2v10.3c1.5-1.7 3.5-2.6 6-2.6 4.8 0 7.8 3.2 7.8 8.3V46h-6.2V35.6c0-2.7-1.4-4.2-3.8-4.2-2.5 0-3.8 1.6-3.8 4.4V46h-6.2V18z" fill="#ffffff"/>
+  </g>
+  <rect x="18" y="49" width="28" height="3.2" rx="1.6" fill="#ffffff" opacity="0.9"/>
+</svg>
