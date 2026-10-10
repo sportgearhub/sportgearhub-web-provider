@@ -135,7 +135,7 @@ export function CompleteRegistrationPage({
           className={authControlClass}
         />
 
-        <Button type="submit" variant="primary" disabled={loading} className={`w-full ${authControlClass}`}>
+        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
           Продолжить
         </Button>
       </form>

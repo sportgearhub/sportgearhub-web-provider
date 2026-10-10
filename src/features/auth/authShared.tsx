@@ -35,6 +35,7 @@ export function AuthShell({
   children,
   footer,
   busy,
+  promo = false,
 }: {
   title: string;
   subtitle?: ReactNode;
@@ -42,15 +43,21 @@ export function AuthShell({
   /** Secondary ways out — resend, change the number, skip. Plain links, never buttons. */
   footer?: ReactNode;
   /**
-   * What is happening, while it happens. Signing in is the page's work, not a button's: the whole
-   * screen is waiting on one request, so the progress runs across the top of it and the step says
-   * so underneath, instead of a spinner inside a control nobody is looking at any more.
+   * That the page is working. It draws the bar across the top and marks the page busy; the words
+   * it is given are for assistive technology, not for the screen — a line under the form saying
+   * «отправляем код» is narration of something the button is already showing.
    */
   busy?: string;
+  /**
+   * The claims beside the form. Only the screen that asks for a credential shows them: once a code
+   * has been sent, the person is signing in, and an advertisement is in the way of that.
+   */
+  promo?: boolean;
 }) {
   return (
     <div className="relative min-h-[100dvh] bg-background lg:grid lg:grid-cols-2" aria-busy={busy ? true : undefined}>
       {busy && <Runner />}
+      {busy && <span role="status" className="sr-only">{busy}</span>}
 
       <div className="flex min-h-[100dvh] flex-col px-5 pb-8 pt-7 sm:px-8 lg:px-14 xl:px-20">
         {/* Centred on a phone, where this is the only thing on screen and a wordmark pinned to
@@ -62,7 +69,7 @@ export function AuthShell({
         {/* Centred down the page too. Top-aligned left a short form floating under the wordmark
             with the rest of the screen empty below it, which reads as a page that failed. */}
         <main className="flex flex-1 flex-col justify-center py-8 lg:py-0">
-          <div className="mx-auto w-full max-w-[380px] text-center lg:mx-0 lg:text-left">
+          <div className="mx-auto w-full max-w-[380px] text-center lg:text-left">
             <h1 className="text-[27px] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[32px]">
               {title}
             </h1>
@@ -71,10 +78,6 @@ export function AuthShell({
             {/* The controls themselves read left-to-right: a centred label over a full-width
                 field is a caption, not a label. */}
             <div className="mt-8 space-y-5 text-left">{children}</div>
-
-            {busy && (
-              <p role="status" className="mt-6 text-sm text-muted-foreground">{busy}</p>
-            )}
 
             {footer && (
               <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 lg:justify-start">
@@ -85,20 +88,26 @@ export function AuthShell({
             {/* The four rules of the platform, on the column that has room for them. Not on a
                 phone: a person signing in has decided already, and this is the screen where they
                 were asked for nothing but a number. */}
-            <div className="mt-10 hidden lg:block">
-              <div className="grid grid-cols-2 gap-2">
-                {SELLER_FACTS.map(fact => (
-                  <div key={fact.value} className="rounded-xl bg-secondary/70 px-3 py-2.5">
-                    <p className="text-base font-semibold leading-tight text-foreground">{fact.value}</p>
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {fact.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-4 text-muted-foreground">{fact.text}</p>
-                  </div>
-                ))}
+            {promo && (
+              <div className="mt-10 hidden lg:block">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Прокату на платформе
+                </p>
+                {/* One list rather than four boxes: the figure, then what it is, on a line each.
+                    Four cards in a grid at this width gave every claim three words and a wrap. */}
+                <dl className="mt-2 divide-y divide-border">
+                  {SELLER_FACTS.map(fact => (
+                    <div key={fact.value} className="flex items-baseline gap-3 py-2">
+                      <dt className="w-14 shrink-0 text-base font-semibold text-foreground">{fact.value}</dt>
+                      <dd className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
+                        <span className="text-foreground">{fact.label}</span> — {fact.text}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{SELLER_NOTE}</p>
               </div>
-              <p className="mt-2.5 text-xs leading-5 text-muted-foreground">{SELLER_NOTE}</p>
-            </div>
+            )}
           </div>
         </main>
       </div>
@@ -106,7 +115,7 @@ export function AuthShell({
       {/* The picture whole, not cropped: it carries its own headline, and `object-cover` cut it in
           half while the cards sat on top of the words. White around it, so it reads as a poster
           propped beside the form rather than a background the form is floating on. */}
-      <aside className="hidden max-h-[100dvh] items-center justify-center overflow-hidden bg-gray-50 p-10 lg:flex xl:p-14">
+      <aside className="hidden max-h-[100dvh] items-center justify-center overflow-hidden bg-background p-10 lg:flex xl:p-14">
         <img
           src={sellersArtwork}
           alt="Больше клиентов для вашего проката"
@@ -168,11 +177,12 @@ export function AuthLink({
   );
 }
 
-export function IconInput({ icon: Icon, className = '', ...props }: React.ComponentProps<typeof Input> & { icon: AuthInputIcon }) {
-  return (
-    <div className="relative">
-      <Input {...props} className={cn(authControlClass, 'pl-10', className)} />
-      <Icon size={16} className="pointer-events-none absolute bottom-[14px] left-3.5 text-muted-foreground" />
-    </div>
-  );
+export function IconInput({
+  icon: Icon,
+  className = '',
+  ...props
+}: Omit<React.ComponentProps<typeof Input>, 'icon'> & { icon: AuthInputIcon }) {
+  // The icon goes to the field, which knows where its own middle is. Positioned here it was
+  // measured against the whole control — label, input and hint — and sat under the hint.
+  return <Input {...props} icon={<Icon size={16} />} className={cn(authControlClass, className)} />;
 }

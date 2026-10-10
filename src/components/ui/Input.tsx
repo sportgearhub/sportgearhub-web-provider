@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef, useState } from 'react';
+import { InputHTMLAttributes, ReactNode, forwardRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -6,10 +6,15 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
+  /**
+   * A mark inside the field, at its left edge. It belongs to the input's own box — placed by the
+   * caller against the wrapper it would land under the hint, which is where it ended up.
+   */
+  icon?: ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className = '', type, disabled, ...props }, ref) => {
+  ({ label, error, hint, icon, className = '', type, disabled, ...props }, ref) => {
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const hasPasswordToggle = type === 'password';
     const inputType = hasPasswordToggle && isPasswordVisible ? 'text' : type;
@@ -30,9 +35,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-base sm:text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
               error && 'border-destructive focus-visible:ring-destructive/40',
               hasPasswordToggle && 'pr-10',
+              icon && 'pl-10',
               className
             )}
           />
+          {icon && (
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {icon}
+            </span>
+          )}
           {hasPasswordToggle && (
             <button
               type="button"

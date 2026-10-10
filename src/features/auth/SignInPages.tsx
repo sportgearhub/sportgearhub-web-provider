@@ -138,7 +138,8 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     <AuthShell
       title="Кабинет продавца"
       subtitle="Введите телефон или почту — пришлём одноразовый код."
-      busy={loading ? 'Отправляем код…' : undefined}
+      busy={loading ? 'Отправляем код' : undefined}
+      promo
     >
       {toast.node}
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -157,10 +158,10 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
           }
         />
 
-        {/* No spinner in the button: the bar across the top of the page is saying it, and this
-            one is about to be replaced by the next step anyway. */}
-        <Button type="submit" variant="primary" disabled={loading} className={`w-full ${authControlClass}`}>
-          Войти
+        {/* The label goes while it works: «Войти» beside a spinner reads as an invitation to
+            press the thing that is already pressed. */}
+        <Button type="submit" variant="primary" loading={loading} className={`w-full ${authControlClass}`}>
+          {loading ? '' : 'Войти'}
         </Button>
       </form>
     </AuthShell>

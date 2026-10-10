@@ -59,8 +59,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size }), className)}
         {...props}
       >
+        {/* A spinner beside a label is a small mark next to the word; a spinner *instead* of the
+            label is the whole content of the button and is sized like it. */}
         {loading && (
-          <svg className="-ml-0.5 h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+          <svg
+            className={cn('animate-spin', children ? '-ml-0.5 h-3.5 w-3.5' : 'h-5 w-5')}
+            fill="none"
+            viewBox="0 0 24 24"
+          >
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
