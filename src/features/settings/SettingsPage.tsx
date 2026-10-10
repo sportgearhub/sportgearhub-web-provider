@@ -61,8 +61,9 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white">
       {/* The name of the section, which the list down the left used to carry. On a phone the bar
-          at the top says it already. */}
-      <div className="hidden px-6 pt-6 lg:block">
+          at the top says it already — and an edit screen draws its own heading with the way back
+          to what it edits, so this one would be the same words twice down the same page. */}
+      <div className={`px-6 pt-6 ${tab.endsWith('-edit') ? 'hidden' : 'hidden lg:block'}`}>
         {/* Not a link: there is no settings index on a desktop — every section is reachable from
             the menu in the header, which is why the list beside them could go. */}
         <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Настройки</p>

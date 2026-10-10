@@ -1,6 +1,7 @@
 import type {
   AccrualTypeInfo,
   SellerContact,
+  SellerPhoto,
   SellerContactInput,
   AccrualsPage,
   BalanceFees,
@@ -963,6 +964,17 @@ export const profileApi = {
     address?: string;
     description?: string;
   }) => providerRequest<Provider>('/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+
+  /**
+   * One photo per cabinet. The upload replaces whatever was there and answers with the new one;
+   * the URL does not change, so anything already on screen needs `updatedAt` appended to see it.
+   */
+  uploadPhoto: (file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    return providerRequest<SellerPhoto>('/profile/photo', { method: 'POST', body });
+  },
+  deletePhoto: () => providerRequest<void>('/profile/photo', { method: 'DELETE' }),
 };
 
 // "Start selling": a draft provider with its legal party and accepted agreement, in one request.

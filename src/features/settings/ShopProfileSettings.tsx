@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ImageOff, Save, X } from 'lucide-react';
 import { AddressAutocomplete } from '../../components/ui/AddressAutocomplete';
 import { Button } from '../../components/ui/Button';
 import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { useGoBack } from '../../lib/useGoBack';
-import { ApiError, profileApi } from '../../lib/api-client';
-import type { Provider } from '../../types';
+import { ApiError, mediaUrl, profileApi } from '../../lib/api-client';
+import { CopyValue } from '../../components/ui/CopyValue';
+import { STOREFRONT_BASE_URL } from '../providers/providerStatus';
+import type { Provider, SellerPhoto } from '../../types';
 import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../providers/ProviderContext';
 import { SectionPage } from '../../components/layout/SectionPage';
@@ -56,17 +58,115 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
           {loading ? (
             <p className="text-sm text-gray-500">Загружаем профиль...</p>
           ) : (
-            <DetailList>
-              <DetailRow label="Название проката" value={profile?.displayName ?? provider.displayName} />
-              <DetailRow label="Адрес" value={profile?.address} />
-              <DetailRow label="Описание" value={profile?.description} />
-            </DetailList>
+            <>
+              <ShopPhoto photo={profile?.photo ?? null} onChange={photo => setProfile(current => (current ? { ...current, photo } : current))} />
+
+              <DetailList className="mt-4">
+                <DetailRow label="Название проката" value={profile?.displayName ?? provider.displayName} />
+                <DetailRow label="Адрес" value={profile?.address} />
+                <DetailRow
+                  label="Адрес витрины"
+                  hint="По этой ссылке клиенты открывают страницу проката"
+                >
+                  {profile?.slug
+                    ? <CopyValue value={`${STOREFRONT_BASE_URL}/${profile.slug}`} label="ссылка на витрину" className="text-xs" />
+                    : <span className="text-gray-400">Не задан</span>}
+                </DetailRow>
+                <DetailRow label="Описание" value={profile?.description} multiline />
+              </DetailList>
+            </>
           )}
         </SettingsCard>
 
         {/* Eight kinds rather than the two the profile could hold — and the six that were in the
             model all along, reachable from nowhere until the endpoint existed. */}
         <ContactsCard />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The cabinet's photo.
+ *
+ * Its own endpoint, so it is saved the moment it is chosen rather than waiting for a form — and
+ * the upload replaces whatever was there, which is why there is no gallery here and no «сделать
+ * главной». The URL does not change between photos, so `updatedAt` is hung off it: without that
+ * the browser goes on showing the one it already has.
+ */
+function ShopPhoto({ photo, onChange }: { photo: SellerPhoto | null; onChange: (photo: SellerPhoto | null) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    setError('');
+    try {
+      onChange(await profileApi.uploadPhoto(file));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить фото.');
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await profileApi.deletePhoto();
+      onChange(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось удалить фото.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      {photo ? (
+        <img
+          src={`${mediaUrl(photo.url)}?v=${encodeURIComponent(photo.updatedAt)}`}
+          alt=""
+          className="h-20 w-20 shrink-0 rounded-2xl border border-gray-200 object-cover"
+        />
+      ) : (
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 text-gray-300">
+          <ImageOff size={22} />
+        </span>
+      )}
+
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-950">Фото проката</p>
+        <p className="mt-0.5 text-xs leading-4 text-gray-500">
+          Клиенты видят его на странице проката. JPEG, PNG или WebP, до 5 МБ.
+        </p>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" loading={busy} onClick={() => inputRef.current?.click()}>
+            {photo ? 'Заменить' : 'Загрузить'}
+          </Button>
+          {photo && (
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => void remove()}>
+              Удалить
+            </Button>
+          )}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={event => {
+            const file = event.target.files?.[0];
+            if (file) void upload(file);
+          }}
+        />
       </div>
     </div>
   );
@@ -79,6 +179,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
   const goBack = useGoBack('/settings/shop');
   const [form, setForm] = useState({
     displayName: provider.displayName,
+    slug: '',
     address: '',
     description: '',
   });
@@ -95,6 +196,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
         if (cancelled) return;
         setForm({
           displayName: next.displayName ?? provider.displayName,
+          slug: next.slug ?? '',
           address: next.address ?? '',
           description: next.description ?? '',
         });
@@ -121,6 +223,7 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
     try {
       await profileApi.patch({
         displayName,
+        slug: form.slug.trim() || undefined,
         address: form.address.trim() || undefined,
         description: form.description.trim() || undefined,
       });
@@ -155,6 +258,18 @@ export function ShopProfileEdit({ onNavigate }: { onNavigate: (path: string) => 
               label="Адрес"
               value={form.address}
               onChange={value => setForm(current => ({ ...current, address: value }))}
+            />
+            {/* The storefront's address for this prokat. Latin letters, digits and hyphens: it is
+                part of a URL, and a changed one leaves the old link pointing at nothing. */}
+            <Input
+              label="Адрес витрины"
+              value={form.slug}
+              onChange={event => setForm(current => ({
+                ...current,
+                slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+              }))}
+              placeholder="prokat-na-lenina"
+              hint={`${STOREFRONT_BASE_URL.replace(/^https?:\/\//, '')}/${form.slug || '…'}`}
             />
           </div>
           <Textarea

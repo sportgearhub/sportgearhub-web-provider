@@ -58,6 +58,66 @@ interface HeaderProps {
 }
 
 /**
+ * Магазин — what the customer sees of this prokat, as a section with its own rooms.
+ *
+ * A section rather than another entry in the profile menu: the shop front is a place a seller
+ * goes to look at and change, not a setting they adjust once. It opens on a click rather than a
+ * hover, because a menu that appears while the pointer is passing over it is a menu nobody can
+ * aim at — and it stays lit while one of its rooms is open, so the bar says where you are.
+ */
+const SHOP_ROOMS: { label: string; note: string; path: string }[] = [
+  { label: 'Витрина', note: 'Фото, название, описание и ссылка на страницу проката', path: '/settings/shop' },
+  { label: 'Пункты проката', note: 'Адреса выдачи и часы работы', path: '/settings/locations' },
+];
+
+function ShopMenu({ currentPath, onNavigate }: { currentPath: string; onNavigate: (path: string) => void }) {
+  const menu = useDropdown('left', 300);
+  const active = SHOP_ROOMS.some(room => currentPath.startsWith(room.path));
+
+  return (
+    <>
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        onClick={menu.toggle}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex h-9 shrink-0 items-center gap-1 rounded-lg px-3 text-sm font-medium transition-colors',
+          active || menu.open
+            ? 'bg-sidebar-accent text-sidebar-primary'
+            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+        )}
+      >
+        Магазин
+        <ChevronDown size={13} className={cn('shrink-0 transition-transform', menu.open && 'rotate-180')} />
+      </button>
+
+      {menu.render(
+        <div className="py-1">
+          {SHOP_ROOMS.map(room => (
+            <button
+              key={room.path}
+              type="button"
+              role="menuitem"
+              onClick={() => { menu.close(); onNavigate(room.path); }}
+              className={cn(
+                'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-sidebar-accent',
+                currentPath.startsWith(room.path) ? 'text-sidebar-primary' : 'text-foreground'
+              )}
+            >
+              <span className="text-sm font-medium">{room.label}</span>
+              <span className="text-xs text-muted-foreground">{room.note}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * The console's header, which is a desktop thing.
  *
  * On a phone the sections are in the bar at the bottom, within a thumb's reach, and a screen one
@@ -105,6 +165,8 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
               {item.label}
             </button>
           ))}
+
+          {workspace === 'rental' && <ShopMenu currentPath={currentPath} onNavigate={onNavigate} />}
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           {actions}

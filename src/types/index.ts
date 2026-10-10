@@ -115,12 +115,27 @@ export interface ProviderReviewSummary {
   message: string | null;
 }
 
+/**
+ * The cabinet's one photo. Uploading replaces the previous one **and keeps the same URL**, so a
+ * link already rendered goes on working and starts serving the new image — which is why
+ * `updatedAt` is here: it is what a cache is busted with.
+ */
+export interface SellerPhoto {
+  photoId: string;
+  url: string;
+  contentType: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
+
 export interface Provider {
   sellerId: string;
   displayName: string;
   description: string | null;
   address: string | null;
+  /** The storefront's address for this prokat: sportgearhub.ru/<slug>. */
   slug: string | null;
+  photo: SellerPhoto | null;
   contactEmail: string | null;
   contactPhone: string | null;
   status: ProviderStatus;
