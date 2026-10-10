@@ -3,7 +3,18 @@ import { Mail } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { BrandWordmark } from '../../components/layout/BrandWordmark';
 import { cn } from '../../lib/utils';
-import { AuthArtwork } from './AuthArtwork';
+import sellersArtwork from '../../assets/auth-sellers.png';
+
+/**
+ * The four rules of the platform, as the landing site states them publicly. Kept in step with
+ * `SELLERS.numbers` there — a claim a seller reads before signing in and after should be one claim.
+ */
+const SELLER_FACTS = [
+  { value: '0 ₽', label: 'в месяц', text: 'Платите только комиссию с состоявшихся броней' },
+  { value: '24/7', label: 'онлайн-брони', text: 'Клиенты бронируют и платят даже когда пункт закрыт' },
+  { value: 'СБП', label: 'или расчётный счёт', text: 'Выручка приходит сама — туда, куда вам удобно' },
+  { value: 'Авто', label: 'оплата, чеки, выплаты', text: 'Всё проходит без вашего участия' },
+];
 
 type AuthInputIcon = typeof Mail;
 
@@ -72,8 +83,26 @@ export function AuthShell({
         </main>
       </div>
 
+      {/* The same picture the landing site uses for продавцам — one promise across the two
+          surfaces, rather than a drawing here and a photograph there. Over it, the four rules of
+          the platform, which are public and are what a seller is signing in to use. */}
       <aside className="relative hidden overflow-hidden lg:block">
-        <AuthArtwork className="absolute inset-0 h-full w-full" />
+        <img
+          src={sellersArtwork}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-x-0 bottom-0 p-8 xl:p-10">
+          <div className="grid grid-cols-2 gap-2">
+            {SELLER_FACTS.map(fact => (
+              <div key={fact.value} className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-lg font-semibold leading-tight text-white">{fact.value}</p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-white/70">{fact.label}</p>
+                <p className="mt-1 text-xs leading-4 text-white/85">{fact.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </aside>
     </div>
   );

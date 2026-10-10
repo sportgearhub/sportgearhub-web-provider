@@ -1,33 +1,30 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
-import { RuPhoneInput } from '../../components/ui/RuPhoneInput';
 import { useAuth } from '../../context/useAuth';
 import { ApiError, authApi, type VerificationStarted } from '../../lib/api-client';
-import { Mail } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 import { AuthLink, AuthShell, IconInput, authControlClass } from './authShared';
 import { useToast } from '../../components/ui/Toast';
 import { PasscodeInput } from './PasscodeInput';
 import { useVerificationStage } from './useVerificationStage';
-import { authPath, type AuthChannel, type Navigate } from './authUtils';
+import { authPath, type Navigate } from './authUtils';
+import { formatAsTyped, readContact } from './contactChannel';
 
 // There are no passwords. A new session starts with a one-time code mailed to the address; a browser the
 // user has already trusted can unlock with a short passcode instead (see PasscodeSignInPage).
 export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   const { verifyCode } = useAuth();
   const [step, setStep] = useState<'phone' | 'waiting' | 'code'>('phone');
-  // Neither credential is the fallback: a seller who registered with an address and never gave a
-  // number has only that door, and one who has both can use either.
-  const [channel, setChannel] = useState<AuthChannel>('phone');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // One field. Neither credential is the fallback and neither is a mode: what was typed says which
+  // it is, because an address has an `@` and a number does not.
+  const [input, setInput] = useState('');
   const [code, setCode] = useState('');
   const [started, setStarted] = useState<VerificationStarted | null>(null);
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
-  const digits = phone.replace(/\D/g, '');
-  const e164 = `+7${digits}`;
-  const contact = channel === 'email' ? email.trim() : e164;
+  const guess = readContact(input);
+  const { channel, contact } = guess;
 
   useEffect(() => {
     if (authApi.hasTrustedDevice()) onNavigate(authPath('/passcode'), true);
@@ -61,12 +58,10 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (channel === 'phone' && digits.length !== 10) {
-      toast.show('Укажите корректный номер телефона.');
-      return;
-    }
-    if (channel === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact)) {
-      toast.show('Укажите корректный адрес почты.');
+    if (!guess.valid) {
+      toast.show(channel === 'email'
+        ? 'Проверьте адрес почты.'
+        : 'Телефон из 10 цифр — например, +7 927 938-35-62.');
       return;
     }
     await begin();
@@ -89,7 +84,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   if (step === 'waiting' && started) {
     return (
       <PushWaitingStep
-        phone={digits}
+        phone={contact}
         started={started}
         onNeedsCode={() => setStep('code')}
         onSignedIn={onProven}
@@ -111,7 +106,7 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
     return (
       <AuthShell
         title={channel === 'email' ? 'Введите код из письма' : 'Введите код из SMS'}
-        subtitle={<>Код отправлен на {channel === 'email' ? contact : `+7 ${digits}`}. Действует 10 минут.</>}
+        subtitle={<>Код отправлен на {formatAsTyped(contact)}. Действует 10 минут.</>}
         busy={loading ? 'Проверяем код…' : undefined}
         footer={
           <>
@@ -142,35 +137,25 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
   return (
     <AuthShell
       title="Кабинет продавца"
-      subtitle={channel === 'email' ? 'Пришлём код на почту.' : 'Пришлём код в SMS.'}
+      subtitle="Введите телефон или почту — пришлём одноразовый код."
       busy={loading ? 'Отправляем код…' : undefined}
-      footer={
-        /* The other door, named rather than hidden behind «ещё». Nobody is signing in «by another
-           method»; they are signing in with the credential they have. */
-        <AuthLink
-          onClick={() => setChannel(channel === 'email' ? 'phone' : 'email')}
-          disabled={loading}
-        >
-          {channel === 'email' ? 'Войти по номеру телефона' : 'Войти по почте'}
-        </AuthLink>
-      }
     >
       {toast.node}
       <form onSubmit={handleSubmit} className="space-y-5">
-        {channel === 'email' ? (
-          <IconInput
-            icon={Mail}
-            label="Почта"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={event => setEmail(event.target.value)}
-          />
-        ) : (
-          <RuPhoneInput label="Номер телефона" value={phone} onChange={setPhone} size="lg" />
-        )}
+        <IconInput
+          icon={channel === 'email' ? Mail : Phone}
+          label="Телефон или почта"
+          inputMode={channel === 'email' ? 'email' : 'tel'}
+          autoComplete="username"
+          placeholder="+7 900 000-00-00"
+          value={input}
+          onChange={event => setInput(formatAsTyped(event.target.value))}
+          hint={
+            guess.valid
+              ? channel === 'email' ? 'Код придёт на почту' : 'Код придёт в SMS'
+              : undefined
+          }
+        />
 
         {/* No spinner in the button: the bar across the top of the page is saying it, and this
             one is about to be replaced by the next step anyway. */}
