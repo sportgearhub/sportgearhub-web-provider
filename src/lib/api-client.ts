@@ -61,7 +61,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, ''
  * A media path as the browser can fetch it.
  *
  * Uploaded files live on the API host, and the API returns them as a path. Rendered as-is, the
- * browser resolves that against the console's own origin — crm.sportgearhub.ru — and gets a 404
+ * browser resolves that against the console's own origin — seller.sportgearhub.ru — and gets a 404
  * for a file that exists. An absolute URL is already answerable and passes through untouched.
  */
 export function mediaUrl(url: string | null | undefined): string | undefined {

@@ -2,12 +2,15 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <!-- One SVG for every size: a tab, a bookmark, a pinned shortcut. The file was Vite's own
-         placeholder, and it was not even there — `public/` did not exist, so the tab showed a
-         blank page icon. -->
+    <!-- The same icon set the landing site carries, square and full-bleed rather than rounded:
+         Safari draws its own rounding and leaves a white edge around a shape that rounds itself.
+         ICO for anything asking /favicon.ico, the SVG for modern browsers, the 180px PNG for iOS,
+         and the manifest's sizes for an installed shortcut. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    <meta name="theme-color" content="#2563eb" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0114fc" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Кабинет продавца — Sportgearhub</title>
     <meta name="description" content="Кабинет проката: каталог, брони, выдача и возврат, деньги." />
