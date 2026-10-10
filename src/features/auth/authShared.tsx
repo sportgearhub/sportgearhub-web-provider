@@ -9,6 +9,8 @@ import sellersArtwork from '../../assets/auth-sellers.png';
  * The four rules of the platform, as the landing site states them publicly. Kept in step with
  * `SELLERS.numbers` there — a claim a seller reads before signing in and after should be one claim.
  */
+const SELLER_NOTE = 'Без абонентской платы · Работает в браузере · Самозанятые, ИП и организации';
+
 const SELLER_FACTS = [
   { value: '0 ₽', label: 'в месяц', text: 'Платите только комиссию с состоявшихся броней' },
   { value: '24/7', label: 'онлайн-брони', text: 'Клиенты бронируют и платят даже когда пункт закрыт' },
@@ -79,30 +81,40 @@ export function AuthShell({
                 {footer}
               </div>
             )}
+
+            {/* The four rules of the platform, on the column that has room for them. Not on a
+                phone: a person signing in has decided already, and this is the screen where they
+                were asked for nothing but a number. */}
+            <div className="mt-10 hidden lg:block">
+              <div className="grid grid-cols-2 gap-2">
+                {SELLER_FACTS.map(fact => (
+                  <div key={fact.value} className="rounded-xl bg-secondary/70 px-3 py-2.5">
+                    <p className="text-base font-semibold leading-tight text-foreground">{fact.value}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {fact.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-4 text-muted-foreground">{fact.text}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2.5 text-xs leading-5 text-muted-foreground">{SELLER_NOTE}</p>
+            </div>
           </div>
         </main>
       </div>
 
-      {/* The same picture the landing site uses for продавцам — one promise across the two
-          surfaces, rather than a drawing here and a photograph there. Over it, the four rules of
-          the platform, which are public and are what a seller is signing in to use. */}
-      <aside className="relative hidden overflow-hidden lg:block">
+      {/* The picture whole, not cropped: it carries its own headline, and `object-cover` cut it in
+          half while the cards sat on top of the words. White around it, so it reads as a poster
+          propped beside the form rather than a background the form is floating on. */}
+      <aside className="hidden max-h-[100dvh] items-center justify-center overflow-hidden bg-gray-50 p-10 lg:flex xl:p-14">
         <img
           src={sellersArtwork}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          alt="Больше клиентов для вашего проката"
+          /* Capped against the viewport rather than the column: the row's height comes from its
+             content, so `max-h-full` here would be measured against a height this image is itself
+             deciding — and a 9:16 poster in a half-width column is taller than the screen. */
+          className="max-h-[calc(100dvh-5rem)] w-auto rounded-2xl object-contain shadow-sm xl:max-h-[calc(100dvh-7rem)]"
         />
-        <div className="absolute inset-x-0 bottom-0 p-8 xl:p-10">
-          <div className="grid grid-cols-2 gap-2">
-            {SELLER_FACTS.map(fact => (
-              <div key={fact.value} className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                <p className="text-lg font-semibold leading-tight text-white">{fact.value}</p>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-white/70">{fact.label}</p>
-                <p className="mt-1 text-xs leading-4 text-white/85">{fact.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </aside>
     </div>
   );
