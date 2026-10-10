@@ -329,7 +329,7 @@ export function ExperienceDashboardPage({ onNavigate }: { onNavigate: (path: str
 
   return (
     <>
-      <CabinetHeader onNavigate={onNavigate} workspaceToggle />
+      <CabinetHeader onNavigate={onNavigate} />
       <SectionPage title="Впечатления" description="Сегодня и ближайшие выходы.">
         <PrototypeNote>Демонстрационные данные — API впечатлений ещё не существует.</PrototypeNote>
 

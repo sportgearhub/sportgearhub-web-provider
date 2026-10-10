@@ -96,7 +96,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   return (
     <div className="space-y-4 px-3 pb-6 pt-3 lg:space-y-6 lg:p-6">
-      <CabinetHeader onNavigate={onNavigate} workspaceToggle className="-mx-3 -mt-3" />
+      <CabinetHeader onNavigate={onNavigate} className="-mx-3 -mt-3" />
 
       {/* The scanner left the navigation bar: it is one job, done at a counter, not one of the
           four places this console is. It lives here, first, because the screen a seller lands on

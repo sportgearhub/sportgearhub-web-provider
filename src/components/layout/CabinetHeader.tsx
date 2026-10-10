@@ -5,7 +5,6 @@ import { useAuth } from '../../context/useAuth';
 import { selectProvider } from '../../lib/active-provider';
 import { profileApi } from '../../lib/api-client';
 import { useProvider } from '../../features/providers/ProviderContext';
-import { useWorkspace, workspaceMeta, type Workspace } from '../../features/workspace/workspace';
 import { BottomSheet } from '../ui/BottomSheet';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
@@ -18,21 +17,20 @@ import { cn } from '../../lib/utils';
  * its name with a chevron to change it, and the line underneath that says how customers reach it —
  * and a way into its settings in the corner. A seller who runs two cabinets switches them from the
  * screen they land on rather than from a menu three taps deep.
+ *
+ * It carried the Прокат/Впечатления switch until Впечатления was taken off the console: a toggle
+ * between one thing and a thing that is not there yet is a question with one answer.
  */
 export function CabinetHeader({
   onNavigate,
-  workspaceToggle = false,
   className,
 }: {
   onNavigate: (path: string) => void;
-  /** The two businesses this cabinet is used for. On a home screen; not on a list of settings. */
-  workspaceToggle?: boolean;
   className?: string;
 }) {
   const { providers, user } = useAuth();
   const provider = useProvider();
   const navigate = useNavigate();
-  const { workspace, setWorkspace } = useWorkspace();
   const [switching, setSwitching] = useState(false);
   const [contact, setContact] = useState<string | null>(null);
 
@@ -100,24 +98,6 @@ export function CabinetHeader({
           <Settings size={20} />
         </button>
       </div>
-
-      {workspaceToggle && (
-        <div className="mt-3 flex gap-1 rounded-xl bg-gray-100 p-1">
-          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setWorkspace(key)}
-              className={cn(
-                'flex-1 rounded-lg px-3 py-1.5 text-sm transition',
-                key === workspace ? 'bg-white font-medium text-gray-950 shadow-sm' : 'text-gray-600'
-              )}
-            >
-              {workspaceMeta[key].label}
-            </button>
-          ))}
-        </div>
-      )}
 
       <BottomSheet
         open={switching}

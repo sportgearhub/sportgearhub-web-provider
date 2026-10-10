@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CalendarCheck,
+  Building2,
   Check,
   CalendarDays,
   ChevronDown,
@@ -20,9 +21,8 @@ import { useAuth } from '../../context/useAuth';
 import { useProvider } from '../../features/providers/ProviderContext';
 import { BrandWordmark } from './BrandWordmark';
 import { settingsGroups } from '../../features/menu/menuGroups';
-import { CabinetSwitchDialog } from '../../features/providers/CabinetSwitchDialog';
 import { cn } from '../../lib/utils';
-import { useWorkspace, workspaceMeta, type Workspace } from '../../features/workspace/workspace';
+import { useWorkspace, type Workspace } from '../../features/workspace/workspace';
 
 type NavItem = { label: string; path: string; icon: LucideIcon };
 
@@ -84,8 +84,6 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
           <BrandWordmark size="sm" className="sm:text-lg" />
         </button>
 
-        <CabinetSwitch />
-        <WorkspaceSwitch />
         {/* Scrolls sideways on a phone rather than wrapping to a second row. Safe now that the menus
             are portalled: a scroll container can no longer clip them. */}
         {/* Below `lg` the sections live in the bar at the bottom of the screen, within a thumb's
@@ -135,119 +133,6 @@ export function Header({ currentPath, onNavigate, actions }: HeaderProps) {
  * rather than a dropdown — a menu anchored under a trigger that already sits on the bottom edge
  * would open off the screen.
  */
-/**
- * The cabinet everything on screen belongs to, and the way to another one.
- *
- * It was a card inside the profile menu — two clicks and a dialog, from a place nobody opens to
- * change cabinets. It is a name with a chevron in the header now, because that is where a person
- * looks to check which company they are working in, and choosing from it switches directly rather
- * than opening a dialog to confirm what was just clicked.
- */
-function CabinetSwitch() {
-  const { providers } = useAuth();
-  const provider = useProvider();
-  const navigate = useNavigate();
-  const menu = useDropdown('left', 260);
-
-  if (providers.length <= 1) {
-    return <span className="hidden max-w-[14rem] truncate text-sm font-medium text-foreground lg:block">{provider.displayName}</span>;
-  }
-
-  return (
-    <>
-      <button
-        ref={menu.triggerRef}
-        type="button"
-        onClick={menu.toggle}
-        aria-haspopup="menu"
-        aria-expanded={menu.open}
-        className="hidden h-9 max-w-[14rem] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-foreground transition hover:bg-sidebar-accent lg:flex"
-      >
-        <span className="truncate">{provider.displayName}</span>
-        <ChevronDown size={14} className="shrink-0 text-gray-400" />
-      </button>
-      {menu.render(
-        <div className="py-1">
-          {providers.map(item => (
-            <button
-              key={item.providerId}
-              type="button"
-              onClick={() => {
-                selectProvider(item.providerId);
-                menu.close();
-                navigate(0);
-              }}
-              className={cn(
-                'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-gray-50',
-                item.providerId === provider.providerId ? 'text-blue-700' : 'text-gray-900'
-              )}
-            >
-              <span className="min-w-0 flex-1 truncate">{item.displayName}</span>
-              {item.providerId === provider.providerId && <Check size={15} className="shrink-0 text-blue-600" />}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => { menu.close(); navigate('/providers/new'); }}
-            className="mt-1 flex w-full items-center gap-2 border-t px-3 py-2 text-left text-sm text-blue-700 transition hover:bg-gray-50"
-          >
-            <Plus size={14} /> Добавить кабинет
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
-
-/**
- * Which business you are running, as a switch rather than a setting.
- *
- * Прокат and Впечатления share a cabinet, a legal party and a payout account, and share no screens
- * at all — so this changes the whole console rather than filtering a list. It is a dropdown and
- * not a tab bar because it is not navigation: nothing above it changes, everything below it does.
- */
-function WorkspaceSwitch() {
-  const { workspace, setWorkspace } = useWorkspace();
-  const menu = useDropdown('left', 240);
-
-  return (
-    <>
-      <button
-        ref={menu.triggerRef}
-        type="button"
-        onClick={menu.toggle}
-        aria-haspopup="menu"
-        aria-expanded={menu.open}
-        className="flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-sm font-medium text-foreground transition hover:bg-secondary/70"
-      >
-        {workspaceMeta[workspace].label}
-        <ChevronDown size={14} className="text-gray-400" />
-      </button>
-      {menu.render(
-        <div className="py-1">
-          {(Object.keys(workspaceMeta) as Workspace[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => { setWorkspace(key); menu.close(); }}
-              className={cn(
-                'flex w-full items-start gap-2.5 px-3 py-2 text-left transition hover:bg-gray-50',
-                key === workspace ? 'text-blue-700' : 'text-gray-900'
-              )}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">{workspaceMeta[key].label}</span>
-                <span className="block text-xs text-gray-500">{workspaceMeta[key].hint}</span>
-              </span>
-              {key === workspace && <Check size={15} className="mt-0.5 shrink-0 text-blue-600" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
 export function MobileNavBar({
   currentPath,
   onNavigate,
@@ -320,7 +205,8 @@ function ProfileMenu({
   onSignOut: () => void;
 }) {
   const menu = useDropdown('right', 280);
-  const [switching, setSwitching] = useState(false);
+  const { providers } = useAuth();
+  const navigate = useNavigate();
   const inSettings = currentPath.startsWith('/settings');
 
   return (
@@ -349,6 +235,45 @@ function ProfileMenu({
           <div className="border-b px-3 pb-2 pt-1">
             <p className="truncate text-sm font-medium text-foreground">{name}</p>
             <p className="truncate text-xs text-muted-foreground">{phone}</p>
+          </div>
+
+          {/* The cabinet, back where it was: a seller with one never thinks about it, and a seller
+              with two changes it rarely enough that it belongs behind the same button as the
+              account rather than taking a place of its own in the bar. */}
+          <div className="border-b py-1">
+            <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Кабинет
+            </p>
+            {providers.map(item => (
+              <button
+                key={item.providerId}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  menu.close();
+                  if (item.providerId === currentProviderId) return;
+                  selectProvider(item.providerId);
+                  // Everything on screen belongs to the old cabinet; a reload replaces it honestly.
+                  navigate(0);
+                }}
+                className={cn(
+                  'flex h-9 w-full items-center gap-2 px-3 text-left text-sm transition hover:bg-sidebar-accent',
+                  item.providerId === currentProviderId ? 'text-sidebar-primary' : 'text-foreground'
+                )}
+              >
+                <Building2 size={14} className="shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{item.displayName}</span>
+                {item.providerId === currentProviderId && <Check size={14} className="shrink-0" />}
+              </button>
+            ))}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { menu.close(); navigate('/providers/new'); }}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-blue-700 transition hover:bg-sidebar-accent"
+            >
+              <Plus size={14} className="shrink-0" /> Добавить кабинет
+            </button>
           </div>
 
           {profileMenuGroups.map(group => (
@@ -394,7 +319,6 @@ function ProfileMenu({
         </>
       )}
 
-      <CabinetSwitchDialog open={switching} currentProviderId={currentProviderId} onClose={() => setSwitching(false)} />
     </>
   );
 }

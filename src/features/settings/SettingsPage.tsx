@@ -31,79 +31,43 @@ export type SettingsTab =
   | 'payouts'
   | 'contracts';
 
-/** An "…-edit" page keeps its parent lit in the sidebar: it is the same section, one step deeper. */
-function sectionOf(tab: SettingsTab): SettingsTab {
-  return tab.endsWith('-edit') ? (tab.slice(0, -'-edit'.length) as SettingsTab) : tab;
-}
-
 interface SettingsPageProps {
   tab: SettingsTab;
   onNavigate: (path: string) => void;
 }
 
-// The settings sidebar, grouped the way a seller thinks about it: the cabinet, the money and
-// paperwork, the account.
-const sidebarGroups: { title: string; items: { id: SettingsTab; label: string; path: string }[] }[] = [
-  {
-    title: 'Управление кабинетом',
-    items: [
-      { id: 'shop', label: 'Профиль проката', path: '/settings/shop' },
-      { id: 'locations', label: 'Пункты проката', path: '/settings/locations' },
-      { id: 'employees', label: 'Сотрудники', path: '/settings/employees' },
-    ],
-  },
-  {
-    title: 'Реквизиты и договор',
-    items: [
-      { id: 'seller', label: 'Информация о продавце', path: '/settings/seller' },
-      { id: 'payouts', label: 'Реквизиты', path: '/settings/payouts' },
-      { id: 'contracts', label: 'Договоры', path: '/settings/contracts' },
-    ],
-  },
-  {
-    title: 'Учётная запись',
-    items: [{ id: 'account', label: 'Аккаунт', path: '/settings/account' }],
-  },
-];
+/**
+ * A settings section, on its own.
+ *
+ * There was a list of the sections down the left of every one of them — a second navigation beside
+ * the one in the header, which carries the same list and is on screen anyway. Two lists of the
+ * same links disagree the week one of them gains an entry, and this one already had: «Реквизиты»
+ * where the rest of the console says «Реквизиты выплат», and no Финансы at all.
+ */
+/** What each section is called, where the sidebar used to say it. */
+const SECTION_TITLES: Record<SettingsTab, string> = {
+  shop: 'Профиль проката',
+  'shop-edit': 'Редактирование профиля',
+  seller: 'Информация о продавце',
+  'seller-edit': 'Данные продавца',
+  locations: 'Пункты проката',
+  employees: 'Сотрудники',
+  payouts: 'Реквизиты выплат',
+  contracts: 'Договоры',
+  account: 'Аккаунт',
+};
 
 export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
-  const showSidebar = true;
-  const section = sectionOf(tab);
   return (
-    <div className="flex min-h-0 flex-1 bg-white">
-      {/* The section list is a panel like the cards beside it, not a rail welded to the page. */}
-      {showSidebar && (
-        <aside
-          className="my-6 ml-6 hidden w-60 shrink-0 self-start rounded-lg border border-gray-200 p-3 md:block"
-          aria-label="Разделы настроек"
-        >
-          {sidebarGroups.map(group => (
-            <div key={group.title} className="mb-4 last:mb-0">
-              <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wide text-gray-500">{group.title}</p>
-              <div className="space-y-0.5">
-                {group.items.map(item => {
-                  const active = item.id === section;
-                  // Weight and padding stay put between states: only colour moves, so the label does
-                  // not thicken or shift sideways when a section becomes the current one.
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onNavigate(item.path)}
-                      aria-current={active ? 'page' : undefined}
-                      className={`flex h-9 w-full items-center rounded-lg px-3 text-left text-sm transition ${
-                        active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </aside>
-      )}
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
+      {/* The name of the section, which the list down the left used to carry. On a phone the bar
+          at the top says it already. */}
+      <div className="hidden px-6 pt-6 lg:block">
+        {/* Not a link: there is no settings index on a desktop — every section is reachable from
+            the menu in the header, which is why the list beside them could go. */}
+        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Настройки</p>
+        <h1 className="mt-0.5 text-xl font-semibold text-gray-950">{SECTION_TITLES[tab]}</h1>
+      </div>
       <div className="min-h-0 min-w-0 flex-1 bg-white">
         {tab === 'shop' && <ShopProfileView onNavigate={onNavigate} />}
         {tab === 'shop-edit' && <ShopProfileEdit onNavigate={onNavigate} />}
