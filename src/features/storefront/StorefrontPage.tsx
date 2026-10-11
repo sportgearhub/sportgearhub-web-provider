@@ -10,7 +10,7 @@ import { profileApi } from '../../lib/api-client';
 import { storefrontProviderUrl } from '../providers/providerStatus';
 import { useProvider } from '../providers/ProviderContext';
 import type { Provider } from '../../types';
-import { ShopProfileView } from '../settings/ShopProfileSettings';
+import { StorefrontData, type LinkMode } from './StorefrontData';
 import { StorefrontBlocks } from './StorefrontBlocks';
 import { StorefrontPreview } from './StorefrontPreview';
 
@@ -32,17 +32,27 @@ export function StorefrontPage({ onNavigate }: { onNavigate: (path: string) => v
   const provider = useProvider();
   const [tab, setTab] = useState('data');
   const [profile, setProfile] = useState<Provider | null>(null);
+  const [loading, setLoading] = useState(true);
+  // Which form of the address is on screen — and in the QR code beside it, since a code of a link
+  // the seller is not looking at is a code nobody asked for.
+  const [linkMode, setLinkMode] = useState<LinkMode>('slug');
 
   useEffect(() => {
     let cancelled = false;
     profileApi.get()
-      .then(next => { if (!cancelled) setProfile(next); })
-      .catch(() => { /* the link falls back to the cabinet's id, which always works */ });
+      .then(next => {
+        if (cancelled) return;
+        setProfile(next);
+        if (!next.slug) setLinkMode('id');
+      })
+      .catch(() => { /* the link falls back to the cabinet's id, which always works */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  const slugOrId = profile?.slug || provider.providerId;
-  const url = storefrontProviderUrl(slugOrId);
+  const url = storefrontProviderUrl(
+    linkMode === 'slug' && profile?.slug ? profile.slug : provider.providerId
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white">
@@ -59,11 +69,17 @@ export function StorefrontPage({ onNavigate }: { onNavigate: (path: string) => v
       </div>
 
       {tab === 'data' ? (
-        <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-4 lg:px-6 lg:pt-4">
-          <ShopProfileView onNavigate={onNavigate} embedded />
-          <div className="px-4 pb-6 sm:px-6 lg:px-0 lg:pb-0">
-            <ShopQrCard url={url} />
-          </div>
+        <div className="min-h-0 flex-1 space-y-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-4 lg:space-y-0">
+          <StorefrontData
+            profile={profile}
+            providerId={provider.providerId}
+            loading={loading}
+            linkMode={linkMode}
+            onLinkMode={setLinkMode}
+            onProfile={patch => setProfile(current => (current ? { ...current, ...patch } : current))}
+            onNavigate={onNavigate}
+          />
+          <ShopQrCard url={url} />
         </div>
       ) : (
         <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-start">

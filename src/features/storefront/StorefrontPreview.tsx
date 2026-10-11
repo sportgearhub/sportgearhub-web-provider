@@ -15,14 +15,14 @@ import { Button } from '../../components/ui/Button';
  * here, and after a few seconds the fallback is the honest thing to show.
  */
 export function StorefrontPreview({ url, device }: { url: string; device: 'phone' | 'desktop' }) {
-  const [blocked, setBlocked] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const loaded = useRef(false);
 
   useEffect(() => {
     loaded.current = false;
-    setBlocked(false);
-    const timer = window.setTimeout(() => { if (!loaded.current) setBlocked(true); }, 3500);
+    setSlow(false);
+    const timer = window.setTimeout(() => { if (!loaded.current) setSlow(true); }, 4000);
     return () => window.clearTimeout(timer);
   }, [url, device, reloadKey]);
 
@@ -32,10 +32,9 @@ export function StorefrontPreview({ url, device }: { url: string; device: 'phone
       src={url}
       title="Витрина проката"
       onLoad={() => {
-        // Cross-origin: we are told it loaded, never what. A refusal usually does not reach here
-        // at all, which is what the timer above is for.
+        // Cross-origin: we are told it loaded, never what is in it.
         loaded.current = true;
-        setBlocked(false);
+        setSlow(false);
       }}
       className="h-full w-full border-0 bg-white"
       sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
@@ -55,24 +54,22 @@ export function StorefrontPreview({ url, device }: { url: string; device: 'phone
         </Button>
       </div>
 
-      {blocked ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-16 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400">
-            {device === 'phone' ? <Smartphone size={20} /> : <Monitor size={20} />}
+      {/* A note beside the frame, never instead of it. Whether a cross-origin page rendered is
+          not a question this side can answer — the first version replaced the preview on a timer
+          and tore down a storefront that was loading perfectly well, mid-scroll. */}
+      {slow && (
+        <p className="mb-2 flex flex-wrap items-center gap-x-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+          <span className="flex items-center gap-1.5">
+            {device === 'phone' ? <Smartphone size={13} /> : <Monitor size={13} />}
+            Если витрина не появилась — сайт запрещает встраивать свои страницы.
           </span>
-          <p className="mt-3 text-sm font-medium text-gray-900">Витрина не показывается внутри кабинета</p>
-          <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
-            Сайт запрещает встраивать свои страницы в другие сайты. Откройте витрину в новой
-            вкладке — это та же страница, которую видит клиент.
-          </p>
-          <Button variant="primary" size="sm" className="mt-4" asChild>
-            <a href={url} target="_blank" rel="noreferrer">
-              <ExternalLink size={14} /> Открыть витрину
-            </a>
-          </Button>
-          <p className="mt-3 break-all text-[11px] text-gray-400">{url}</p>
-        </div>
-      ) : device === 'phone' ? (
+          <a href={url} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
+            Открыть в новой вкладке
+          </a>
+        </p>
+      )}
+
+      {device === 'phone' ? (
         /* A phone's width exactly, in a frame that looks like one: a storefront judged at desktop
            width is judged at a width most of its customers never see. */
         <div className="flex justify-center">
