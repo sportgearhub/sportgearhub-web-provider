@@ -151,11 +151,6 @@ export function SignInPage({ onNavigate }: { onNavigate: Navigate }) {
           placeholder="+7 900 000-00-00"
           value={input}
           onChange={event => setInput(formatAsTyped(event.target.value))}
-          hint={
-            guess.valid
-              ? channel === 'email' ? 'Код придёт на почту' : 'Код придёт в SMS'
-              : undefined
-          }
         />
 
         {/* The label goes while it works: «Войти» beside a spinner reads as an invitation to
