@@ -187,6 +187,7 @@ function PushWaitingStep({
   onRestart: (notice: string) => void;
   onBack: () => void;
 }) {
+  const { redeemConfirmedPhone } = useAuth();
   const stage = useVerificationStage(started.verificationId, started.stage);
 
   // The stage settles once. Without this guard the effect re-runs whenever a parent render gives
@@ -215,8 +216,8 @@ function PushWaitingStep({
     handled.current = true;
     void (async () => {
       try {
-        const result = await authApi.redeemConfirmedPhone(started.verificationId);
-        if (result.status === 'registration_required') {
+        const result = await redeemConfirmedPhone(started.verificationId);
+        if ('registrationToken' in result) {
           onNeedsRegistration(result.registrationToken);
           return;
         }
@@ -225,6 +226,9 @@ function PushWaitingStep({
         onRestart(err instanceof ApiError ? err.message : 'Подтвердить вход не удалось.');
       }
     })();
+    // `redeemConfirmedPhone` is left out on purpose: it is rebuilt on every render of the
+    // provider, and in the dependencies it would redeem again the moment anything above re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, started.verificationId, onNeedsCode, onSignedIn, onNeedsRegistration, onRestart]);
 
   return (

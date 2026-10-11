@@ -908,6 +908,11 @@ export const authApi = {
     if (loadStoredDevice()?.deviceId === deviceId) clearStoredDevice();
   },
   hasTrustedDevice: () => loadStoredDevice() !== null,
+  /**
+   * Whether this browser is holding a token at all. Not «is the session valid» — only the API
+   * answers that — but enough to know a screen should ask before declaring nobody is signed in.
+   */
+  hasToken: () => authToken !== null,
   forgetLocalDevice: clearStoredDevice,
 
   signout: async () => {

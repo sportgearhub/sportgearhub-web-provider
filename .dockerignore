@@ -1,4 +1,8 @@
+# Everything is excluded and the image's contents are listed back in, so nothing ships by
+# accident — which also means a new file the image needs must be named here. `sws.toml` was not,
+# and the build failed on a file that was plainly in the repository.
 *
 !dist
 !dist/**
 !Dockerfile
+!sws.toml

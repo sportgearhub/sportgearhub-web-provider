@@ -27,6 +27,8 @@ interface AuthContextType {
     channel: AuthChannel,
     data: { token: string; name: string; surname: string; birthday: string }
   ) => Promise<Session>;
+  /** The SIM-push path's ending, through here rather than past it — see the note on the method. */
+  redeemConfirmedPhone: (verificationId: string) => Promise<Session | { registrationToken: string }>;
   passcodeSignIn: (passcode: string) => Promise<Session>;
   acceptInvitation: (invitationId: string) => Promise<Session>;
   signOut: () => Promise<void>;
@@ -117,6 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       : adopt(result.session);
   };
 
+  /**
+   * A push approved on the phone ends the sign-in too, and it used to end it in the API client
+   * alone: tokens were stored, the screen moved on, and this context still held nobody. The next
+   * navigation out of `/auth` then met a guard that saw no user and showed the sign-in form —
+   * after a sign-in that had worked.
+   */
+  const redeemConfirmedPhone = async (verificationId: string) => {
+    const result = await authApi.redeemConfirmedPhone(verificationId);
+    return result.status === 'registration_required'
+      ? { registrationToken: result.registrationToken }
+      : adopt(result.session);
+  };
+
   const completeRegistration = async (
     channel: AuthChannel,
     data: { token: string; name: string; surname: string; birthday: string }
@@ -147,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         requestCode,
         verifyCode,
         completeRegistration,
+        redeemConfirmedPhone,
         passcodeSignIn,
         acceptInvitation,
         signOut,

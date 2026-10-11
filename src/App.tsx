@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { selectProvider } from './lib/active-provider';
+import { authApi } from './lib/api-client';
 import { CompleteRegistrationPage, PasscodeSetupPage, PasscodeSignInPage, SignInPage } from './features/auth/AuthPages';
 import { ProviderPickerPage } from './features/providers/ProviderPickerPage';
 import { CreateProviderPage } from './features/providers/CreateProviderPage';
@@ -73,11 +75,25 @@ function AuthRoute({ page }: { page: 'sign-in' | 'passcode' | 'passcode-setup' |
   }
 }
 
-/** Everything outside /auth needs a session; without one, the sign-in page. */
+/**
+ * Everything outside /auth needs a session; without one, the sign-in page.
+ *
+ * It asks for the session before concluding there is none. The context only fetches `/auth/me` at
+ * startup, and it skips that when the app is opened on an `/auth` page — which every sign-in is.
+ * So a browser that has just been given a token, or that reloaded on the passcode screen, arrives
+ * here with a token and no user, and used to be shown the sign-in form it had just come through.
+ */
 function RequireSession() {
-  const { user, loading } = useAuth();
+  const { user, loading, reloadSession } = useAuth();
   const onNavigate = useLegacyNavigate();
-  if (loading) return <Loading />;
+  const [asking, setAsking] = useState(() => !user && authApi.hasToken());
+
+  useEffect(() => {
+    if (!asking) return;
+    void reloadSession().finally(() => setAsking(false));
+  }, [asking, reloadSession]);
+
+  if (loading || asking) return <Loading />;
   if (!user) return <SignInPage onNavigate={onNavigate} />;
   return <Outlet />;
 }
