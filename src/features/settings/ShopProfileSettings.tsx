@@ -18,7 +18,14 @@ import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard'
 import { ContactsCard } from './ContactsCard';
 
 /** What the shop looks like to a customer. Read here, changed on /settings/shop/edit. */
-export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => void }) {
+export function ShopProfileView({
+  onNavigate,
+  embedded = false,
+}: {
+  onNavigate: (path: string) => void;
+  /** Inside the storefront page, which draws its own heading and owns the page's padding. */
+  embedded?: boolean;
+}) {
   const provider = useProvider();
   const [profile, setProfile] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,9 +51,9 @@ export function ShopProfileView({ onNavigate }: { onNavigate: (path: string) => 
   }, [provider.providerId]);
 
   return (
-    <div className="space-y-4 p-6">
+    <div className={embedded ? 'space-y-4 px-4 py-4 sm:px-6 lg:p-0' : 'space-y-4 p-6'}>
       {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      <div className="max-w-3xl space-y-4">
+      <div className={embedded ? 'space-y-4' : 'max-w-3xl space-y-4'}>
         <SettingsCard
           title="Витрина проката"
           description="Название, адрес и описание — то, что видят клиенты. Юридические данные живут в разделе «Информация о продавце»."

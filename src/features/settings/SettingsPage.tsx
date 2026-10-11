@@ -13,7 +13,8 @@ import { LocationsPage } from '../locations/LocationsPage';
 import { PayoutsPage } from '../payouts/PayoutsPage';
 import { SellerProfileSettings } from './SellerProfileSettings';
 import { SellerProfileEdit } from './SellerProfileEdit';
-import { ShopProfileEdit, ShopProfileView } from './ShopProfileSettings';
+import { ShopProfileEdit } from './ShopProfileSettings';
+import { StorefrontPage } from '../storefront/StorefrontPage';
 import { ContractsSettings } from './ContractsSettings';
 import { useProvider } from '../providers/ProviderContext';
 import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
@@ -70,7 +71,9 @@ export function SettingsPage({ tab, onNavigate }: SettingsPageProps) {
         <h1 className="mt-0.5 text-xl font-semibold text-gray-950">{SECTION_TITLES[tab]}</h1>
       </div>
       <div className="min-h-0 min-w-0 flex-1 bg-white">
-        {tab === 'shop' && <ShopProfileView onNavigate={onNavigate} />}
+        {/* «Витрина» is the storefront page now: the data is one of its tabs, beside the two
+            that show the page a customer actually opens. */}
+        {tab === 'shop' && <StorefrontPage onNavigate={onNavigate} />}
         {tab === 'shop-edit' && <ShopProfileEdit onNavigate={onNavigate} />}
         {tab === 'seller' && <SellerProfileSettings onNavigate={onNavigate} />}
         {tab === 'seller-edit' && <SellerProfileEdit onNavigate={onNavigate} />}

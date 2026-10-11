@@ -68,6 +68,16 @@ export const DOCS_BASE_URL = (import.meta.env.VITE_DOCS_BASE_URL || 'https://doc
 export const STOREFRONT_BASE_URL = (import.meta.env.VITE_STOREFRONT_BASE_URL || 'https://sportgearhub.ru').replace(/\/$/, '');
 
 export const storefrontProductUrl = (productId: string) => `${STOREFRONT_BASE_URL}/offers/${productId}`;
+
+/**
+ * Where the customer app lives, which is not the same host as the marketing site.
+ *
+ * A prokat's page is `/providers/<slug or id>` there — the segment takes either, so a cabinet with
+ * no slug of its own still has an address to hand out.
+ */
+export const APP_BASE_URL = (import.meta.env.VITE_APP_BASE_URL || 'https://app.sportgearhub.ru').replace(/\/$/, '');
+
+export const storefrontProviderUrl = (slugOrId: string) => `${APP_BASE_URL}/providers/${slugOrId}`;
 export const AGREEMENT_URL = `${DOCS_BASE_URL}/docs/legal/providers/provider-agreement`;
 
 /** ИНН checksum as the ФНС defines it: 10 digits for organisations, 12 for people and ИП. */
