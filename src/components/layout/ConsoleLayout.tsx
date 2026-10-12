@@ -102,6 +102,8 @@ function taskFor(relativePath: string): {
         + 'а не сегодняшние. Отменённые брони остаются в выписке с нулём, чтобы строка не исчезала.',
     };
   }
+  const receipts = relativePath.match(/^\/bookings\/([^/]+)\/receipts$/);
+  if (receipts) return { title: 'Чеки', backTo: `/bookings/${receipts[1]}`, hideNav: true };
   if (relativePath === '/bookings/filters') {
     return { title: 'Фильтры', backTo: '/bookings', hideNav: true };
   }
@@ -251,7 +253,9 @@ export function ConsoleLayout() {
             task?.hideNav ? '' : 'pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0'
           }`}
         >
-          <div className="mx-auto flex h-full w-full max-w-screen-xl flex-col">
+          {/* min-, not h-full: a page taller than the viewport needs a box taller than the
+              viewport, or the sticky bar it draws itself stops sticking a screen down. */}
+          <div className="mx-auto flex min-h-full w-full max-w-screen-xl flex-col">
             {showStatusBanner && (
               <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:mx-6 sm:mt-4">
                 <span>

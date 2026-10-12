@@ -12,6 +12,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
 import { BookingDetailPage } from './features/bookings/BookingDetailPage';
 import { BookingFiltersPage } from './features/bookings/BookingFiltersPage';
+import { BookingReceiptsPage } from './features/bookings/BookingReceiptsPage';
 import { BookingsCalendarPage } from './features/bookings/BookingsCalendarPage';
 import { ScanPage } from './features/scan/ScanPage';
 import { MenuPage } from './features/menu/MenuPage';
@@ -192,6 +193,12 @@ function BookingDetailRoute() {
   return <BookingDetailPage bookingId={bookingId} onNavigate={navigateTo} />;
 }
 
+function BookingReceiptsRoute() {
+  const { navigateTo } = useConsole();
+  const { bookingId = '' } = useParams();
+  return <BookingReceiptsPage bookingId={bookingId} onNavigate={navigateTo} />;
+}
+
 function ProductsRoute() {
   const { navigateTo } = useConsole();
   return <ProductsPage onNavigate={navigateTo} />;
@@ -257,6 +264,7 @@ const router = createBrowserRouter([
           { path: 'bookings/filters', element: <BookingFiltersRoute /> },
           { path: 'bookings/calendar', element: <BookingsCalendarRoute /> },
           { path: 'bookings/:bookingId', element: <BookingDetailRoute /> },
+          { path: 'bookings/:bookingId/receipts', element: <BookingReceiptsRoute /> },
           { path: 'scan', element: <ScanRoute /> },
           { path: 'finances', element: <FinancesRoute /> },
           { path: 'finances/accruals', element: <AccrualsRoute /> },

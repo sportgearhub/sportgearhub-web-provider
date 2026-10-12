@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Ban, ImageOff, Mail, MoreHorizontal, Package, Phone, XCircle, type LucideIcon } from 'lucide-react';
+import {
+  AlertCircle,
+  Ban,
+  ChevronRight,
+  ImageOff,
+  Mail,
+  MoreHorizontal,
+  Package,
+  Phone,
+  Receipt,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { SubPageHeader } from '../../components/layout/SubPageHeader';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CopyValue } from '../../components/ui/CopyValue';
-import { DetailList, DetailRow } from '../../components/ui/DetailList';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
 import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
@@ -124,6 +135,7 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   // handed over is included on purpose — that is exactly when gear breaks.
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
   const clock = awaiting ? requestClock(booking.createdAt) : null;
+  const hasMenu = canDecline || canIssue || canCancel;
 
   /**
    * The one move the booking is waiting for, in the order it is waited for. The API's own flags
@@ -146,7 +158,9 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         title={`№${booking.bookingNumber}`}
         onBack={goBack}
         action={
-          (canDecline || canIssue || canCancel) ? (
+          // The bar at the bottom carries the dots whenever it is on screen; up here they would
+          // be the same menu twice, a thumb's length apart.
+          (hasMenu && !primary) ? (
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -224,19 +238,23 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4">
         <div className="space-y-2 sm:space-y-4">
+        {/* What is handed over. The questions asked across a counter are what is in the kit and
+            what deposit to take — both live on the card, so they are fetched by its id and shown
+            here rather than left a screen away. The card's own description is not among them:
+            marketing copy is for the customer deciding, not for the person handing the bike over. */}
         <SettingsCard
-          title="Товар"
-          description="Что входит и какой залог брать."
+          title="Что выдать"
+          description="Комплект и залог по карточке товара."
           action={
             <SectionEdit
-              label="Открыть"
+              label="Открыть карточку"
               onClick={() => onNavigate(`/products/${booking.product.productId}`)}
             />
           }
         >
-          {/* The hero at the top of this page is the photo and the name; what belongs here is
-              everything the hero cannot hold. */}
-          <div className="hidden gap-3 sm:flex">
+          {/* The photo and the name, on the screens that have no hero above: a phone shows them
+              at the top of the page, a desktop has nowhere else to show them at all. */}
+          <div className="hidden gap-3 pb-3 sm:flex">
             {booking.product.mediaPreviewUrl ? (
               <img
                 src={mediaUrl(booking.product.mediaPreviewUrl)}
@@ -249,113 +267,121 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
               </span>
             )}
             <div className="min-w-0">
-              <button
-                type="button"
-                onClick={() => onNavigate(`/products/${booking.product.productId}`)}
-                className="text-left text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline"
-              >
-                {booking.product.title}
-              </button>
-              {booking.product.categoryTitle && (
-                <p className="mt-0.5 text-xs text-gray-500">{booking.product.categoryTitle}</p>
-              )}
+              <p className="text-sm font-medium text-gray-900">{booking.product.title}</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {booking.schedule ? `${booking.schedule.quantity} шт` : '1 шт'}
+                {booking.product.categoryTitle ? ` · ${booking.product.categoryTitle}` : ''}
+              </p>
             </div>
           </div>
 
-          {/* The booking says which card; the card says what is in the kit and what deposit to
-              take. Those are the questions asked across a counter, so they are fetched here
-              rather than left on another screen. */}
-          <div className="sm:mt-4 sm:border-t sm:border-gray-100 sm:pt-4">
-            {/* The way to the card is «Открыть» in this section's header, so the panel does not
-                offer a second one. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-3 text-sm sm:hidden">
+            <span className="font-medium text-gray-950">
+              {booking.schedule ? `${booking.schedule.quantity} шт` : '1 шт'}
+            </span>
+            {booking.product.categoryTitle && (
+              <span className="text-gray-500">{booking.product.categoryTitle}</span>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-3">
             <BookingProductPanel productId={booking.product.productId} open hideProductHeader />
           </div>
         </SettingsCard>
 
-          <SettingsCard title="Аренда" description="Сроки и количество.">
-            <DetailList>
-              <DetailRow
-                label="Период"
-                value={formatWindow(booking.schedule?.startAt, booking.schedule?.endAt)}
-                className="hidden sm:grid"
+        {/* The client, compactly: three facts, each one tap to copy. A label column down the left
+            for «Имя», «Телефон», «Почта» spends half the width naming what the value obviously
+            is, on the screen where the operator is reading it aloud. */}
+        <SettingsCard title="Клиент">
+          <p className="text-base font-medium text-gray-950">
+            {booking.customer?.fullName ?? 'Клиент'}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {booking.customer?.phone && (
+              <CopyValue
+                value={booking.customer.phone}
+                label="телефон клиента"
+                icon={<Phone size={12} />}
+                className="rounded-lg bg-gray-50 px-2.5 py-1.5 text-sm"
               />
-              <DetailRow
-                label="Количество"
-                value={booking.schedule ? `${booking.schedule.quantity} шт` : null}
-                className="hidden sm:grid"
+            )}
+            {booking.customer?.email && (
+              <CopyValue
+                value={booking.customer.email}
+                label="почту клиента"
+                icon={<Mail size={12} />}
+                className="rounded-lg bg-gray-50 px-2.5 py-1.5 text-sm"
               />
-              <DetailRow label="Где выдаётся" value={booking.product.fulfillmentLocationName}>
-                {booking.product.fulfillmentLocationName && (
-                  <>
-                    <span className="block text-gray-900">{booking.product.fulfillmentLocationName}</span>
-                    {booking.product.fulfillmentLocationAddress && (
-                      <CopyValue
-                        value={booking.product.fulfillmentLocationAddress}
-                        label="адрес"
-                        className="mt-0.5 text-xs"
-                      />
-                    )}
-                  </>
-                )}
-              </DetailRow>
-              {booking.statusReason && <DetailRow label="Причина" value={booking.statusReason} />}
-            </DetailList>
-          </SettingsCard>
-
-          {booking.fulfillment?.notes && (
-            <SettingsCard title="Заметки по выдаче" description="Что записали при выдаче или возврате.">
-              <p className="whitespace-pre-line text-sm text-gray-800">{booking.fulfillment.notes}</p>
-            </SettingsCard>
+            )}
+          </div>
+          {!booking.customer?.phone && !booking.customer?.email && (
+            <p className="mt-1 text-sm text-gray-500">Контакты не указаны.</p>
           )}
+        </SettingsCard>
 
-          <SettingsCard title="Клиент" description="Кому выдаём.">
-            <DetailList>
-              <DetailRow label="Имя" value={booking.customer?.fullName} className="hidden sm:grid" />
-              <DetailRow label="Телефон">
-                {booking.customer?.phone
-                  ? <CopyValue value={booking.customer.phone} label="телефон клиента" icon={<Phone size={12} />} />
-                  : <span className="text-gray-400">Не указан</span>}
-              </DetailRow>
-              <DetailRow label="Почта">
-                {booking.customer?.email
-                  ? <CopyValue value={booking.customer.email} label="почту клиента" icon={<Mail size={12} />} />
-                  : <span className="text-gray-400">Не указана</span>}
-              </DetailRow>
-            </DetailList>
-          </SettingsCard>
+        <SettingsCard title="Аренда">
+          <dl className="divide-y divide-gray-100 text-sm">
+            <Row label="Период" value={formatWindow(booking.schedule?.startAt, booking.schedule?.endAt) ?? '—'} />
+            <Row label="Количество" value={booking.schedule ? `${booking.schedule.quantity} шт` : '—'} />
+            {booking.product.fulfillmentLocationName && (
+              <div className="py-2.5">
+                <dt className="text-xs text-gray-500">Где выдаётся</dt>
+                <dd className="mt-0.5 text-gray-900">
+                  {booking.product.fulfillmentLocationName}
+                  {booking.product.fulfillmentLocationAddress && (
+                    <CopyValue
+                      value={booking.product.fulfillmentLocationAddress}
+                      label="адрес"
+                      className="mt-0.5 text-xs"
+                    />
+                  )}
+                </dd>
+              </div>
+            )}
+            {booking.statusReason && <Row label="Причина" value={booking.statusReason} />}
+          </dl>
+        </SettingsCard>
 
-          {booking.receipts?.length > 0 && (
-          <SettingsCard title="Чеки" description="Фискальные чеки по этой брони.">
-            <DetailList>
-              {booking.receipts.map(receipt => (
-                <DetailRow key={receipt.receiptId} label={receipt.operation === 'refund' ? 'Возврат' : 'Оплата'}>
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-medium text-gray-900">{receipt.total} ₽</span>
-                    <Badge variant={receipt.status === 'completed' ? 'green' : 'gray'}>{receipt.status}</Badge>
-                    {receipt.ofdReceiptUrl && (
-                      <a
-                        href={receipt.ofdReceiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-blue-700 hover:underline"
-                      >
-                        Открыть чек
-                      </a>
-                    )}
-                  </span>
-                </DetailRow>
-              ))}
-            </DetailList>
+        {booking.fulfillment?.notes && (
+          <SettingsCard title="Заметки по выдаче" description="Что записали при выдаче или возврате.">
+            <p className="whitespace-pre-line text-sm text-gray-800">{booking.fulfillment.notes}</p>
           </SettingsCard>
         )}
 
-        {booking.support?.correlationRef && (
-            <SettingsCard title="Поддержка" description="Назовите этот номер, если пишете нам о брони.">
-              <CopyValue value={booking.support.correlationRef} label="номер обращения" className="text-xs" />
-            </SettingsCard>
+        {/* The number, in full and readable. The bar above truncates it to fit beside the arrow,
+            and it is the one thing a seller reads out to support or types into a search. */}
+        <SettingsCard title="Номер бронирования">
+          <CopyValue value={booking.bookingNumber} label="номер бронирования" className="text-sm" />
+          {booking.support?.correlationRef && (
+            <p className="mt-2 text-xs text-gray-500">
+              Для поддержки: <span className="text-gray-700">{booking.support.correlationRef}</span>
+            </p>
           )}
-        {/* Room at the end for the button that floats over it. */}
-        <div className={primary ? 'h-20 lg:hidden' : 'hidden'} />
+        </SettingsCard>
+
+        {/* Receipts are accounting, not counter work: a row through to them keeps this screen
+            about handing the gear over. */}
+        {booking.receipts?.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onNavigate(`/bookings/${bookingId}/receipts`)}
+            className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left transition hover:bg-gray-50 sm:rounded-xl sm:border sm:border-gray-200"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+              <Receipt size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-gray-950">Чеки</span>
+              <span className="block text-xs text-gray-500">
+                {booking.receipts.length} {booking.receipts.length === 1 ? 'чек' : 'чека'} по этой брони
+              </span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-gray-400" />
+          </button>
+        )}
+
+        {/* Room at the end for the bar that sits over it, so the last section is not under it. */}
+        <div className={primary ? 'h-24 lg:hidden' : 'hidden'} />
         </div>
 
         {/* The rail: what this booking is waiting for, and everything that can be done to it.
@@ -407,21 +433,30 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       </div>
     </SectionPage>
 
-    {/* The one move this booking is waiting for, where a thumb is. The rest — decline, report a
-        problem — are behind the dots in the bar above. */}
-    {/* The one move this booking is waiting for, floating over the page within a thumb's reach
-        rather than as a bar sealing the bottom of it — the content goes on showing underneath,
-        which matters on a screen where the window and the customer are three lines up. */}
+    {/* The one move this booking is waiting for, as a bar across the bottom where the navigation
+        bar would be — a booking is opened to be acted on, and the action should be under the thumb
+        without hunting for it. Everything else it can do is behind the dots at its right, so one
+        bar covers both and the header above keeps only the number. */}
     {primary && (
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-gray-200 bg-white/95 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
         <Button
           variant="primary"
           loading={busy}
           onClick={primary.run}
-          className="pointer-events-auto h-12 rounded-full px-6 text-base shadow-lg shadow-blue-600/25"
+          className="h-12 flex-1 justify-center rounded-xl text-base"
         >
           {primary.label}
         </Button>
+        {hasMenu && (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Другие действия"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition active:bg-gray-200"
+          >
+            <MoreHorizontal size={22} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
     )}
 
@@ -500,6 +535,16 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       </ul>
     </BottomSheet>
     </>
+  );
+}
+
+/** Label over value, which is what fits on a phone — a label column eats half the width. */
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 py-2.5">
+      <dt className="text-xs text-gray-500">{label}</dt>
+      <dd className="text-gray-900">{value}</dd>
+    </div>
   );
 }
 

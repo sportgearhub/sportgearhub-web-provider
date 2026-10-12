@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronRight, Plus, UserRound } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { BrandWordmark } from '../../components/layout/BrandWordmark';
@@ -156,25 +156,31 @@ export function ProviderPickerPage() {
         <button
           type="button"
           onClick={() => navigate('/providers/new')}
-          className="flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+          className="text-sm font-medium text-blue-700 hover:text-blue-800"
         >
-          <Plus size={14} /> Добавить кабинет
+          Добавить кабинет
         </button>
-        {/* Full-width rows on a phone, where a thumb reaches the bottom of the screen and not the
-            middle of a row; side by side once there is width to spare. */}
-        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-          <Button type="button" variant="secondary" className="w-full justify-center sm:w-auto" onClick={() => void signOut()}>
+        {/* One shape for both: these were a tall pill with a chevron over a short plain button,
+            which read as two different kinds of control on a screen where they are the only two.
+            Same height, same width, same corners — only the colour says which one goes forward. */}
+        <div className="flex flex-col-reverse gap-2 pt-1 sm:grid sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-12 w-full justify-center text-base sm:text-sm"
+            onClick={() => void signOut()}
+          >
             Выйти
           </Button>
           {providers.length > 0 && (
             <Button
               type="button"
               variant="primary"
-              className="h-12 w-full justify-center sm:h-9 sm:w-auto"
+              className="h-12 w-full justify-center text-base sm:text-sm"
               disabled={!selected}
               onClick={() => enter(selected)}
             >
-              Далее <ChevronRight size={14} />
+              Далее
             </Button>
           )}
         </div>
