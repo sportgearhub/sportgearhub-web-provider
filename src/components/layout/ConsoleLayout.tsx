@@ -104,6 +104,16 @@ function taskFor(relativePath: string): {
   }
   const receipts = relativePath.match(/^\/bookings\/([^/]+)\/receipts$/);
   if (receipts) return { title: 'Чеки', backTo: `/bookings/${receipts[1]}`, hideNav: true };
+  const issue = relativePath.match(/^\/bookings\/([^/]+)\/issue$/);
+  if (issue) {
+    return {
+      title: 'Проблема',
+      backTo: `/bookings/${issue[1]}`,
+      hideNav: true,
+      help: 'Обращение фиксируется по этой брони: поломка, опоздание, спор о состоянии снаряжения. '
+        + 'Площадка видит его вместе с оплатой и выдачей — отдельно писать в поддержку не нужно.',
+    };
+  }
   if (relativePath === '/bookings/filters') {
     return { title: 'Фильтры', backTo: '/bookings', hideNav: true };
   }

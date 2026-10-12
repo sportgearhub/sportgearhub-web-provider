@@ -135,13 +135,6 @@ export function BookingProductPanel({
         <p className="text-sm text-gray-500">Состав комплекта не указан в карточке товара.</p>
       )}
 
-      {product.description && (
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Описание</p>
-          <p className="mt-1 whitespace-pre-line text-sm leading-5 text-gray-700">{product.description}</p>
-        </div>
-      )}
-
       {policy?.leadTimeHours != null && (
         <p className="text-xs text-gray-500">Бронь не позднее чем за {policy.leadTimeHours} ч до начала.</p>
       )}

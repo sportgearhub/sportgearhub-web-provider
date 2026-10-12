@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertCircle,
+  AlertTriangle,
   Ban,
   ChevronRight,
   ImageOff,
@@ -8,7 +8,7 @@ import {
   MoreHorizontal,
   Package,
   Phone,
-  Receipt,
+  ReceiptRussianRuble,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -19,24 +19,22 @@ import { Button } from '../../components/ui/Button';
 import { CopyValue } from '../../components/ui/CopyValue';
 import { SkeletonDetail } from '../../components/ui/Skeleton';
 import { SectionPage } from '../../components/layout/SectionPage';
-import { SectionEdit, SettingsCard } from '../../components/layout/SettingsCard';
+import { SettingsCard } from '../../components/layout/SettingsCard';
 import { ApiError, bookingsApi, mediaUrl } from '../../lib/api-client';
 import { useGoBack } from '../../lib/useGoBack';
 import type { BookingDetail, FulfillmentDetail } from '../../types';
-import { bookingStatusMeta, fulfillmentStageMeta, formatWindow, requestClock } from './bookingMeta';
+import { bookingStatusMeta, fulfillmentStageMeta, formatWindow, rentalLength, requestClock } from './bookingMeta';
 import { BookingProductPanel } from './BookingProductPanel';
 import { HandoverForm } from './HandoverForm';
 import { ReturnForm } from './ReturnForm';
-import { IssueReportForm } from './IssueReportForm';
 import { DeclineForm } from './DeclineForm';
 import { CancelForm } from './CancelForm';
 
-type Action = 'handover' | 'return' | 'issue' | 'decline' | 'cancel';
+type Action = 'handover' | 'return' | 'decline' | 'cancel';
 
 const ACTION_TITLES: Record<Action, string> = {
   handover: 'Выдача',
   return: 'Возврат',
-  issue: 'Сообщить о проблеме',
   decline: 'Отклонить заявку',
   cancel: 'Отменить бронь',
 };
@@ -135,7 +133,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
   // handed over is included on purpose — that is exactly when gear breaks.
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
   const clock = awaiting ? requestClock(booking.createdAt) : null;
-  const hasMenu = canDecline || canIssue || canCancel;
+  const hasMenu = canDecline || canCancel;
+  const length = rentalLength(booking.schedule?.startAt, booking.schedule?.endAt);
 
   /**
    * The one move the booking is waiting for, in the order it is waited for. The API's own flags
@@ -194,8 +193,15 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
       {/* What was booked, at the top of its own page: the photo, the name in full, the state, the
           window and who is coming for it. The bar above has room for the number alone. */}
-      <section className="mb-2 rounded-2xl bg-white p-4 sm:hidden">
-        <div className="flex gap-3">
+      {/* The hero is the way to the card: tapping what was booked opens what was booked, which is
+          where its description, photos and rules live. A pencil in a section header below said the
+          same thing in a smaller target. */}
+      <section className="mb-2 rounded-2xl bg-white sm:hidden">
+        <button
+          type="button"
+          onClick={() => onNavigate(`/products/${booking.product.productId}`)}
+          className="flex w-full gap-3 p-4 text-left transition active:bg-gray-50"
+        >
           {booking.product.mediaPreviewUrl ? (
             <img
               src={mediaUrl(booking.product.mediaPreviewUrl)}
@@ -215,13 +221,15 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
             <h1 className="mt-1.5 text-base font-semibold leading-5 text-gray-950">{booking.product.title}</h1>
             <p className="mt-1 text-xs font-medium text-gray-900">
               {formatWindow(booking.schedule?.startAt, booking.schedule?.endAt) ?? '—'}
+              {length ? <span className="text-gray-500"> · {length}</span> : null}
             </p>
             <p className="mt-0.5 truncate text-xs text-gray-500">
               {booking.customer?.fullName ?? 'Клиент'}
               {(booking.schedule?.quantity ?? 1) > 1 ? ` · ${booking.schedule?.quantity} шт` : ''}
             </p>
           </div>
-        </div>
+          <ChevronRight size={16} className="mt-1 shrink-0 self-start text-gray-400" />
+        </button>
       </section>
 
       {/* A request answers itself after 24 hours — the booking expires, the item is released and
@@ -238,23 +246,34 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4">
         <div className="space-y-2 sm:space-y-4">
+        {/* The number, in full, first. The bar above truncates it to fit beside the arrow, and it
+            is the one thing a seller reads out to a client or to support — so it is a labelled
+            line to read from rather than a section with a heading of its own. */}
+        <section className="rounded-2xl bg-white px-4 py-3 text-sm sm:rounded-xl sm:border sm:border-gray-200 sm:px-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="text-xs text-gray-500">Номер брони</span>
+            <CopyValue value={booking.bookingNumber} label="номер брони" className="font-medium" />
+          </div>
+          {booking.support?.correlationRef && (
+            <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-t border-gray-100 pt-1.5 text-xs">
+              <span className="text-gray-500">Для поддержки</span>
+              <CopyValue value={booking.support.correlationRef} label="номер для поддержки" className="text-xs" />
+            </div>
+          )}
+        </section>
+
         {/* What is handed over. The questions asked across a counter are what is in the kit and
             what deposit to take — both live on the card, so they are fetched by its id and shown
             here rather than left a screen away. The card's own description is not among them:
             marketing copy is for the customer deciding, not for the person handing the bike over. */}
-        <SettingsCard
-          title="Что выдать"
-          description="Комплект и залог по карточке товара."
-          action={
-            <SectionEdit
-              label="Открыть карточку"
-              onClick={() => onNavigate(`/products/${booking.product.productId}`)}
-            />
-          }
-        >
+        <SettingsCard title="Что выдать" description="Комплект и залог по карточке товара.">
           {/* The photo and the name, on the screens that have no hero above: a phone shows them
               at the top of the page, a desktop has nowhere else to show them at all. */}
-          <div className="hidden gap-3 pb-3 sm:flex">
+          <button
+            type="button"
+            onClick={() => onNavigate(`/products/${booking.product.productId}`)}
+            className="-mx-2 mb-3 hidden w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-gray-50 sm:flex"
+          >
             {booking.product.mediaPreviewUrl ? (
               <img
                 src={mediaUrl(booking.product.mediaPreviewUrl)}
@@ -273,8 +292,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
                 {booking.product.categoryTitle ? ` · ${booking.product.categoryTitle}` : ''}
               </p>
             </div>
-          </div>
-
+            <ChevronRight size={16} className="ml-auto shrink-0 text-gray-400" />
+          </button>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-3 text-sm sm:hidden">
             <span className="font-medium text-gray-950">
               {booking.schedule ? `${booking.schedule.quantity} шт` : '1 шт'}
@@ -322,6 +341,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
         <SettingsCard title="Аренда">
           <dl className="divide-y divide-gray-100 text-sm">
             <Row label="Период" value={formatWindow(booking.schedule?.startAt, booking.schedule?.endAt) ?? '—'} />
+            {/* What the two ends of the window add up to — the figure the price was taken for. */}
+            <Row label="Длительность" value={length ?? '—'} />
             <Row label="Количество" value={booking.schedule ? `${booking.schedule.quantity} шт` : '—'} />
             {booking.product.fulfillmentLocationName && (
               <div className="py-2.5">
@@ -348,36 +369,28 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
           </SettingsCard>
         )}
 
-        {/* The number, in full and readable. The bar above truncates it to fit beside the arrow,
-            and it is the one thing a seller reads out to support or types into a search. */}
-        <SettingsCard title="Номер бронирования">
-          <CopyValue value={booking.bookingNumber} label="номер бронирования" className="text-sm" />
-          {booking.support?.correlationRef && (
-            <p className="mt-2 text-xs text-gray-500">
-              Для поддержки: <span className="text-gray-700">{booking.support.correlationRef}</span>
-            </p>
-          )}
-        </SettingsCard>
-
         {/* Receipts are accounting, not counter work: a row through to them keeps this screen
             about handing the gear over. */}
-        {booking.receipts?.length > 0 && (
-          <button
-            type="button"
+        {booking.receipts.length > 0 && (
+          <LinkRow
+            icon={ReceiptRussianRuble}
+            title="Чеки"
+            note={`${booking.receipts.length} ${receiptWord(booking.receipts.length)} по этой брони`}
             onClick={() => onNavigate(`/bookings/${bookingId}/receipts`)}
-            className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left transition hover:bg-gray-50 sm:rounded-xl sm:border sm:border-gray-200"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-              <Receipt size={17} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-gray-950">Чеки</span>
-              <span className="block text-xs text-gray-500">
-                {booking.receipts.length} {booking.receipts.length === 1 ? 'чек' : 'чека'} по этой брони
-              </span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-gray-400" />
-          </button>
+          />
+        )}
+
+        {/* A problem gets a place of its own, not a line in a menu: breakage, a late return or an
+            argument is written down while the client is still standing there, and whoever writes
+            it should not have to find it behind three dots. */}
+        {canIssue && (
+          <LinkRow
+            icon={AlertTriangle}
+            title="Сообщить о проблеме"
+            note="Поломка, опоздание, спор — опишите, что случилось."
+            onClick={() => onNavigate(`/bookings/${bookingId}/issue`)}
+            tone="warning"
+          />
         )}
 
         {/* Room at the end for the bar that sits over it, so the last section is not under it. */}
@@ -413,8 +426,8 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
                 <Button variant="secondary" onClick={() => setAction('cancel')}>Отменить бронь</Button>
               )}
               {canIssue && (
-                <Button variant="ghost" onClick={() => setAction('issue')}>
-                  <AlertCircle size={14} /> Сообщить о проблеме
+                <Button variant="ghost" onClick={() => onNavigate(`/bookings/${bookingId}/issue`)}>
+                  <AlertTriangle size={14} /> Сообщить о проблеме
                 </Button>
               )}
               {!awaiting && !canCancel && !canIssue
@@ -475,9 +488,6 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
       {action === 'return' && (
         <ReturnForm bookingId={bookingId} onSuccess={done('Возврат принят — аренда завершена.')} onCancel={() => setAction(null)} />
       )}
-      {action === 'issue' && (
-        <IssueReportForm bookingId={bookingId} onSuccess={done('Обращение отправлено.')} onCancel={() => setAction(null)} />
-      )}
       {action === 'decline' && (
         <DeclineForm bookingId={bookingId} onSuccess={done('Заявка отклонена.')} onCancel={() => setAction(null)} />
       )}
@@ -516,14 +526,6 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
             onClick={() => { setMenuOpen(false); setAction('decline'); }}
           />
         )}
-        {canIssue && (
-          <SheetRow
-            icon={AlertCircle}
-            title="Сообщить о проблеме"
-            note="Поломка, опоздание, спор — зафиксировать по этой брони."
-            onClick={() => { setMenuOpen(false); setAction('issue'); }}
-          />
-        )}
         {canCancel && (
           <SheetRow
             icon={Ban}
@@ -536,6 +538,56 @@ export function BookingDetailPage({ bookingId, onNavigate }: { bookingId: string
     </BottomSheet>
     </>
   );
+}
+
+/**
+ * A row that leads somewhere: an icon, what is there, one line about it, an arrow.
+ *
+ * Receipts and problem reports are not sections of this page — they are other screens, and a row
+ * that looks like a link is the honest way to say so. Both in one shape, so a tap on either lands
+ * where the eye expects.
+ */
+function LinkRow({
+  icon: Icon,
+  title,
+  note,
+  onClick,
+  tone = 'plain',
+}: {
+  icon: LucideIcon;
+  title: string;
+  note: string;
+  onClick: () => void;
+  tone?: 'plain' | 'warning';
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left transition hover:bg-gray-50 sm:rounded-xl sm:border sm:border-gray-200 sm:px-5"
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+        tone === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'
+      }`}>
+        <Icon size={17} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-gray-950">{title}</span>
+        <span className="block text-xs leading-4 text-gray-500">{note}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-gray-400" />
+    </button>
+  );
+}
+
+/** «1 чек», «2 чека», «5 чеков» — a count in Russian needs all three. */
+function receiptWord(count: number) {
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'чеков';
+  const mod10 = count % 10;
+  if (mod10 === 1) return 'чек';
+  if (mod10 >= 2 && mod10 <= 4) return 'чека';
+  return 'чеков';
 }
 
 /** Label over value, which is what fits on a phone — a label column eats half the width. */

@@ -46,6 +46,42 @@ export function formatWindow(startAt?: string | null, endAt?: string | null) {
     : `${day(start)}, ${time(start)} — ${day(end)}, ${time(end)}`;
 }
 
+/**
+ * How long the rental lasts: «8 ч», «2 дня 4 ч», «45 мин».
+ *
+ * The window says when it starts and when it is due back; the length is what the two ends mean,
+ * and it is the number an operator checks against the price they took. Subtracting dates in your
+ * head at a counter is how gear comes back a day late.
+ */
+export function rentalLength(startAt?: string | null, endAt?: string | null) {
+  if (!startAt || !endAt) return null;
+  const ms = new Date(endAt).getTime() - new Date(startAt).getTime();
+  if (Number.isNaN(ms) || ms <= 0) return null;
+
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} мин`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    const rest = minutes % 60;
+    return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest ? `${days} ${plural(days, 'день', 'дня', 'дней')} ${rest} ч` : `${days} ${plural(days, 'день', 'дня', 'дней')}`;
+}
+
+/** Russian counts need three forms, and «1 дней» in a seller's console is a bug they can see. */
+function plural(count: number, one: string, few: string, many: string) {
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  const mod10 = count % 10;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
 /** Midnight today and midnight tomorrow, with this browser's offset — the bounds a day filter needs. */
 /** Midnight local time, as an offset-bearing ISO string the RSQL filter understands. */
 export function isoMidnight(date: Date) {
