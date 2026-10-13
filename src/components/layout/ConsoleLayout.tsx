@@ -119,11 +119,25 @@ function taskFor(relativePath: string): {
   }
   if (relativePath === '/bookings/calendar') {
     return {
-      title: 'Календарь',
+      title: 'Расписание',
       backTo: '/bookings',
       hideNav: true,
-      help: 'Выберите день, чтобы увидеть выдачи и возвраты на него. Точки под числом — это брони: '
-        + 'синяя значит выдачу, бирюзовая возврат.',
+      help: 'Числа в клетке — это сколько броней в этот день: синее сверху выдачи, зелёное возвраты, '
+        + 'серое — снаряжение, которое уже на руках. Нажмите день, чтобы открыть его целиком. '
+        + 'Вкладка «Недели» показывает те же дни неделями — удобно, когда планируете смены.',
+    };
+  }
+  // One day, with its own bar: the day itself is the title, and «Расписание» is the way back.
+  const day = relativePath.match(/^\/bookings\/day\/(\d{4})-(\d{2})-(\d{2})$/);
+  if (day) {
+    const date = new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
+    return {
+      // The date is the name of this screen; «День» would be a label for a thing already named.
+      title: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }),
+      backTo: '/bookings/calendar',
+      hideNav: true,
+      help: 'Всё, что происходит в этот день: что выдать, что принять и что в этот день просто '
+        + 'на руках у клиентов. Время — это начало аренды для выдач и срок возврата для возвратов.',
     };
   }
   // A booking's own page: its bar carries the number and a menu for it, so the page draws it.
