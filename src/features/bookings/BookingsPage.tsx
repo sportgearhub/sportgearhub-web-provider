@@ -286,7 +286,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
         {/* The bottom of the same white block: where else this screen goes. */}
         <div className="-mt-4 rounded-b-2xl bg-white pb-2.5 pt-4 md:hidden">
           <div className="flex gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <FeatureTile icon={CalendarDays} label="Календарь" onClick={() => onNavigate('/bookings/calendar')} />
+            <FeatureTile icon={CalendarDays} label="Расписание" onClick={() => onNavigate('/bookings/calendar')} />
             <FeatureTile icon={ScanLine} label="Сканер" onClick={() => onNavigate('/scan')} />
           </div>
         </div>
@@ -315,7 +315,7 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
               {pageInfo && <p className="mt-1 text-sm text-gray-500">{pageInfo.totalItems} всего</p>}
             </div>
             <Button variant="secondary" onClick={() => onNavigate('/bookings/calendar')}>
-              <CalendarDays size={15} /> Календарь
+              <CalendarDays size={15} /> Расписание
             </Button>
           </div>
 
@@ -421,8 +421,8 @@ export function BookingsPage({ onNavigate }: { onNavigate: (path: string) => voi
           />
           <MenuRow
             icon={CalendarDays}
-            title="Календарь"
-            note="Месяц целиком: что происходит в какой день."
+            title="Расписание"
+            note="Месяц, недели и любой день целиком."
             onClick={() => { setMenuOpen(false); onNavigate('/bookings/calendar'); }}
           />
         </ul>
